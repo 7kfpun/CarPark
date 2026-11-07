@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#a9cfee" />
+    <title>Park It 3D</title>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="flash"></div>
+
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <div class="pill" id="hud-level"></div>
+        <div class="pill" id="hud-timer"></div>
+        <div class="pill hearts" id="hud-hits"></div>
+      </div>
+      <div class="hud-corner">
+        <button class="icon-btn" id="btn-cam" aria-label="Toggle camera">🎥</button>
+        <button class="icon-btn" id="btn-pause" aria-label="Pause">⏸</button>
+      </div>
+      <div class="pill gear" id="hud-gear"></div>
+      <div id="hud-hint"></div>
+      <div id="park-meter" class="hidden">
+        <div class="bar"><div id="park-fill"></div></div>
+        <span id="park-label"></span>
+      </div>
+    </div>
+
+    <div id="touch" class="hidden">
+      <div class="touch-group left">
+        <button id="t-left" aria-label="Steer left">◀</button>
+        <button id="t-right" aria-label="Steer right">▶</button>
+      </div>
+      <div class="touch-group right">
+        <button id="t-brake" class="small" aria-label="Handbrake">P</button>
+        <div class="pedals">
+          <button id="t-up" aria-label="Accelerate">▲</button>
+          <button id="t-down" aria-label="Brake / reverse">▼</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu" class="screen hidden">
+      <div class="panel">
+        <h1>Park&nbsp;It <span>3D</span></h1>
+        <p class="tagline">Six lots. One bay each. Don't scratch the paint.</p>
+        <div id="level-grid"></div>
+        <div id="menu-total"></div>
+        <div class="controls">
+          <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
+          <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
+          <div><kbd>C</kbd> camera · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal" class="screen hidden">
+      <div class="panel small">
+        <h2 id="modal-title"></h2>
+        <div id="modal-stars" class="stars"></div>
+        <p id="modal-body"></p>
+        <div id="modal-buttons"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
