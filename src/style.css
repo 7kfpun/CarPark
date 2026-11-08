@@ -688,3 +688,32 @@ kbd {
     --mirror-top: calc(100px + var(--safe-t));
   }
 }
+
+/* ---------- Loading screen ---------- */
+#loading {
+  z-index: 10;
+}
+
+#loading .panel {
+  text-align: center;
+  min-width: min(260px, 100%);
+}
+
+#loading-text {
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+
+#loading .bar {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+#loading-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ffe14d, var(--good));
+  transition: width 0.15s;
+}
