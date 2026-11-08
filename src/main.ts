@@ -16,8 +16,9 @@ import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { loadProgress, saveProgress } from './progress';
 import { loadSettings, SettingsPanel } from './settings';
+import { checkForUpdate, type UpdateKind } from './update';
 
-type State = 'menu' | 'playing' | 'paused' | 'done';
+type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
 // --- Renderer & scene -------------------------------------------------------
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -122,6 +123,7 @@ function startLevel(i: number): void {
   rig.snap(player.physics);
   hud.startLevel(i, def);
   state = 'playing';
+  hud.hideUpdateBanner(); // never interrupt a level; it comes back at the next menu
 }
 
 function showMenu(): void {
@@ -134,6 +136,7 @@ function showMenu(): void {
     sfx.click();
     startLevel(i);
   });
+  applyUpdate();
 }
 
 function pause(): void {
@@ -185,7 +188,43 @@ function finish(win: boolean, reason: string): void {
       { label: 'Menu', onClick: showMenu },
     ]);
   }
+  applyUpdate();
 }
+
+// --- Updates ------------------------------------------------------------------
+// Only shown from the menu or after a level ends, never mid-level.
+let pendingUpdate: UpdateKind = 'none';
+let updateDismissed = false;
+let lastUpdateCheck = 0;
+const reloadPage = (): void => location.reload();
+
+function applyUpdate(): void {
+  if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
+  if (pendingUpdate === 'required') {
+    state = 'blocked';
+    input.clear();
+    hud.hideUpdateBanner();
+    hud.showModal('Please update to keep playing', 'A new version of Park It 3D is required.', null, [
+      { label: 'Update', primary: true, onClick: reloadPage },
+    ]);
+  } else if (!updateDismissed) {
+    hud.showUpdateBanner(reloadPage, () => (updateDismissed = true));
+  }
+}
+
+async function runUpdateCheck(): Promise<void> {
+  const now = Date.now();
+  if (now - lastUpdateCheck < 30_000) return; // launch and resume can fire back to back
+  lastUpdateCheck = now;
+  const kind = await checkForUpdate(
+    { version: __APP_VERSION__, build: __APP_BUILD__ },
+    new URL('version.json', document.baseURI).href,
+  );
+  // A newer answer replaces an older one, but a required update is never downgraded.
+  if (kind !== 'none' && pendingUpdate !== 'required') pendingUpdate = kind;
+  applyUpdate();
+}
+document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());
 
 // --- Keyboard actions ---------------------------------------------------------
 input.driving = () => state === 'playing';
@@ -360,3 +399,4 @@ const direct = qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
 else showMenu();
 if (gfx.ok) requestAnimationFrame(frame);
+void runUpdateCheck();

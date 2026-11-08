@@ -7,6 +7,7 @@ import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { loadProgress } from '../src/progress';
+import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
 
 declare const process: { exit(code: number): never };
 
@@ -286,6 +287,50 @@ check(load('{"unlocked":99}').unlocked === 4, 'unlocked above level count is cla
 check(load('{"unlocked":-3}').unlocked === 1, 'negative unlocked is clamped to 1');
 check(load('{"unlocked":0}').unlocked === 1, 'zero unlocked is clamped to 1');
 check(load('{"unlocked":2.9}').unlocked === 2, 'fractional unlocked is floored');
+
+// Update check
+console.log('Update check');
+const me = { version: '1.2.0', build: 'abc' };
+const rem = (version: string, build: string, minVersion: string | null = null) => ({ version, build, minVersion });
+check(compareVersions(parseVersion('1.10.0')!, parseVersion('1.9.0')!) > 0, 'versions compare numerically');
+check(compareVersions(parseVersion('1.2')!, parseVersion('1.2.0')!) === 0, 'missing parts count as 0');
+check(parseVersion('1.2.x') === null && parseVersion('') === null && parseVersion(3) === null, 'bad versions rejected');
+check(decideUpdate(me, rem('1.2.0', 'abc')) === 'none', 'same build is up to date');
+check(decideUpdate(me, rem('1.2.0', 'def')) === 'optional', 'new build of the same version is optional');
+check(decideUpdate(me, rem('1.3.0', 'def')) === 'optional', 'newer version is optional');
+check(decideUpdate(me, rem('1.1.0', 'def')) === 'none', 'older remote is ignored');
+check(decideUpdate(me, rem('1.3.0', 'def', '1.2.0')) === 'optional', 'at min version is not required');
+check(decideUpdate(me, rem('1.3.0', 'def', '1.2.1')) === 'required', 'below min version is required');
+check(decideUpdate(me, rem('1.2.0', 'abc', '1.5.0')) === 'required', 'required even when build matches');
+check(parseRemote({ version: '1.0.0', build: 'x' })?.minVersion === null, 'minVersion is optional');
+check(parseRemote({ version: 'nope', build: 'x' }) === null, 'bad remote version rejected');
+check(parseRemote({ version: '1.0.0', build: 'x', minVersion: 'zz' }) === null, 'bad minVersion rejected');
+check(parseRemote(null) === null && parseRemote('x') === null, 'non-object remote rejected');
+const ok = (body: unknown, status = 200) =>
+  (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
+check(
+  (await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd', '1.3.0')))) === 'required',
+  'fetched required update',
+);
+check((await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))) === 'optional', 'fetched optional update');
+check((await checkForUpdate(me, 'v.json', 50, ok({}, 404))) === 'none', 'HTTP error never blocks');
+check((await checkForUpdate(me, 'v.json', 50, ok({ junk: 1 }))) === 'none', 'junk body never blocks');
+check(
+  (await checkForUpdate(me, 'v.json', 50, (async () => {
+    throw new Error('offline');
+  }) as typeof fetch)) === 'none',
+  'offline never blocks',
+);
+check(
+  (await checkForUpdate(
+    me,
+    'v.json',
+    20,
+    ((_u: unknown, init?: RequestInit) =>
+      new Promise((_r, rej) => init?.signal?.addEventListener('abort', () => rej(new Error('abort'))))) as typeof fetch,
+  )) === 'none',
+  'hung server times out without blocking',
+);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

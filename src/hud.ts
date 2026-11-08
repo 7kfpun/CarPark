@@ -159,6 +159,22 @@ export class Hud {
     (row.querySelector('.primary') as HTMLButtonElement | null)?.focus();
   }
 
+  /** Dismissible "new version" banner. */
+  showUpdateBanner(onUpdate: () => void, onDismiss: () => void): void {
+    const banner = $('update-banner');
+    $('update-go').onclick = onUpdate;
+    $('update-dismiss').onclick = () => {
+      this.hideUpdateBanner();
+      onDismiss();
+    };
+    if (banner.classList.contains('hidden')) this.announce('New version available');
+    banner.classList.remove('hidden');
+  }
+
+  hideUpdateBanner(): void {
+    $('update-banner').classList.add('hidden');
+  }
+
   hideModal(): void {
     this.modal.classList.add('hidden');
   }
