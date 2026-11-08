@@ -1,27 +1,26 @@
 import * as THREE from 'three';
 import './style.css';
+import { reducedMotion } from './a11y';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
+import { loadCarModels } from './carModels';
 import { expand, sat } from './collision';
 import { HIT_COOLDOWN, HIT_MIN_SPEED, MAX_HITS, PARK_HOLD, STEP } from './config';
 import { Hud, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import { LEVELS } from './levels';
+import { RearMirror } from './mirror';
+import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { loadProgress, saveProgress } from './progress';
+import { loadSettings, SettingsPanel } from './settings';
 
 type State = 'menu' | 'playing' | 'paused' | 'done';
 
 // --- Renderer & scene -------------------------------------------------------
 const canvas = document.getElementById('game') as HTMLCanvasElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
 const scene = new THREE.Scene();
 const sky = new THREE.Color(0xa9cfee);
 scene.background = sky;
@@ -35,13 +34,22 @@ sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
 
+// Created before the renderer so the first frame uses the saved quality.
+const settings = loadSettings();
+const gfx = new Graphics(canvas, scene, sun, {
+  onLost: () => pause(),
+  onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+});
+gfx.setQuality(settings.quality);
+
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
+rig.mode = settings.camera;
 
 function resize(): void {
   const w = innerWidth;
   const h = innerHeight;
-  renderer.setSize(w, h, false);
+  gfx.setSize(w, h);
   camera.aspect = w / h;
   camera.fov = w < h ? 70 : 55;
   camera.updateProjectionMatrix();
@@ -53,7 +61,15 @@ resize();
 const hud = new Hud();
 const input = new Input();
 const sfx = new Sfx();
+sfx.muted = !settings.sound;
+const settingsPanel = new SettingsPanel(settings, (s, key) => {
+  if (key === 'sound') sfx.muted = !s.sound;
+  if (key === 'quality') gfx.setQuality(s.quality);
+  if (key === 'camera') rig.mode = s.camera;
+});
+await loadCarModels(); // falls back to box cars if a model can't load
 const player = new PlayerCar();
+const mirror = new RearMirror();
 scene.add(player.model.root);
 
 const progress = loadProgress(LEVELS.length);
@@ -75,6 +91,7 @@ function loadLevel(i: number): void {
   levelIndex = i;
   level = buildLevel(LEVELS[i], i);
   scene.add(level.group);
+  gfx.applyDecor(level.group);
   // Fit the shadow camera to the lot.
   const { w, l } = level.def.lot;
   const r = Math.max(w, l) / 2 + 8;
@@ -112,6 +129,7 @@ function showMenu(): void {
   if (!level) loadLevel(Math.min(progress.unlocked - 1, LEVELS.length - 1));
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, (i) => {
+    if (state !== 'menu') return;
     sfx.unlock();
     sfx.click();
     startLevel(i);
@@ -132,6 +150,7 @@ function pause(): void {
 function resume(): void {
   if (state !== 'paused') return;
   hud.hideModal();
+  input.clear(); // drop keys pressed/held while the modal was open
   state = 'playing';
 }
 
@@ -169,30 +188,64 @@ function finish(win: boolean, reason: string): void {
 }
 
 // --- Keyboard actions ---------------------------------------------------------
+input.driving = () => state === 'playing';
+input.actionsEnabled = () => !settingsPanel.isOpen;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
 input.on('KeyC', () => {
   if (state !== 'playing') return;
   hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
 });
 input.on('KeyM', () => {
-  sfx.muted = !sfx.muted;
+  settingsPanel.set('sound', sfx.muted); // flips the setting; onChange updates sfx.muted
   if (state === 'playing') hud.showHint(sfx.muted ? 'Sound off' : 'Sound on', 1.2);
 });
-input.on('Escape', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
+input.on('Escape', () => {
+  if (state === 'playing') pause();
+  else if (state === 'paused') resume();
+  else if (state === 'done') showMenu();
+});
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
+// Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
   if (state === 'menu') startLevel(progress.unlocked - 1);
+  else if (hud.modalOpen) hud.clickPrimary();
 });
 
-document.getElementById('btn-pause')!.addEventListener('click', pause);
-document.getElementById('btn-cam')!.addEventListener('click', () => {
+// HUD buttons blur after a click so a later Enter/Space can't re-trigger them.
+document.getElementById('btn-pause')!.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
+  pause();
+});
+function openSettings(): void {
+  sfx.click();
+  const wasPlaying = state === 'playing';
+  if (wasPlaying) {
+    state = 'paused';
+    input.clear();
+  }
+  settingsPanel.open(() => {
+    if (wasPlaying && state === 'paused' && !hud.modalOpen && !gfx.contextLost) state = 'playing';
+  });
+}
+document.getElementById('btn-settings')!.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
+  openSettings();
+});
+document.getElementById('btn-settings-menu')!.addEventListener('click', openSettings);
+document.getElementById('btn-cam')!.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
   if (state === 'playing') hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
 });
-for (const key of ['up', 'down', 'left', 'right', 'brake'] as const) {
-  input.bindTouch(document.getElementById(`t-${key}`)!, key);
-}
+input.bindTouch(document.getElementById('touch')!);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 document.addEventListener('visibilitychange', () => document.hidden && pause());
+// Pause when the window loses focus (alt-tab), unless focus comes straight back.
+let blurTimer = 0;
+addEventListener('blur', () => {
+  clearTimeout(blurTimer);
+  blurTimer = window.setTimeout(() => !document.hasFocus() && pause(), 200);
+});
+addEventListener('focus', () => clearTimeout(blurTimer));
 
 // --- Simulation -------------------------------------------------------------
 function step(dt: number): void {
@@ -252,6 +305,7 @@ function step(dt: number): void {
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
 function frame(now: number): void {
+  const frameStart = last;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
 
@@ -262,31 +316,34 @@ function frame(now: number): void {
       accumulator -= STEP;
     }
     hud.update(LEVELS[levelIndex].time - elapsed, hits, MAX_HITS, player.physics.v);
+    if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
   }
 
   player.sync(state === 'playing' ? dt : 0);
-  if (level) {
+  if (level && !reducedMotion.matches) {
     level.marker.rotation.y += dt * 1.5;
     level.marker.position.y = 3.2 + Math.sin(now / 400) * 0.25;
   }
 
   if (state === 'menu' && level) {
     const t = level.def.target;
-    rig.orbit(dt, t.x * 0.5, t.z * 0.5, Math.max(level.def.lot.w, level.def.lot.l) * 0.75);
+    rig.orbit(reducedMotion.matches ? 0 : dt, t.x * 0.5, t.z * 0.5, Math.max(level.def.lot.w, level.def.lot.l) * 0.75);
   } else if (state === 'playing') {
     rig.update(dt, player.physics);
   }
 
-  renderer.render(scene, camera);
+  gfx.render(camera);
+  mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
+  if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
   requestAnimationFrame(frame);
 }
 
 // ?level=N jumps straight into a level, ?cam=top starts top-down (handy for testing).
 const params = new URLSearchParams(location.search);
-if (params.get('cam') === 'top') rig.toggle();
+if (params.get('cam') === 'top') rig.mode = 'top';
 const qs = params.get('level');
 const direct = qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
 else showMenu();
-requestAnimationFrame(frame);
+if (gfx.ok) requestAnimationFrame(frame);

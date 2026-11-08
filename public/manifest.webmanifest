@@ -1,0 +1,15 @@
+{
+  "name": "Park It 3D",
+  "short_name": "Park It",
+  "description": "A 3D car-parking puzzle game: six lots, one bay each. Don't scratch the paint.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "theme_color": "#a9cfee",
+  "background_color": "#a9cfee",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

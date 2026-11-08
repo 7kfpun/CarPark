@@ -2,36 +2,65 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#a9cfee" />
     <title>Park It 3D</title>
+    <meta
+      name="description"
+      content="Park It 3D: a browser car-parking game. Six lots, one bay each. Steer, reverse and park without scratching the paint."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Park It" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Park It 3D" />
+    <meta
+      property="og:description"
+      content="A browser car-parking game. Six lots, one bay each. Don't scratch the paint."
+    />
+    <meta property="og:image" content="/apple-touch-icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Park It 3D" />
+    <meta
+      name="twitter:description"
+      content="A browser car-parking game. Six lots, one bay each. Don't scratch the paint."
+    />
+    <meta name="twitter:image" content="/apple-touch-icon.png" />
   </head>
   <body>
-    <canvas id="game"></canvas>
-    <div id="flash"></div>
+    <canvas id="game" role="img" aria-label="Parking lot, 3D view"></canvas>
+    <div id="flash" aria-hidden="true"></div>
+    <div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <div id="hud" class="hidden">
       <div class="hud-top">
         <div class="pill" id="hud-level"></div>
         <div class="pill" id="hud-timer"></div>
-        <div class="pill hearts" id="hud-hits"></div>
+        <div class="pill hearts" id="hud-hits" role="img"></div>
       </div>
       <div class="hud-corner">
         <button class="icon-btn" id="btn-cam" aria-label="Toggle camera">🎥</button>
         <button class="icon-btn" id="btn-pause" aria-label="Pause">⏸</button>
+        <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
       </div>
       <div class="pill gear" id="hud-gear"></div>
+      <div id="mirror" class="hidden" aria-hidden="true"></div>
       <div id="hud-hint"></div>
       <div id="park-meter" class="hidden">
-        <div class="bar"><div id="park-fill"></div></div>
+        <div class="bar" aria-hidden="true"><div id="park-fill"></div></div>
         <span id="park-label"></span>
       </div>
     </div>
 
     <div id="touch" class="hidden">
       <div class="touch-group left">
-        <button id="t-left" aria-label="Steer left">◀</button>
-        <button id="t-right" aria-label="Steer right">▶</button>
+        <div id="t-steer" aria-label="Steering: drag left or right">
+          <span class="track" aria-hidden="true">◀ &nbsp; ▶</span>
+          <div class="knob" aria-hidden="true"></div>
+        </div>
       </div>
       <div class="touch-group right">
         <button id="t-brake" class="small" aria-label="Handbrake">P</button>
@@ -46,8 +75,9 @@
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
         <p class="tagline">Six lots. One bay each. Don't scratch the paint.</p>
-        <div id="level-grid"></div>
+        <div id="level-grid" role="group" aria-label="Levels"></div>
         <div id="menu-total"></div>
+        <button class="settings-open" id="btn-settings-menu">⚙ Settings</button>
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
           <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
@@ -57,11 +87,47 @@
     </div>
 
     <div id="modal" class="screen hidden">
-      <div class="panel small">
+      <div class="panel small" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-body">
         <h2 id="modal-title"></h2>
-        <div id="modal-stars" class="stars"></div>
+        <div id="modal-stars" class="stars" role="img"></div>
         <p id="modal-body"></p>
         <div id="modal-buttons"></div>
+      </div>
+    </div>
+
+    <div id="settings" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="panel small">
+        <h2 id="settings-title">Settings</h2>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-sound">Sound</span>
+          <div class="seg" role="group" aria-labelledby="lbl-sound">
+            <button data-setting="sound" data-value="true">On</button>
+            <button data-setting="sound" data-value="false">Off</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-quality">Graphics</span>
+          <div class="seg" role="group" aria-labelledby="lbl-quality">
+            <button data-setting="quality" data-value="low">Low</button>
+            <button data-setting="quality" data-value="high">High</button>
+            <button data-setting="quality" data-value="auto">Auto</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-camera">Camera</span>
+          <div class="seg" role="group" aria-labelledby="lbl-camera">
+            <button data-setting="camera" data-value="chase">Chase</button>
+            <button data-setting="camera" data-value="top">Top</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-mirror">Rear mirror</span>
+          <div class="seg" role="group" aria-labelledby="lbl-mirror">
+            <button data-setting="mirror" data-value="true">On</button>
+            <button data-setting="mirror" data-value="false">Off</button>
+          </div>
+        </div>
+        <button class="settings-done" id="settings-done">Done</button>
       </div>
     </div>
 

@@ -12,6 +12,8 @@ export interface ObstacleDef {
   l?: number;
   h?: number;
   color?: number;
+  /** Parked cars: which car model to show (index into the model list). */
+  variant?: number;
 }
 
 /** A parking bay. rot is the heading the car must face when parked. */

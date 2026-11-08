@@ -5,7 +5,8 @@ const COLORS = [0x2f6fde, 0xe8e8e8, 0x8a8f98, 0xc8322b, 0x2e8b57, 0x222428, 0x7a
 
 let colorIdx = 0;
 function car(x: number, z: number, rot = 0): ObstacleDef {
-  return { kind: 'car', x, z, rot, color: COLORS[colorIdx++ % COLORS.length] };
+  const variant = colorIdx++;
+  return { kind: 'car', x, z, rot, color: COLORS[variant % COLORS.length], variant };
 }
 
 /** A row of bays along x at the given z. rot = closed-end direction. */

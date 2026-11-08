@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CAR_SHARED, createCarModel } from './car';
+import { parkedModel } from './carModels';
 import type { OBB } from './collision';
 import { allObstacles, bayOBB, obstacleDims, obstacleOBB, type BayDef, type LevelDef, type ObstacleDef } from './layout';
 
@@ -89,7 +90,7 @@ function obstacleMesh(o: ObstacleDef): THREE.Object3D {
   let obj: THREE.Object3D;
   switch (o.kind) {
     case 'car':
-      obj = createCarModel(o.color ?? 0x888888).root;
+      obj = createCarModel(o.color ?? 0x888888, parkedModel(o.variant ?? 0)).root;
       break;
     case 'cone': {
       const g = new THREE.Group();
@@ -211,6 +212,7 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
     tree.scale.setScalar(s);
     tree.add(trunk, leaves);
     tree.position.set(x, 0, z);
+    tree.userData.decor = true;
     group.add(shadowed(tree));
   }
 

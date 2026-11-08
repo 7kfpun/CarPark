@@ -34,20 +34,35 @@ function radius(o: OBB, ax: Vec): number {
   );
 }
 
-/** Separating-axis test. Returns the minimum-translation contact, or null. */
-export function sat(a: OBB, b: OBB): Contact | null {
+/**
+ * Separating-axis test. Returns the minimum-translation contact, or null.
+ * The normal is the axis of least overlap, oriented from b towards a. When
+ * the centres (nearly) coincide along that axis the orientation is ambiguous;
+ * then (hx, hz), a preferred push direction for a (e.g. against its motion),
+ * decides, falling back to +axis.
+ */
+export function sat(a: OBB, b: OBB, hx = 0, hz = 0): Contact | null {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   let best: Contact | null = null;
+  let bestDist = 0;
   for (const ax of [...axes(a), ...axes(b)]) {
     const dist = dx * ax[0] + dz * ax[1];
     const overlap = radius(a, ax) + radius(b, ax) - Math.abs(dist);
     if (overlap <= 0) return null;
-    if (!best || overlap < best.depth) {
-      const sign = dist >= 0 ? 1 : -1;
-      best = { depth: overlap, nx: ax[0] * sign, nz: ax[1] * sign };
+    if (!best || overlap < best.depth - 1e-9) {
+      best = { depth: overlap, nx: ax[0], nz: ax[1] };
+      bestDist = dist;
     }
   }
+  if (!best) return null;
+  let sign = bestDist >= 0 ? 1 : -1;
+  if (Math.abs(bestDist) < 1e-4) {
+    const h = hx * best.nx + hz * best.nz;
+    sign = h < 0 ? -1 : 1;
+  }
+  best.nx *= sign;
+  best.nz *= sign;
   return best;
 }
 
@@ -75,6 +90,42 @@ export function pointInOBB(px: number, pz: number, o: OBB): boolean {
   const lx = dx * ax[0] + dz * ax[1];
   const lz = dx * az[0] + dz * az[1];
   return Math.abs(lx) <= o.hw && Math.abs(lz) <= o.hl;
+}
+
+/**
+ * Representative contact point of an overlap between a and b with contact
+ * normal n (pointing from b towards a). Uses the deepest corners of a inside
+ * b, else the deepest corners of b inside a, averaging corners at (almost) the
+ * same depth so flush contacts sit mid-edge and produce no torque. Falls back
+ * to a's support point against the normal for edge-edge crossings.
+ */
+export function contactPoint(a: OBB, b: OBB, n: Contact): Vec {
+  const pick = (pts: Vec[], dir: number): Vec | null => {
+    let best = Infinity;
+    for (const p of pts) best = Math.min(best, dir * (p[0] * n.nx + p[1] * n.nz));
+    if (best === Infinity) return null;
+    let sx = 0;
+    let sz = 0;
+    let k = 0;
+    for (const p of pts) {
+      if (dir * (p[0] * n.nx + p[1] * n.nz) <= best + 0.02) {
+        sx += p[0];
+        sz += p[1];
+        k++;
+      }
+    }
+    return [sx / k, sz / k];
+  };
+  const eb = expand(b, 1e-4);
+  const ea = expand(a, 1e-4);
+  const inB = corners(a).filter((p) => pointInOBB(p[0], p[1], eb));
+  const pa = pick(inB, 1);
+  if (pa) return pa;
+  const inA = corners(b).filter((p) => pointInOBB(p[0], p[1], ea));
+  const pb = pick(inA, -1);
+  if (pb) return pb;
+  const r = radius(a, [n.nx, n.nz]);
+  return [a.x - n.nx * r, a.z - n.nz * r];
 }
 
 export function expand(o: OBB, m: number): OBB {

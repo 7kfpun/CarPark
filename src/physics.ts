@@ -1,19 +1,31 @@
-import { sat, type OBB } from './collision';
+import { contactPoint, sat, type OBB } from './collision';
 import {
   ACCEL,
   BRAKE,
   CAR_L,
   CAR_W,
+  COLLISION_YAW_TIME,
+  CONTACT_MEMORY,
   HANDBRAKE,
+  MAX_COLLISION_YAW,
   MAX_FWD,
   MAX_REV,
   MAX_STEER,
+  RESTITUTION,
+  RESTITUTION_FULL,
+  RESTITUTION_MIN,
   REV_ACCEL,
+  SCRAPE_FRICTION,
   ROLL_DRAG,
   STEER_RATE,
   STEER_RETURN,
+  STEP,
+  WALL_FRICTION,
   WHEELBASE,
 } from './config';
+
+/** Radius of gyration squared of the car body (I / m for a uniform box). */
+const GYRATION2 = (CAR_W * CAR_W + CAR_L * CAR_L) / 12;
 
 export interface Controls {
   throttle: number; // -1..1 (negative = brake / reverse)
@@ -34,6 +46,9 @@ export class CarPhysics {
   v = 0;
   steer = 0;
   braking = false;
+  /** resolveCollisions call count, and the call each obstacle was last touched. */
+  private calls = 0;
+  private lastContact = new WeakMap<OBB, number>();
 
   reset(x: number, z: number, heading: number): void {
     this.x = x;
@@ -42,6 +57,7 @@ export class CarPhysics {
     this.v = 0;
     this.steer = 0;
     this.braking = false;
+    this.lastContact = new WeakMap();
   }
 
   get obb(): OBB {
@@ -89,27 +105,127 @@ export class CarPhysics {
     this.z = rz + Math.cos(this.heading) * half;
   }
 
+  /** Yaw rate of the kinematic model (rad/s, heading convention). */
+  get yawRate(): number {
+    return -(this.v / WHEELBASE) * Math.tan(this.steer);
+  }
+
   /**
-   * Push the car out of any overlapping obstacle and bounce it back.
-   * Returns the highest speed at which the car was driving into something
-   * (0 if it merely touched or nothing was hit).
+   * Push the car out of any overlapping obstacle and respond to the contact.
+   *
+   * The velocity of the contact point is split along the contact normal n.
+   * Only an approaching normal component is removed (and partly reflected on
+   * hard hits); Coulomb friction trims the tangential part, so the car slides
+   * along walls. The resulting centre velocity is projected back onto the
+   * heading to get the new scalar speed. The normal impulse acting at the
+   * contact's lever arm turns the car a little (clamped), so corner hits
+   * glance off instead of jittering and flush contacts produce no torque.
+   *
+   * Returns the highest normal approach speed of a contact point (m/s), so
+   * head-on hits report the full speed and shallow scrapes only a fraction.
+   * Only new contacts count: an obstacle touched within the last
+   * CONTACT_MEMORY calls is a sustained scrape or push, whose approach speed
+   * is just the kinematic model re-driving into it each step.
    */
   resolveCollisions(obstacles: OBB[]): number {
     let impact = 0;
-    for (let iter = 0; iter < 3; iter++) {
+    let yaw = 0;
+    const call = ++this.calls;
+    const freshNow = new Map<OBB, boolean>();
+    for (let iter = 0; iter < 4; iter++) {
       let touched = false;
       for (const o of obstacles) {
-        const c = sat(this.obb, o);
+        const fx = Math.sin(this.heading);
+        const fz = Math.cos(this.heading);
+        // Prefer pushing the car back against its motion when ambiguous.
+        const dir = this.v >= 0 ? 1 : -1;
+        let c = sat(this.obb, o, -fx * dir, -fz * dir);
+        if (!c) continue;
+        touched = true;
+        let fresh = freshNow.get(o);
+        if (fresh === undefined) {
+          const last = this.lastContact.get(o);
+          fresh = last === undefined || call - last > CONTACT_MEMORY;
+          freshNow.set(o, fresh);
+          this.lastContact.set(o, call);
+        }
+
+        // Contact point velocity: rear-axle velocity plus yaw about the rear
+        // axle. perp(r) = d(point)/d(heading) for an offset r.
+        const [px, pz] = contactPoint(this.obb, o, c);
+        const half = WHEELBASE / 2;
+        const ax = px - (this.x - fx * half);
+        const az = pz - (this.z - fz * half);
+        const w = this.yawRate;
+        const vpx = fx * this.v + w * az;
+        const vpz = fz * this.v - w * ax;
+        const vn = vpx * c.nx + vpz * c.nz;
+
+        if (vn < 0) {
+          if (fresh) impact = Math.max(impact, -vn);
+          const s = -vn;
+          // Hard new hits bounce; gentle or sustained contacts just stop.
+          const ramp = Math.min(1, Math.max(0, (s - RESTITUTION_MIN) / (RESTITUTION_FULL - RESTITUTION_MIN)));
+          const j = (1 + (fresh ? RESTITUTION * ramp : 0)) * s;
+          // Friction opposes the contact point's tangential slip. A sustained
+          // contact's normal speed is regenerated every step by the no-slip
+          // model, so it gets a much lower coefficient or scraping would brake
+          // the car like a wall of glue.
+          const mu = fresh ? WALL_FRICTION : SCRAPE_FRICTION;
+          const tx = vpx - vn * c.nx;
+          const tz = vpz - vn * c.nz;
+          const tl = Math.hypot(tx, tz);
+          const jt = tl > 1e-9 ? Math.min(mu * j, tl) / tl : 0;
+          const Vx = fx * this.v + j * c.nx - jt * tx;
+          const Vz = fz * this.v + j * c.nz - jt * tz;
+          this.v = Vx * fx + Vz * fz;
+
+          // Turn by the impulse's moment arm about the centre: arm/(k^2+arm^2)
+          // is a rigid body's yaw response per unit impulse, applied over
+          // COLLISION_YAW_TIME. The rotation pivots about the contact point,
+          // so the contact stays closed instead of the nose being flicked off
+          // the wall (which would rattle), and flush contacts (arm 0) never
+          // turn. The yaw is clamped per call so nothing ever spins.
+          const rx = px - this.x;
+          const rz = pz - this.z;
+          const arm = c.nx * rz - c.nz * rx;
+          const want = (COLLISION_YAW_TIME * j * arm) / (GYRATION2 + arm * arm);
+          // Never turn the heading past parallel to the surface: if the car is
+          // driving into it, stop at tangency; if only the steering swings a
+          // corner in, undo at most one step of that swing.
+          let lim = want > 0 ? MAX_COLLISION_YAW - yaw : MAX_COLLISION_YAW + yaw;
+          const base = dir * (fx * c.nx + fz * c.nz);
+          const away = Math.sign(want) * dir * (fz * c.nx - fx * c.nz);
+          if (away > 0) lim = Math.min(lim, base < 0 ? Math.asin(Math.min(1, -base)) : Math.abs(w) * STEP);
+          const dh = Math.sign(want) * Math.max(0, Math.min(Math.abs(want), lim));
+          if (dh !== 0) {
+            yaw += dh;
+            this.heading += dh;
+            const cs = Math.cos(dh);
+            const sn = Math.sin(dh);
+            this.x = px - (rx * cs + rz * sn);
+            this.z = pz - (-rx * sn + rz * cs);
+            const after = sat(this.obb, o, -fx * dir, -fz * dir);
+            if (!after) continue;
+            c = after;
+          }
+        }
+        this.x += c.nx * c.depth;
+        this.z += c.nz * c.depth;
+      }
+      if (!touched) break;
+    }
+    // Rotation may have nudged the car into a neighbour: settle positions only.
+    const hx = -Math.sin(this.heading) * (this.v >= 0 ? 1 : -1);
+    const hz = -Math.cos(this.heading) * (this.v >= 0 ? 1 : -1);
+    for (let iter = 0; iter < 4; iter++) {
+      let touched = false;
+      for (const o of obstacles) {
+        const c = sat(this.obb, o, hx, hz);
         if (!c) continue;
         touched = true;
         this.x += c.nx * c.depth;
         this.z += c.nz * c.depth;
-        const fx = Math.sin(this.heading) * this.v;
-        const fz = Math.cos(this.heading) * this.v;
-        if (fx * c.nx + fz * c.nz < 0) {
-          impact = Math.max(impact, Math.abs(this.v));
-          this.v *= -0.25;
-        }
       }
       if (!touched) break;
     }

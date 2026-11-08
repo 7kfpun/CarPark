@@ -4,7 +4,11 @@
   --muted: #a9b2c3;
   --accent: #ffb81c;
   --good: #2ee66b;
-  --bad: #ff4d4d;
+  --bad: #ff7a7a;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
 }
@@ -22,7 +26,9 @@ body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: none;
+  /* Allow pinch-zoom / menu scrolling, but no double-tap zoom or scroll chaining. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
 #game {
@@ -31,6 +37,7 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 .hidden {
@@ -43,18 +50,36 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- HUD ---------- */
 #hud {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  touch-action: none;
 }
 
 .hud-top {
   position: absolute;
-  top: 12px;
-  left: 16px;
-  right: 120px;
+  top: calc(12px + var(--safe-t));
+  left: calc(16px + var(--safe-l));
+  right: calc(170px + var(--safe-r)); /* room for the three corner buttons */
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -65,7 +90,7 @@ button {
   padding: 7px 14px;
   border-radius: 999px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: clamp(13px, 3.6vmin, 15px);
   white-space: nowrap;
   backdrop-filter: blur(6px);
 }
@@ -81,8 +106,8 @@ button {
 
 .gear {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: calc(16px + var(--safe-l));
+  bottom: calc(16px + var(--safe-b));
   font-variant-numeric: tabular-nums;
 }
 
@@ -92,8 +117,8 @@ button {
 
 .hud-corner {
   position: absolute;
-  top: 12px;
-  right: 16px;
+  top: calc(12px + var(--safe-t));
+  right: calc(16px + var(--safe-r));
   display: flex;
   gap: 8px;
   pointer-events: auto;
@@ -106,20 +131,28 @@ button {
   border: none;
   background: var(--panel);
   font-size: 18px;
+  touch-action: manipulation;
 }
 
 #hud-hint {
   position: absolute;
-  top: 64px;
+  top: calc(64px + var(--safe-t));
   left: 50%;
   transform: translateX(-50%);
-  max-width: min(560px, calc(100% - 32px));
+  max-width: min(560px, calc(100% - 32px - var(--safe-l) - var(--safe-r)));
   text-align: center;
   background: var(--panel);
   padding: 9px 16px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: clamp(13px, 3.4vmin, 14px);
   transition: opacity 0.6s;
+}
+
+/* Narrow screens: the pills wrap onto a second row, so drop the hint below it. */
+@media (max-width: 480px) {
+  #hud-hint {
+    top: calc(100px + var(--safe-t));
+  }
 }
 
 #hud-hint.fade {
@@ -128,10 +161,10 @@ button {
 
 #park-meter {
   position: absolute;
-  bottom: 22%;
+  bottom: calc(22% + var(--safe-b));
   left: 50%;
   transform: translateX(-50%);
-  width: min(320px, calc(100% - 32px));
+  width: min(320px, calc(100% - 32px - var(--safe-l) - var(--safe-r)));
   text-align: center;
   font-weight: 700;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
@@ -143,6 +176,13 @@ button {
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 6px;
+}
+
+#park-label {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--panel);
 }
 
 #park-fill {
@@ -172,29 +212,96 @@ button {
   }
 }
 
+/* Reduced motion: a short, static, softer tint instead of a fading flash. */
+@keyframes flash-static {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* ---------- Touch controls ---------- */
 #touch {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding: 12px;
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 12px;
   pointer-events: none;
 }
 
+#touch,
+#touch * {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 body:has(#touch:not(.hidden)) .gear {
-  bottom: 120px;
+  bottom: calc(116px + env(safe-area-inset-bottom));
 }
 
 .touch-group {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-end;
   pointer-events: auto;
+}
+
+/* Analog steering pad: drag left / right from where the thumb lands. */
+#t-steer {
+  position: relative;
+  width: clamp(176px, 46vw, 280px);
+  height: 92px;
+  border-radius: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(18, 22, 30, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+#t-steer .track {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 6px;
+  word-spacing: 34px;
+  pointer-events: none;
+}
+
+#t-steer .knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+#t-steer.active {
+  border-color: rgba(255, 184, 28, 0.85);
+  cursor: grabbing;
+}
+
+#t-steer.active .knob {
+  background: rgba(255, 184, 28, 0.95);
+  transition: none;
 }
 
 .pedals {
@@ -210,18 +317,30 @@ body:has(#touch:not(.hidden)) .gear {
   border: 2px solid rgba(255, 255, 255, 0.25);
   background: rgba(18, 22, 30, 0.55);
   font-size: 28px;
-  touch-action: none;
 }
 
 #touch button.small {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   font-size: 20px;
   font-weight: 800;
 }
 
 #touch button.active {
   background: rgba(255, 184, 28, 0.75);
+}
+
+/* Narrow portrait phones: trim a little so steer pad + pedals fit side by side. */
+@media (max-width: 380px) {
+  #touch button {
+    width: 70px;
+    height: 70px;
+  }
+
+  #t-steer {
+    width: calc(100vw - 190px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    min-width: 150px;
+  }
 }
 
 /* ---------- Screens ---------- */
@@ -231,16 +350,20 @@ body:has(#touch:not(.hidden)) .gear {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: calc(16px + var(--safe-t)) calc(16px + var(--safe-r)) calc(16px + var(--safe-b)) calc(16px + var(--safe-l));
   background: radial-gradient(ellipse at center, rgba(10, 14, 22, 0.35), rgba(10, 14, 22, 0.7));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .panel {
   background: var(--panel);
   border-radius: 20px;
-  padding: 28px;
+  padding: clamp(16px, 5vmin, 28px);
   width: min(640px, 100%);
+  /* Centred while it fits; scrolls from the top once taller than the screen. */
+  margin: auto 0;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(10px);
@@ -252,7 +375,7 @@ body:has(#touch:not(.hidden)) .gear {
 
 h1 {
   margin: 0;
-  font-size: clamp(36px, 8vw, 56px);
+  font-size: clamp(30px, min(8vw, 12vh), 56px);
   letter-spacing: -1px;
 }
 
@@ -262,18 +385,19 @@ h1 span {
 
 h2 {
   margin: 0 0 8px;
-  font-size: 30px;
+  font-size: clamp(22px, 7vmin, 30px);
 }
 
 .tagline {
   color: var(--muted);
-  margin: 6px 0 22px;
+  margin: 6px 0 clamp(12px, 4vmin, 22px);
+  font-size: clamp(14px, 3.8vmin, 16px);
 }
 
 #level-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(115px, 100%), 1fr));
+  gap: clamp(6px, 2vmin, 10px);
 }
 
 .level-btn {
@@ -281,7 +405,7 @@ h2 {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 14px 8px;
+  padding: clamp(8px, 2.6vmin, 14px) 8px;
   border-radius: 14px;
   border: 2px solid transparent;
   background: rgba(255, 255, 255, 0.08);
@@ -301,12 +425,12 @@ h2 {
 }
 
 .level-btn .num {
-  font-size: 24px;
+  font-size: clamp(19px, 5.5vmin, 24px);
   font-weight: 800;
 }
 
 .level-btn .name {
-  font-size: 14px;
+  font-size: clamp(13px, 3.6vmin, 14px);
   color: var(--muted);
 }
 
@@ -317,7 +441,7 @@ h2 {
 }
 
 .stars {
-  font-size: 38px;
+  font-size: clamp(28px, 9vmin, 38px);
 }
 
 #menu-total {
@@ -371,8 +495,146 @@ kbd {
   color: #1a1a1a;
 }
 
+#modal-buttons button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 @media (pointer: coarse) {
   .controls {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #flash.on {
+    animation: flash-static 0.3s steps(1, end);
+  }
+
+  #hud-hint,
+  .level-btn {
+    transition-duration: 0.01s;
+  }
+
+  .level-btn:hover:not(:disabled),
+  .level-btn:focus-visible {
+    transform: none;
+  }
+}
+
+/* ---------- Settings & graphics overlays ---------- */
+.settings-open,
+.settings-done {
+  margin-top: 14px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+.settings-done {
+  margin-top: 20px;
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
+#settings {
+  z-index: 20;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.setting-label {
+  font-weight: 600;
+}
+
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.seg button {
+  min-width: 64px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.seg button.on {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
+.settings-open:focus-visible,
+.settings-done:focus-visible,
+.seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gfx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: radial-gradient(ellipse at center, rgba(10, 14, 22, 0.75), rgba(10, 14, 22, 0.95));
+}
+
+.gfx-overlay p {
+  color: var(--muted);
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+#gfx-fatal {
+  background: #1b2230;
+}
+
+/* ---------- Rear-view mirror ---------- */
+:root {
+  --mirror-w: clamp(150px, 30vw, 340px);
+  --mirror-top: calc(60px + var(--safe-t));
+}
+
+#mirror {
+  position: absolute;
+  top: var(--mirror-top);
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--mirror-w);
+  aspect-ratio: 3.6;
+  border: 4px solid #1b1d22;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* The game draws the mirror image under this frame; keep the hint below it. */
+.has-mirror #hud-hint {
+  top: calc(var(--mirror-top) + var(--mirror-w) / 3.6 + 12px);
+}
+
+@media (max-width: 480px) {
+  :root {
+    --mirror-top: calc(100px + var(--safe-t));
   }
 }
