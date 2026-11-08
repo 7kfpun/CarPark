@@ -203,9 +203,14 @@ function finish(win: boolean, reason: string): void {
 input.driving = () => state === 'playing';
 input.actionsEnabled = () => !settingsPanel.isOpen;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
+// Routes through settings so the panel shows it and it is saved (onChange sets rig.mode).
+function toggleCamera(): string {
+  settingsPanel.set('camera', rig.mode === 'chase' ? 'top' : 'chase');
+  return rig.mode === 'top' ? 'Top-down camera' : 'Chase camera';
+}
 input.on('KeyC', () => {
   if (state !== 'playing') return;
-  hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
+  hud.showHint(toggleCamera(), 1.2);
 });
 input.on('KeyM', () => {
   settingsPanel.set('sound', sfx.muted); // flips the setting; onChange updates sfx.muted
@@ -246,7 +251,7 @@ document.getElementById('btn-settings')!.addEventListener('click', (e) => {
 document.getElementById('btn-settings-menu')!.addEventListener('click', openSettings);
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
-  if (state === 'playing') hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
+  if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
 });
 input.bindTouch(document.getElementById('touch')!);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
