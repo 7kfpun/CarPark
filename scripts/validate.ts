@@ -4,6 +4,7 @@ import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } fro
 import { deadzone, steerFromOffset, strongest } from '../src/input';
 import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
+import { loadingLabel } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 
@@ -252,6 +253,12 @@ console.log('Collision response');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
+
+console.log('Loading label');
+check(loadingLabel(0, 0) === 'Loading…', 'loading: unknown total');
+check(loadingLabel(0, 7) === 'Loading… 0%', 'loading: start');
+check(loadingLabel(3, 7) === 'Loading… 43%', 'loading: partial');
+check(loadingLabel(9, 7) === 'Loading… 100%', 'loading: clamped');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

@@ -11,6 +11,7 @@ import { Hud, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import { LEVELS } from './levels';
+import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
@@ -67,7 +68,18 @@ const settingsPanel = new SettingsPanel(settings, (s, key) => {
   if (key === 'quality') gfx.setQuality(s.quality);
   if (key === 'camera') rig.mode = s.camera;
 });
-await loadCarModels(); // falls back to box cars if a model can't load
+const loadingEl = document.getElementById('loading')!;
+const loadingText = document.getElementById('loading-text')!;
+const loadingFill = document.getElementById('loading-fill')!;
+try {
+  // Falls back to box cars if a model can't load.
+  await loadCarModels(undefined, (loaded, total) => {
+    loadingText.textContent = loadingLabel(loaded, total);
+    loadingFill.style.width = `${total > 0 ? Math.round((loaded / total) * 100) : 0}%`;
+  });
+} finally {
+  loadingEl.remove();
+}
 const player = new PlayerCar();
 const mirror = new RearMirror();
 scene.add(player.model.root);
