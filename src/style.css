@@ -9,7 +9,12 @@
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: var(--text);
 }
 
@@ -409,7 +414,9 @@ h2 {
   border-radius: 14px;
   border: 2px solid transparent;
   background: rgba(255, 255, 255, 0.08);
-  transition: transform 0.12s, border-color 0.12s;
+  transition:
+    transform 0.12s,
+    border-color 0.12s;
 }
 
 .level-btn:hover:not(:disabled),

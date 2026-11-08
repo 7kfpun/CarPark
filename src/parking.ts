@@ -9,12 +9,7 @@ export interface ParkEval {
   ok: boolean;
 }
 
-export function evaluateParking(
-  car: OBB,
-  speed: number,
-  bay: BayDef,
-  bothWays: boolean,
-): ParkEval {
+export function evaluateParking(car: OBB, speed: number, bay: BayDef, bothWays: boolean): ParkEval {
   const box = bayOBB(bay);
   const inside = corners(car).every(([x, z]) => pointInOBB(x, z, box));
   const d = Math.abs(wrapAngle(car.rot - bay.rot));

@@ -2,17 +2,16 @@ import type { Controls } from './physics';
 
 type Pedal = 'up' | 'down' | 'brake';
 
-const GAME_KEYS = new Set([
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
-  'KeyW', 'KeyA', 'KeyS', 'KeyD',
-]);
+const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
 
 /** Keys a focused control activates natively (button click, link follow...). */
 const ACTIVATE_KEYS = new Set(['Enter', 'NumpadEnter', 'Space']);
 
 function isInteractive(el: EventTarget | null): boolean {
-  return el instanceof HTMLElement
-    && (el.isContentEditable || el.matches('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+  return (
+    el instanceof HTMLElement &&
+    (el.isContentEditable || el.matches('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+  );
 }
 
 /** Steering pad: finger travel (px) from the touch-down point for full lock. */

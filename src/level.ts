@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import { CAR_SHARED, createCarModel } from './car';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
-import { allObstacles, bayOBB, obstacleDims, obstacleOBB, type BayDef, type LevelDef, type ObstacleDef } from './layout';
+import {
+  allObstacles,
+  bayOBB,
+  obstacleDims,
+  obstacleOBB,
+  type BayDef,
+  type LevelDef,
+  type ObstacleDef,
+} from './layout';
 
 export interface BuiltLevel {
   def: LevelDef;
@@ -54,7 +62,17 @@ const leafMat = new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1 }
 const trunkGeo = new THREE.CylinderGeometry(0.18, 0.25, 1.6, 8);
 const leafGeo = new THREE.ConeGeometry(1.4, 3.2, 9);
 const sharedGeo = new Set<THREE.BufferGeometry>([trunkGeo, leafGeo]);
-const shared = new Set<THREE.Material>([lineMat, concrete, curbMat, coneMat, coneStripe, pillarMat, hazardMat, trunkMat, leafMat]);
+const shared = new Set<THREE.Material>([
+  lineMat,
+  concrete,
+  curbMat,
+  coneMat,
+  coneStripe,
+  pillarMat,
+  hazardMat,
+  trunkMat,
+  leafMat,
+]);
 
 function shadowed<T extends THREE.Object3D>(o: T): T {
   o.traverse((c) => {
@@ -66,7 +84,14 @@ function shadowed<T extends THREE.Object3D>(o: T): T {
   return o;
 }
 
-function line(parent: THREE.Object3D, x: number, z: number, w: number, l: number, mat: THREE.Material = lineMat): THREE.Mesh {
+function line(
+  parent: THREE.Object3D,
+  x: number,
+  z: number,
+  w: number,
+  l: number,
+  mat: THREE.Material = lineMat,
+): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, l), mat);
   m.position.set(x, 0.01, z);
   m.receiveShadow = true;

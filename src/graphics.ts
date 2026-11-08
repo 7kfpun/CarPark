@@ -79,7 +79,11 @@ export class Graphics {
     private readonly sun: THREE.DirectionalLight,
     hooks: { onLost: () => void; onRestored: () => void },
   ) {
-    this.lostOverlay = overlay('gfx-lost', 'Graphics reset…', 'The graphics driver restarted. Hang on, the game will be back in a moment.');
+    this.lostOverlay = overlay(
+      'gfx-lost',
+      'Graphics reset…',
+      'The graphics driver restarted. Hang on, the game will be back in a moment.',
+    );
     try {
       if (!webglAvailable()) throw new Error('WebGL unavailable');
       this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
