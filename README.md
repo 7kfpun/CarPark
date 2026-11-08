@@ -20,6 +20,18 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 | Pause / resume         | `Esc` / `P`       | ⏸ button  |
 | Mute                   | `M`               |           |
 
+### Gamepad
+
+| Action                       | Button                                     |
+| ---------------------------- | ------------------------------------------ |
+| Accelerate / brake / reverse | `RT` / `LT`                                |
+| Steer                        | Left stick                                 |
+| Handbrake                    | `A` / `RB`                                 |
+| Pause / resume               | `Start`                                    |
+| Toggle camera                | `Y` / `Back`                               |
+| Restart level                | `X`                                        |
+| Menus and modals             | D-pad or left stick to move, `A` to select |
+
 ## Development
 
 Requires Node.js (current LTS) and npm.

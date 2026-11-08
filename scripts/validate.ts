@@ -1,7 +1,7 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
-import { deadzone, steerFromOffset, strongest } from '../src/input';
+import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
 import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
@@ -106,6 +106,29 @@ check(
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+{
+  // 3x2 grid of 10px boxes with 2px gaps, plus a lone row of two modal buttons.
+  const box = (c: number, r: number) => ({ left: c * 12, top: r * 12, right: c * 12 + 10, bottom: r * 12 + 10 });
+  const grid = [box(0, 0), box(1, 0), box(2, 0), box(0, 1), box(1, 1), box(2, 1)];
+  check(
+    pickNeighbor(null, grid, 'right') === 0 && pickNeighbor(null, grid, 'left') === 5,
+    'nav with no focus enters the list',
+  );
+  check(
+    pickNeighbor(grid[0], grid, 'right') === 1 && pickNeighbor(grid[1], grid, 'left') === 0,
+    'nav moves along a row',
+  );
+  check(
+    pickNeighbor(grid[1], grid, 'down') === 4 && pickNeighbor(grid[4], grid, 'up') === 1,
+    'nav moves down/up a column',
+  );
+  check(
+    pickNeighbor(grid[2], grid, 'right') === -1 && pickNeighbor(grid[0], grid, 'up') === -1,
+    'nav stops at the edges',
+  );
+  check(pickNeighbor(grid[2], grid, 'down') === 5, 'nav down keeps the column');
+  check(pickNeighbor(grid[0], [], 'down') === -1, 'nav with no buttons finds nothing');
+}
 
 console.log('Broad phase');
 {
