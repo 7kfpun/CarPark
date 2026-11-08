@@ -6,7 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
-import { parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
+import { loadProgress, parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -296,11 +296,47 @@ recordWin(rec, withTest, 1, 1);
 check(rec.stars[withTest[1]] === 2, 'recordWin keeps best stars');
 check(resumeIndex(rec, withTest) === 2, 'resumeIndex is the furthest unlocked level');
 check(parseProgress('junk', ids).unlocked.length === 1, 'junk save falls back to fresh');
+const v2 = parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids);
+check(v2.stars['first-steps'] === 3 && !('gone' in v2.stars), 'v2: stars clamped to 0-3 and unknown ids dropped');
+
+// loadProgress reads localStorage: check it survives bad, missing and throwing storage.
+const store: { value: string | null; throws: boolean } = { value: null, throws: false };
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: () => {
+    if (store.throws) throw new Error('unavailable');
+    return store.value;
+  },
+};
+const four = ids.slice(0, 4);
+const load = (raw: string | null, list = four) => {
+  store.value = raw;
+  return loadProgress(list);
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]] };
+check(same(load(null), fresh4), 'missing storage gives fresh progress');
+check(same(load('{not json'), fresh4), 'corrupt JSON gives fresh progress');
+check(same(load('null'), fresh4), 'JSON null gives fresh progress');
+check(same(load('{"stars":"x","unlocked":"y"}'), fresh4), 'wrong-typed fields give fresh progress');
+store.throws = true;
+check(same(load('{"unlocked":3}'), fresh4), 'throwing storage gives fresh progress');
+store.throws = false;
 check(
-  parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids).stars['first-steps'] ===
-    undefined,
-  'bad star values and unknown ids are dropped',
+  same(load('{"unlocked":3,"stars":[1,2,3]}'), {
+    v: 2,
+    stars: { [ids[0]]: 1, [ids[1]]: 2, [ids[2]]: 3 },
+    unlocked: ids.slice(0, 3),
+  }),
+  'valid v1 progress loads and migrates',
 );
+check(
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', ids).stars, { [ids[0]]: 3, [ids[2]]: 2 }),
+  'out-of-range, fractional and non-number stars are clamped to integers 0-3',
+);
+check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count is clamped');
+check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
+check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');
+check(load('{"unlocked":2.9}').unlocked.length === 2, 'fractional unlocked is floored');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

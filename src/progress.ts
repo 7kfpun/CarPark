@@ -6,6 +6,12 @@ export interface Progress {
 }
 
 const KEY = 'car-parking-3d:progress';
+const MAX_STARS = 3;
+
+function toInt(v: unknown, min: number, max: number, fallback: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(v)));
+}
 
 /** The level order when saves were keyed by position (v1). Never edit: it describes old saves. */
 export const V1_LEVEL_IDS = ['first-steps', 'back-it-in', 'parallel-pro', 'cone-gates', 'the-garage', 'rush-hour'];
@@ -15,9 +21,9 @@ export function freshProgress(ids: string[]): Progress {
   return { v: 2, stars: {}, unlocked: ids.slice(0, 1) };
 }
 
+/** Stars clamped to integers 0-3; anything that isn't a finite number counts as 0. */
 function starCount(n: unknown): number {
-  const s = Math.floor(Number(n));
-  return s >= 1 && s <= 3 ? s : 0;
+  return toInt(n, 0, MAX_STARS, 0);
 }
 
 /** Turn whatever was stored (v1, v2 or junk) into progress for the current level list. */
@@ -41,7 +47,7 @@ export function parseProgress(raw: unknown, ids: string[]): Progress {
         if (id && known.has(id) && starCount(n)) out.stars[id] = starCount(n);
       });
     }
-    const count = Math.min(V1_LEVEL_IDS.length, Math.floor(Number(p.unlocked)) || 1);
+    const count = toInt(p.unlocked, 1, V1_LEVEL_IDS.length, 1);
     for (const id of V1_LEVEL_IDS.slice(0, count)) if (known.has(id)) unlocked.add(id);
   }
   // Keep the saved order of the current list and make sure a starred level counts as unlocked.
