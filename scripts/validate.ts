@@ -7,7 +7,15 @@ import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { buildVersion } from './version';
-import { loadProgress, parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
+import {
+  bestFor,
+  loadProgress,
+  parseProgress,
+  recordBest,
+  recordWin,
+  resumeIndex,
+  V1_LEVEL_IDS,
+} from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -417,7 +425,7 @@ const load = (raw: string | null, list = four) => {
   return loadProgress(list);
 };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]] };
+const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]], best: {} };
 check(same(load(null), fresh4), 'missing storage gives fresh progress');
 check(same(load('{not json'), fresh4), 'corrupt JSON gives fresh progress');
 check(same(load('null'), fresh4), 'JSON null gives fresh progress');
@@ -430,6 +438,7 @@ check(
     v: 2,
     stars: { [ids[0]]: 1, [ids[1]]: 2, [ids[2]]: 3 },
     unlocked: ids.slice(0, 3),
+    best: {},
   }),
   'valid v1 progress loads and migrates',
 );
@@ -441,6 +450,33 @@ check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count
 check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
 check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');
 check(load('{"unlocked":2.9}').unlocked.length === 2, 'fractional unlocked is floored');
+
+console.log('Progress: best times');
+{
+  const a = ids[0];
+  const b = ids[1];
+  const old = parseProgress({ unlocked: 3, stars: [3, 2] }, ids);
+  check(Object.keys(old.best).length === 0, 'old save without best loads with no times');
+  check(old.unlocked.length === 3 && old.stars[a] === 3, 'old save keeps unlocked and stars');
+  const bad = parseProgress(
+    { v: 2, best: { [a]: 12.3, [b]: -1, [ids[2]]: NaN, [ids[3]]: 'x', [ids[4]]: Infinity, gone: 5 } },
+    ids,
+  );
+  check(
+    JSON.stringify(bad.best) === JSON.stringify({ [a]: 12.3 }),
+    `bad best values dropped (${JSON.stringify(bad.best)})`,
+  );
+  check(Object.keys(parseProgress({ best: 'nope' }, ids).best).length === 0, 'non-object best ignored');
+  check(Object.keys(parseProgress({ best: [1, 2] }, ids).best).length === 0, 'array best ignored');
+  const p = parseProgress(null, ids);
+  check(recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'first time is recorded');
+  check(!recordBest(p, a, 25) && bestFor(p, a) === 20.5, 'slower time never replaces');
+  check(!recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'equal time is not a new best');
+  check(recordBest(p, a, 18.2) && bestFor(p, a) === 18.2, 'faster time replaces');
+  check(!recordBest(p, b, NaN) && !recordBest(p, b, 0) && bestFor(p, b) === 0, 'invalid time is not recorded');
+  const ins = parseProgress(JSON.parse(JSON.stringify(p)), [ids[0], 'test-level', ...ids.slice(1)]);
+  check(bestFor(ins, a) === 18.2, 'best time stays on its level when a level is inserted');
+}
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

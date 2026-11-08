@@ -3,6 +3,7 @@ export interface Progress {
   v: 2;
   stars: Record<string, number>; // best stars per level id
   unlocked: string[]; // ids of playable levels
+  best: Record<string, number>; // best completion time in seconds per level id
 }
 
 const KEY = 'car-parking-3d:progress';
@@ -18,7 +19,7 @@ export const V1_LEVEL_IDS = ['first-steps', 'back-it-in', 'parallel-pro', 'cone-
 
 /** Ids in play order; the first level is always playable. */
 export function freshProgress(ids: string[]): Progress {
-  return { v: 2, stars: {}, unlocked: ids.slice(0, 1) };
+  return { v: 2, stars: {}, unlocked: ids.slice(0, 1), best: {} };
 }
 
 /** Stars clamped to integers 0-3; anything that isn't a finite number counts as 0. */
@@ -30,7 +31,11 @@ function starCount(n: unknown): number {
 export function parseProgress(raw: unknown, ids: string[]): Progress {
   const out = freshProgress(ids);
   if (!raw || typeof raw !== 'object') return out;
-  const p = raw as { v?: unknown; stars?: unknown; unlocked?: unknown };
+  const p = raw as { v?: unknown; stars?: unknown; unlocked?: unknown; best?: unknown };
+  const known0 = new Set(ids);
+  if (p.best && typeof p.best === 'object' && !Array.isArray(p.best)) {
+    for (const [id, t] of Object.entries(p.best)) if (known0.has(id) && cleanTime(t)) out.best[id] = cleanTime(t);
+  }
   const known = new Set(ids);
   const unlocked = new Set(out.unlocked);
 
@@ -54,6 +59,26 @@ export function parseProgress(raw: unknown, ids: string[]): Progress {
   for (const id of Object.keys(out.stars)) unlocked.add(id);
   out.unlocked = ids.filter((id) => unlocked.has(id));
   return out;
+}
+
+/** A stored best time is only valid when it is a finite, positive number. */
+function cleanTime(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+}
+
+/** Best time in seconds for a level id, 0 when none. */
+export function bestFor(p: Progress, id: string): number {
+  return cleanTime(p.best[id]);
+}
+
+/** Stores `time` as the level's best if it beats the saved one. Returns true when it did. */
+export function recordBest(p: Progress, id: string, time: number): boolean {
+  const t = cleanTime(time);
+  if (!t) return false;
+  const old = bestFor(p, id);
+  if (old && t >= old) return false;
+  p.best[id] = t;
+  return true;
 }
 
 export function isUnlocked(p: Progress, id: string): boolean {

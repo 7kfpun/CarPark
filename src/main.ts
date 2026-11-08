@@ -7,14 +7,14 @@ import { PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { HIT_COOLDOWN, HIT_MIN_SPEED, MAX_HITS, PARK_HOLD, STEP } from './config';
-import { Hud, type ModalButton } from './hud';
+import { bestLabel, Hud, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import { LEVELS } from './levels';
 import { RearMirror } from './mirror';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
-import { loadProgress, recordWin, resumeIndex, saveProgress } from './progress';
+import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
 import { loadSettings, SettingsPanel } from './settings';
 
 type State = 'menu' | 'playing' | 'paused' | 'done';
@@ -167,6 +167,8 @@ function finish(win: boolean, reason: string): void {
     sfx.win();
     const stars = hits === 0 && elapsed <= def.par ? 3 : hits <= 1 ? 2 : 1;
     recordWin(progress, LEVEL_IDS, levelIndex, stars);
+    const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
+    const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     saveProgress(progress);
     const last = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
@@ -177,7 +179,7 @@ function finish(win: boolean, reason: string): void {
     const tip = stars < 3 ? `  (3★: no bumps and under ${def.par}s)` : '';
     hud.showModal(
       last ? 'All levels cleared!' : 'Parked!',
-      `${elapsed.toFixed(1)}s · ${hits} bump${hits === 1 ? '' : 's'}${tip}`,
+      `${elapsed.toFixed(1)}s · ${hits} bump${hits === 1 ? '' : 's'}${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
     );
