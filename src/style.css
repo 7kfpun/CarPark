@@ -447,6 +447,12 @@ h2 {
   letter-spacing: 2px;
 }
 
+.level-btn .best {
+  font-size: clamp(12px, 3.2vmin, 13px);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .stars {
   font-size: clamp(28px, 9vmin, 38px);
 }
@@ -455,6 +461,13 @@ h2 {
   margin-top: 14px;
   color: var(--accent);
   font-weight: 700;
+}
+
+#menu-version {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .controls {
@@ -503,6 +516,41 @@ kbd {
 }
 
 #modal-buttons button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+#update-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px 8px 16px;
+  border-radius: 14px;
+  background: rgba(20, 24, 30, 0.92);
+  color: var(--text);
+  font-weight: 600;
+}
+
+#update-banner button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+#update-banner button.primary {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
+#update-banner button:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }

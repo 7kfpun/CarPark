@@ -33,6 +33,51 @@ const PAD_ACTIONS: ReadonlyArray<readonly [number, string]> = [
   [2, 'KeyR'],
 ];
 
+/** D-pad buttons (standard mapping) -> focus direction. */
+const PAD_DPAD: ReadonlyArray<readonly [number, Dir]> = [
+  [12, 'up'],
+  [13, 'down'],
+  [14, 'left'],
+  [15, 'right'],
+];
+/** Left stick deflection that counts as a d-pad press for menu focus. */
+const NAV_STICK = 0.6;
+
+export type Dir = 'up' | 'down' | 'left' | 'right';
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * Index of the box to focus when moving `dir` from box `from` (null = nothing focused:
+ * first box for down/right, last for up/left). Prefers the nearest box in that direction,
+ * penalising sideways drift; returns -1 when nothing lies that way.
+ */
+export function pickNeighbor(from: Box | null, boxes: readonly Box[], dir: Dir): number {
+  if (!boxes.length) return -1;
+  if (!from) return dir === 'down' || dir === 'right' ? 0 : boxes.length - 1;
+  const cx = (b: Box) => (b.left + b.right) / 2;
+  const cy = (b: Box) => (b.top + b.bottom) / 2;
+  const horizontal = dir === 'left' || dir === 'right';
+  const sign = dir === 'right' || dir === 'down' ? 1 : -1;
+  let best = -1;
+  let bestScore = Infinity;
+  boxes.forEach((b, i) => {
+    const along = horizontal ? cx(b) - cx(from) : cy(b) - cy(from);
+    const across = horizontal ? cy(b) - cy(from) : cx(b) - cx(from);
+    if (along * sign <= 1) return;
+    const score = along * sign + Math.abs(across) * 3;
+    if (score < bestScore) {
+      best = i;
+      bestScore = score;
+    }
+  });
+  return best;
+}
+
 /** Zero inside the dead zone, then rescaled so the output still spans 0..±1 (clamped). */
 export function deadzone(v: number, dz: number): number {
   const a = Math.abs(v);
@@ -80,12 +125,15 @@ export class Input {
   private touchSteer = 0;
   private pad: PadState = { steer: 0, throttle: 0, handbrake: false };
   private readonly padButtons = new Map<number, boolean>();
+  private readonly navDirs = new Set<Dir>();
   private padLoop = 0;
 
   /** Set by the game: true while the car is being driven (game keys are captured). */
   driving: () => boolean = () => false;
   /** Set by the game: false while an overlay (e.g. settings) owns input; gamepad actions are skipped. */
   actionsEnabled: () => boolean = () => true;
+  /** Set by the game: the topmost open menu / modal / settings panel the pad moves focus within (null = none). */
+  navRoot: () => HTMLElement | null = () => null;
 
   constructor() {
     addEventListener('keydown', (e) => {
@@ -249,6 +297,7 @@ export class Input {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     const next: PadState = { steer: 0, throttle: 0, handbrake: false };
     const pressed = new Set<number>();
+    const navPressed = new Set<Dir>();
     let connected = false;
     for (const gp of pads) {
       if (!gp?.connected) continue;
@@ -259,6 +308,14 @@ export class Input {
       next.throttle = strongest(next.throttle, trigger(7) - trigger(6));
       next.handbrake ||= !!btn(0)?.pressed || !!btn(5)?.pressed;
       for (const [i] of PAD_ACTIONS) if (btn(i)?.pressed) pressed.add(i);
+      if (btn(0)?.pressed) pressed.add(0);
+      for (const [i, dir] of PAD_DPAD) if (btn(i)?.pressed) navPressed.add(dir);
+      const ax = gp.axes[0] ?? 0;
+      const ay = gp.axes[1] ?? 0;
+      if (ax < -NAV_STICK) navPressed.add('left');
+      if (ax > NAV_STICK) navPressed.add('right');
+      if (ay < -NAV_STICK) navPressed.add('up');
+      if (ay > NAV_STICK) navPressed.add('down');
     }
     this.pad = next;
     const fired = new Set<string>();
@@ -270,7 +327,42 @@ export class Input {
       }
       this.padButtons.set(i, down);
     }
+    // Menu / modal navigation: A confirms (it is the handbrake while driving), d-pad / stick moves focus.
+    // Edges are tracked every frame so a button held down while driving doesn't fire when a modal opens.
+    const aDown = pressed.has(0);
+    if (aDown && !this.padButtons.get(0) && !this.driving()) this.confirm();
+    this.padButtons.set(0, aDown);
+    for (const dir of ['up', 'down', 'left', 'right'] as const) {
+      const down = navPressed.has(dir);
+      if (down && !this.navDirs.has(dir) && !this.driving()) this.navigate(dir);
+      if (down) this.navDirs.add(dir);
+      else this.navDirs.delete(dir);
+    }
     return connected;
+  }
+
+  /** Move focus between the enabled buttons of the open overlay (pad d-pad / left stick). */
+  private navigate(dir: Dir): void {
+    const root = this.navRoot();
+    if (!root) return;
+    const btns = [...root.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(
+      (b) => b.offsetWidth > 0 || b.offsetHeight > 0,
+    );
+    const cur = btns.indexOf(document.activeElement as HTMLButtonElement);
+    const i = pickNeighbor(
+      cur < 0 ? null : btns[cur].getBoundingClientRect(),
+      btns.map((b) => b.getBoundingClientRect()),
+      dir,
+    );
+    btns[i]?.focus();
+  }
+
+  /** Pad A while no car is being driven: click the focused button, else the Enter action. */
+  private confirm(): void {
+    const root = this.navRoot();
+    const el = document.activeElement;
+    if (root && el instanceof HTMLButtonElement && root.contains(el) && !el.disabled) el.click();
+    else this.actions.get('Enter')?.();
   }
 
   private any(...codes: string[]): boolean {
