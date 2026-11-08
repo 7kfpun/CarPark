@@ -60,6 +60,8 @@ export interface BayDef {
 }
 
 export interface LevelDef {
+  /** Permanent id (kebab-case). Saved progress is keyed by it, so never change or reuse one. */
+  id: string;
   name: string;
   hint: string;
   lot: { w: number; l: number };

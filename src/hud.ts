@@ -1,5 +1,6 @@
 import type { LevelDef } from './layout';
-import type { Progress } from './progress';
+import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
+import { APP_VERSION } from './version';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -19,6 +20,10 @@ function starString(n: number, total = 3): string {
 
 function starLabel(n: number, total = 3): string {
   return `${n} of ${total} star${total === 1 ? '' : 's'}`;
+}
+
+export function bestLabel(t: number): string {
+  return `${t.toFixed(1)}s`;
 }
 
 export class Hud {
@@ -44,21 +49,28 @@ export class Hud {
   readonly touchEnabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
   showMenu(levels: LevelDef[], progress: Progress, onSelect: (i: number) => void): void {
+    $('tagline').textContent = `${levels.length} lots. One bay each. Don't scratch the paint.`;
     const grid = $('level-grid');
     grid.replaceChildren();
     levels.forEach((lvl, i) => {
       const b = document.createElement('button');
       b.className = 'level-btn';
-      const locked = i >= progress.unlocked;
+      const locked = !isUnlocked(progress, lvl.id);
+      const stars = starsFor(progress, lvl.id);
       b.disabled = locked;
-      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`);
-      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>`;
+      const best = bestFor(progress, lvl.id);
+      b.setAttribute(
+        'aria-label',
+        `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(stars)}${best ? `, best time ${bestLabel(best)}` : ''}`,
+      );
+      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(stars)}</span>${best ? `<span class="best" aria-hidden="true">${bestLabel(best)}</span>` : ''}`;
       b.addEventListener('click', () => onSelect(i));
       grid.appendChild(b);
     });
-    const total = progress.stars.reduce((a, b) => a + b, 0);
+    const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+    $('menu-version').textContent = `v${APP_VERSION}`;
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');

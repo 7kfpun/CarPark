@@ -35,6 +35,7 @@ const row9 = [-12, -9, -6, -3, 0, 3, 6, 9, 12];
 
 export const LEVELS: LevelDef[] = [
   {
+    id: 'first-steps',
     name: 'First Steps',
     hint: 'Drive into the glowing bay and stop. Either direction is fine.',
     lot: { w: 30, l: 40 },
@@ -47,6 +48,7 @@ export const LEVELS: LevelDef[] = [
     obstacles: [car(-3, 12, 0), car(3, 12, PI), car(-9, 12, PI), car(6, 12, 0)],
   },
   {
+    id: 'back-it-in',
     name: 'Back It In',
     hint: 'Reverse into the bay so the arrow and your nose point the same way.',
     lot: { w: 32, l: 40 },
@@ -59,6 +61,7 @@ export const LEVELS: LevelDef[] = [
     obstacles: [...carRow(row8, 13, [4.5, -7.5]), ...carRow(row8, -13, [-4.5, 7.5])],
   },
   {
+    id: 'parallel-pro',
     name: 'Parallel Pro',
     hint: 'Slip into the gap by the curb. Reverse in at an angle, then straighten up.',
     lot: { w: 24, l: 50 },
@@ -83,6 +86,7 @@ export const LEVELS: LevelDef[] = [
     ],
   },
   {
+    id: 'cone-gates',
     name: 'Cone Gates',
     hint: 'Thread through the gaps in the cones, then park at the far end.',
     lot: { w: 30, l: 70 },
@@ -104,6 +108,7 @@ export const LEVELS: LevelDef[] = [
     ],
   },
   {
+    id: 'the-garage',
     name: 'The Garage',
     hint: 'A tight garage with pillars in the way. Go slow.',
     lot: { w: 30, l: 40 },
@@ -127,6 +132,7 @@ export const LEVELS: LevelDef[] = [
     ],
   },
   {
+    id: 'rush-hour',
     name: 'Rush Hour',
     hint: 'Find your way through the lot, then reverse into the last free bay.',
     lot: { w: 34, l: 44 },

@@ -76,8 +76,20 @@ export class CarPhysics {
     this.settle(surfaces);
   }
 
+  /** Scratch box reused by resolveCollisions so each read does not allocate. */
+  private readonly box: OBB = { x: 0, z: 0, hw: CAR_W / 2, hl: CAR_L / 2, rot: 0 };
+
   get obb(): OBB {
     return { x: this.x, z: this.z, hw: CAR_W / 2, hl: CAR_L / 2, rot: this.heading };
+  }
+
+  /** The car's current box in a shared object: use immediately, never keep it. */
+  private currentBox(): OBB {
+    const b = this.box;
+    b.x = this.x;
+    b.z = this.z;
+    b.rot = this.heading;
+    return b;
   }
 
   step(dt: number, c: Controls, surfaces?: Surfaces): void {
@@ -176,7 +188,7 @@ export class CarPhysics {
         const fz = Math.cos(this.heading);
         // Prefer pushing the car back against its motion when ambiguous.
         const dir = this.v >= 0 ? 1 : -1;
-        let c = sat(this.obb, o, -fx * dir, -fz * dir);
+        let c = sat(this.currentBox(), o, -fx * dir, -fz * dir);
         if (!c) continue;
         touched = true;
         let fresh = freshNow.get(o);
@@ -189,7 +201,7 @@ export class CarPhysics {
 
         // Contact point velocity: rear-axle velocity plus yaw about the rear
         // axle. perp(r) = d(point)/d(heading) for an offset r.
-        const [px, pz] = contactPoint(this.obb, o, c);
+        const [px, pz] = contactPoint(this.currentBox(), o, c);
         const half = WHEELBASE / 2;
         const ax = px - (this.x - fx * half);
         const az = pz - (this.z - fz * half);
@@ -242,7 +254,7 @@ export class CarPhysics {
             const sn = Math.sin(dh);
             this.x = px - (rx * cs + rz * sn);
             this.z = pz - (-rx * sn + rz * cs);
-            const after = sat(this.obb, o, -fx * dir, -fz * dir);
+            const after = sat(this.currentBox(), o, -fx * dir, -fz * dir);
             if (!after) continue;
             c = after;
           }
@@ -258,7 +270,7 @@ export class CarPhysics {
     for (let iter = 0; iter < 4; iter++) {
       let touched = false;
       for (const o of obstacles) {
-        const c = sat(this.obb, o, hx, hz);
+        const c = sat(this.currentBox(), o, hx, hz);
         if (!c) continue;
         touched = true;
         this.x += c.nx * c.depth;
