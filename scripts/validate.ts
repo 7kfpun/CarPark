@@ -6,6 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { buildVersion } from './version';
 import { loadProgress, parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
 
 declare const process: { exit(code: number): never };
@@ -353,6 +354,10 @@ console.log('Collision response');
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
 
+console.log('Build version');
+check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
+check(buildVersion('1.2.3', 'abc123\n') === '1.2.3+abc123', 'sha whitespace is trimmed');
+check(buildVersion('1.2.3', undefined) === '1.2.3+unknown', 'missing sha falls back to unknown');
 // --- Level ids and saved progress ---------------------------------------------
 console.log('Level ids and progress');
 const ids = LEVELS.map((l) => l.id);
