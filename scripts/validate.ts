@@ -1,8 +1,9 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
-import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
+import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP } from '../src/config';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
-import { allObstacles, obstacleOBB } from '../src/layout';
+import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
+import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
@@ -103,6 +104,157 @@ console.log('Drive-through (level 1)');
   }
   check(maxImpact > 1, 'reversing into wall should register an impact');
   check(car.z - CAR_L / 2 >= -lvl.lot.l / 2 - 0.01, `car pushed through the wall (z=${car.z.toFixed(2)})`);
+}
+
+console.log('Floors and ramps');
+{
+  // Ground floor z -30..0, a 15 m ramp (11.3 deg) from z 0 to 15, upper floor (y = 3) z 15..35.
+  const rampLevel = (rampLen: number): LevelDef => ({
+    ...LEVELS[0],
+    lot: { w: 20, l: 65 },
+    spawn: { x: 0, z: -10, rot: 0 },
+    obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
+      { id: 'upper', y: 3, area: [{ x: 0, z: 15 + rampLen - 15 + 10, hw: 10, hl: 10, rot: 0 }] },
+    ],
+    ramps: [{ id: 'ramp', from: 'ground', to: 'upper', x: 0, z: rampLen / 2, rot: 0, w: 4, l: rampLen }],
+    target: { ...LEVELS[0].target, x: 0, z: 25, floor: 'upper' },
+  });
+  const lvl = rampLevel(15);
+  const surf = new Surfaces(lvl);
+  const obs = levelObstacles(lvl, surf);
+  check(floorProblems(lvl).length === 0, `ramp level rejected: ${floorProblems(lvl).join('; ')}`);
+  check(
+    floorProblems(rampLevel(12)).some((m) => m.includes('over the limit')),
+    'a 14 deg ramp should be rejected',
+  );
+  check(surf.rampSlope(lvl.ramps![0]) <= RAMP_MAX_SLOPE, 'test ramp is steeper than the limit');
+
+  const car = new CarPhysics();
+  const drive = (seconds: number, ctl: (c: CarPhysics) => { throttle: number; handbrake: boolean }, steer = 0) => {
+    const layers = new Set<string>();
+    let impact = 0;
+    for (let i = 0; i < Math.round(seconds / STEP); i++) {
+      const c = ctl(car);
+      car.step(STEP, { throttle: c.throttle, steer, handbrake: c.handbrake }, surf);
+      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs)));
+      layers.add(car.layer);
+    }
+    return { layers, impact };
+  };
+
+  // Driving up: full throttle climbs the ramp, ends on the upper floor, level.
+  car.reset(0, -10, 0, surf);
+  check(car.layer === 'ground' && car.y === 0 && car.pitch === 0, 'car should start flat on the ground floor');
+  let maxPitch = 0;
+  const up = drive(16, (c) => {
+    maxPitch = Math.max(maxPitch, c.pitch);
+    return { throttle: c.z > 20 ? 0 : 1, handbrake: c.z > 20 };
+  });
+  console.log(
+    `  climb: layer ${car.layer}, y ${car.y.toFixed(2)}, max pitch ${((maxPitch * 180) / Math.PI).toFixed(1)}deg, v ${car.v.toFixed(2)}`,
+  );
+  check(up.layers.has('ramp'), 'driving up never entered the ramp layer');
+  check(car.layer === 'upper', `did not reach the upper floor (layer ${car.layer}, z ${car.z.toFixed(1)})`);
+  check(Math.abs(car.y - 3) < 1e-6 && Math.abs(car.pitch) < 1e-9, `not level on top (y ${car.y.toFixed(3)})`);
+  check(maxPitch > 0.15 && maxPitch < RAMP_MAX_SLOPE + 1e-6, `pitch on the ramp out of range (${maxPitch.toFixed(3)})`);
+  check(up.impact === 0, `hit something driving up (${up.impact.toFixed(2)})`);
+
+  // Slope slows the car: same throttle from standstill accelerates less than on the flat.
+  car.reset(0, 2, 0, surf);
+  car.layer = 'ramp';
+  drive(1, () => ({ throttle: 1, handbrake: false }));
+  check(car.v > 0 && car.v < 1.5, `climbing from rest should be slow (v ${car.v.toFixed(2)})`);
+
+  // Stopping at the top: brake on the upper floor, the car stays put, level.
+  car.reset(0, -10, 0, surf);
+  drive(30, (c) => {
+    const want = Math.min(3, Math.sqrt(Math.max(0, 2 * 4 * (22 - c.z))));
+    return { throttle: c.v < want - 0.2 ? 1 : c.v > want + 0.2 ? -1 : 0, handbrake: c.z > 21.7 };
+  });
+  const topZ = car.z;
+  drive(3, () => ({ throttle: 0, handbrake: true }));
+  check(car.layer === 'upper' && car.v === 0 && Math.abs(car.z - topZ) < 1e-9, 'car should stay stopped at the top');
+  check(Math.abs(car.y - 3) < 1e-6 && car.z > 20, `stopped at the wrong place (z ${car.z.toFixed(2)})`);
+  // A bay on the upper floor counts only for a car on the upper floor.
+  const topBay = { ...lvl.target, z: car.z };
+  check(evaluateParking(car.obb, 0, topBay, true, 'upper').ok, 'car on the upper floor should park in an upper bay');
+  check(!evaluateParking(car.obb, 0, topBay, true, 'ground').ok, 'wrong floor counted as parked');
+  check(!evaluateParking(car.obb, 0, topBay, true, 'ramp').ok, 'car on a ramp counted as parked');
+
+  // Rolling back: left alone on the ramp the car rolls down and onto the ground floor.
+  car.reset(0, 7.5, 0, surf);
+  car.layer = 'ramp';
+  const roll = drive(1.5, () => ({ throttle: 0, handbrake: false }));
+  check(car.v < -1 && car.z < 7.5, `car should roll back on the ramp (v ${car.v.toFixed(2)}, z ${car.z.toFixed(2)})`);
+  const rolled = drive(12, () => ({ throttle: 0, handbrake: false }));
+  check(roll.impact === 0 && rolled.impact < 1, 'rolling back hit something hard');
+  check(car.layer === 'ground' && car.y === 0, `rolled back to layer ${car.layer}, y ${car.y.toFixed(2)}`);
+  // The handbrake holds it, and braking (throttle against the roll) stops it.
+  car.reset(0, 7.5, 0, surf);
+  car.layer = 'ramp';
+  drive(3, () => ({ throttle: 0, handbrake: true }));
+  check(car.v === 0 && car.z === 7.5, `handbrake should hold the car on the ramp (z ${car.z.toFixed(3)})`);
+
+  // Layers: a pillar on the ground floor never blocks a car on the floor above it.
+  const pillar = obs.find((o) => o.layer === 'ground' && o.hw === 0.4)!;
+  car.reset(0, 25, 0, surf);
+  car.layer = 'upper';
+  car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
+  check(!car.reachable(surf, obs).includes(pillar), 'a pillar on the floor below blocks the upper floor');
+  check(
+    car.resolveCollisions(car.reachable(surf, obs)) === 0 && Math.abs(car.z - 25) < 1e-9,
+    'car pushed by a pillar below',
+  );
+  car.layer = 'ground';
+  car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
+  check(car.reachable(surf, obs).includes(pillar), 'a pillar on the car’s own floor should block it');
+
+  // Edges: nowhere to drive off. Full throttle straight on, and hard over to each side.
+  for (const [name, x, z, rot, steer] of [
+    ['floor end', 0, 30, 0, 0],
+    ['upper floor side', 6, 20, Math.PI / 2, 0],
+    ['ramp side (left)', 0, 5, 0, 1],
+    ['ramp side (right)', 0, 5, 0, -1],
+  ] as const) {
+    car.reset(x, z, rot, surf);
+    car.layer = z > 15 ? 'upper' : 'ramp';
+    const box = obs.filter((o) => o.layer === car.layer);
+    drive(8, () => ({ throttle: 1, handbrake: false }), steer);
+    const inside = corners(car.obb).every(([cx, cz]) => {
+      if (car.layer === 'upper') return Math.abs(cx) <= 10.01 && cz <= 35.01;
+      return Math.abs(cx) <= 2.01 || cz < 0 || cz > 15;
+    });
+    check(inside && box.length > 0, `${name}: car left the surface (x ${car.x.toFixed(2)}, z ${car.z.toFixed(2)})`);
+  }
+
+  // Flat levels: no floors declared, so physics, obstacles and parking are as before.
+  for (const [i, flat] of LEVELS.entries()) {
+    const fs = new Surfaces(flat);
+    const lo = levelObstacles(flat, fs);
+    const plain = allObstacles(flat).map(obstacleOBB);
+    check(
+      lo.length === plain.length && lo.every((o, k) => o.layer === 'ground' && sat(o, plain[k]) !== null),
+      `level ${i + 1}: flat obstacles changed`,
+    );
+    check(floorProblems(flat).length === 0, `level ${i + 1}: unexpected floor problems`);
+    const a = new CarPhysics();
+    const b = new CarPhysics();
+    a.reset(flat.spawn.x, flat.spawn.z, flat.spawn.rot, fs);
+    b.reset(flat.spawn.x, flat.spawn.z, flat.spawn.rot);
+    for (let k = 0; k < 600; k++) {
+      const ctl = { throttle: k < 400 ? 1 : -1, steer: Math.sin(k / 50), handbrake: false };
+      a.step(STEP, ctl, fs);
+      b.step(STEP, ctl);
+      a.resolveCollisions(a.reachable(fs, lo));
+      b.resolveCollisions(plain);
+    }
+    check(
+      a.x === b.x && a.z === b.z && a.heading === b.heading && a.v === b.v && a.y === 0 && a.pitch === 0,
+      `level ${i + 1}: flat physics differs with surfaces`,
+    );
+  }
 }
 
 console.log('Input mapping');

@@ -14,6 +14,38 @@ export interface ObstacleDef {
   color?: number;
   /** Parked cars: which car model to show (index into the model list). */
   variant?: number;
+  /** Floor or ramp id this obstacle stands on. Defaults to the first floor. */
+  floor?: string;
+}
+
+/** An obstacle's footprint plus the floor or ramp it is on. */
+export interface LayeredOBB extends OBB {
+  layer: string;
+}
+
+/** Id of the implicit floor of a level that declares no floors. */
+export const DEFAULT_FLOOR = 'ground';
+
+/** A storey: its height and outline (a union of boxes). */
+export interface FloorDef {
+  id: string;
+  y: number;
+  area: OBB[];
+}
+
+/**
+ * A ramp joining two floors. Its local +z axis runs from the `from` floor
+ * (at -l/2, height of that floor) to the `to` floor (at +l/2).
+ */
+export interface RampDef {
+  id: string;
+  from: string;
+  to: string;
+  x: number;
+  z: number;
+  rot: number;
+  w: number;
+  l: number;
 }
 
 /** A parking bay. rot is the heading the car must face when parked. */
@@ -23,6 +55,8 @@ export interface BayDef {
   rot: number;
   w: number;
   l: number;
+  /** Floor the car must be on to park here. Defaults to the first floor. */
+  floor?: string;
 }
 
 export interface LevelDef {
@@ -40,6 +74,10 @@ export interface LevelDef {
   obstacles: ObstacleDef[];
   /** Decorative painted bays (lines on three sides, closed at local +z). */
   bays?: BayDef[];
+  /** Storeys. Omitted for a flat level: one floor at y = 0 covering the lot. */
+  floors?: FloorDef[];
+  /** Ramps joining floors. Their side kerbs and the floor-edge kerbs are generated. */
+  ramps?: RampDef[];
 }
 
 export function obstacleDims(o: ObstacleDef): { w: number; l: number; h: number } {

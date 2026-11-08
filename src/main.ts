@@ -116,7 +116,7 @@ function startLevel(i: number): void {
   sfx.unlock();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
-  player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot);
+  player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
   player.model.root.visible = true;
   elapsed = 0;
   hits = 0;
@@ -323,10 +323,11 @@ function step(dt: number): void {
   hitCooldown = Math.max(0, hitCooldown - dt);
   if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
-  car.step(dt, input.controls);
+  car.step(dt, input.controls, level.surfaces);
+  const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: gentle touches are free, real bumps cost a heart.
-  const impact = car.resolveCollisions(level.obstacles);
+  const impact = car.resolveCollisions(nearby);
   if (impact > HIT_MIN_SPEED && hitCooldown === 0) {
     hits++;
     hitCooldown = HIT_COOLDOWN;
@@ -336,13 +337,14 @@ function step(dt: number): void {
   }
 
   // Parking check.
-  const park = evaluateParking(car.obb, car.v, def.target, def.bothWays);
+  const park = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer);
   if (park.ok) parkHold += dt;
   else parkHold = Math.max(0, parkHold - dt * 3);
-  const color = park.ok ? 0x2ee66b : park.inside ? 0xffe14d : 0xffa31a;
+  const over = park.inside && park.onFloor; // in the bay's footprint on the right floor
+  const color = park.ok ? 0x2ee66b : over ? 0xffe14d : 0xffa31a;
   level.bayFill.color.setHex(color);
   level.bayEdge.color.setHex(color);
-  if (park.inside) {
+  if (over) {
     const label = !park.aligned
       ? def.bothWays
         ? 'Straighten up'
@@ -361,7 +363,7 @@ function step(dt: number): void {
     sensorCheckTimer -= dt;
     if (sensorCheckTimer <= 0) {
       sensorCheckTimer = 1 / SENSOR_CHECK_HZ;
-      sensorBeep = sensorInterval(car.obb, level.obstacles);
+      sensorBeep = sensorInterval(car.obb, nearby);
     }
     if (sensorBeep && sensorTimer <= 0) {
       sfx.beep();

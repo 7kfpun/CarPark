@@ -73,6 +73,7 @@ src/physics.ts       kinematic bicycle-model car physics and collision response
 src/collision.ts     2D oriented bounding boxes (OBB) and SAT overlap tests
 src/parking.ts       decides whether the car is parked correctly inside the target bay
 src/layout.ts        level data types (LevelDef, BayDef, ObstacleDef) and obstacle geometry helpers
+src/floors.ts        floors and ramps: surface height, layer hand-over, which obstacles the car can reach, generated kerbs
 src/levels.ts        the level definitions
 src/level.ts         builds the three.js scene for a level (ground, lines, bays, obstacles)
 src/car.ts           car mesh construction and the player car (physics + model)
