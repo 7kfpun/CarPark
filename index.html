@@ -29,11 +29,17 @@
     <div id="flash" aria-hidden="true"></div>
     <div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
+    <div id="loading" class="screen" role="status" aria-live="polite">
+      <div class="panel small">
+        <p id="loading-text">Loading…</p>
+        <div class="bar" aria-hidden="true"><div id="loading-fill"></div></div>
+      </div>
+    </div>
+
     <div id="hud" class="hidden">
       <div class="hud-top">
         <div class="pill" id="hud-level"></div>
         <div class="pill" id="hud-timer"></div>
-        <div class="pill hearts" id="hud-hits" role="img"></div>
       </div>
       <div class="hud-corner">
         <button class="icon-btn" id="btn-cam" aria-label="Toggle camera">🎥</button>

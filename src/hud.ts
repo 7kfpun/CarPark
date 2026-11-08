@@ -22,6 +22,11 @@ function starLabel(n: number, total = 3): string {
   return `${n} of ${total} star${total === 1 ? '' : 's'}`;
 }
 
+/** The star requirement of a level, shown in the intro and pause menu. */
+export function starRequirement(def: LevelDef): string {
+  return `3★ in ${def.stars.three}s or less, 2★ in ${def.stars.two}s or less.`;
+}
+
 export function bestLabel(t: number): string {
   return `${t.toFixed(1)}s`;
 }
@@ -33,7 +38,6 @@ export class Hud {
   private readonly touch = $('touch');
   private readonly level = $('hud-level');
   private readonly timer = $('hud-timer');
-  private readonly hits = $('hud-hits');
   private readonly gear = $('hud-gear');
   private readonly hint = $('hud-hint');
   private readonly meter = $('park-meter');
@@ -42,7 +46,6 @@ export class Hud {
   private readonly flash = $('flash');
   private readonly live = $('sr-status');
   private hintTimer = 0;
-  private livesLabel = '';
   private parkLabel = '';
   private liveTimer = 0;
 
@@ -83,20 +86,14 @@ export class Hud {
     this.touch.classList.toggle('hidden', !this.touchEnabled);
     this.level.textContent = `${index + 1}. ${def.name}`;
     this.setPark(null, '');
-    this.showHint(def.hint, 5);
+    this.showHint(`${def.hint} ${starRequirement(def)}`, 6);
     this.hideModal();
   }
 
-  update(timeLeft: number, hits: number, maxHits: number, speed: number): void {
+  update(timeLeft: number, speed: number): void {
     const t = Math.max(0, Math.ceil(timeLeft));
     this.timer.textContent = `⏱ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     this.timer.classList.toggle('warn', timeLeft < 10);
-    this.hits.textContent = '♥'.repeat(Math.max(0, maxHits - hits)) + '♡'.repeat(Math.min(maxHits, hits));
-    const lives = `${Math.max(0, maxHits - hits)} of ${maxHits} lives left`;
-    if (lives !== this.livesLabel) {
-      this.livesLabel = lives;
-      this.hits.setAttribute('aria-label', lives);
-    }
     const kmh = Math.round(Math.abs(speed) * 3.6);
     this.gear.textContent = `${speed < -0.05 ? 'R' : 'D'} · ${kmh} km/h`;
     this.gear.classList.toggle('reverse', speed < -0.05);

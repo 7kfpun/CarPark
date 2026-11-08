@@ -1,13 +1,15 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
-import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP } from '../src/config';
+import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
+import { loadingLabel } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { isTouch, nextStarTime, starsForTime } from '../src/rules';
 import { replaySolution, staticProblems } from '../src/solution';
 import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
 import { buildVersion } from './version';
@@ -64,16 +66,19 @@ for (const [i, lvl] of LEVELS.entries()) {
   // Static geometry: spawn and bay clear, bay fits the car and sits inside the lot.
   for (const problem of staticProblems(lvl)) check(false, problem);
 
-  // Scripted solution: must park within par and without a bump.
+  // Scripted solution: must park within the 3-star time and without a touch.
   const solution = SOLUTIONS[lvl.id];
   check(solution !== undefined, `no scripted solution in src/levels.solutions.ts for "${lvl.id}"`);
   if (solution) {
     const r = replaySolution(lvl, solution);
     check(r.parked, 'scripted solution does not end parked');
-    check(r.hits === 0 && r.maxImpact <= HIT_MIN_SPEED, `scripted solution bumps (impact ${r.maxImpact.toFixed(2)})`);
     check(
-      r.finishTime !== null && r.finishTime <= lvl.par,
-      `scripted solution too slow (${r.finishTime?.toFixed(1) ?? 'never'}s, par ${lvl.par}s)`,
+      r.hits === 0 && r.maxImpact <= TOUCH_MIN_SPEED,
+      `scripted solution touches something (impact ${r.maxImpact.toFixed(2)})`,
+    );
+    check(
+      r.finishTime !== null && r.finishTime <= lvl.stars.three,
+      `scripted solution too slow (${r.finishTime?.toFixed(1) ?? 'never'}s, 3-star ${lvl.stars.three}s)`,
     );
     check(r.finishTime === null || r.finishTime <= lvl.time, 'scripted solution exceeds the time limit');
   }
@@ -423,7 +428,7 @@ console.log('Collision response');
   const off = sat(carBox(0, 0.5, 0), slab, 0, -1);
   check(!!off && off.nz === 1, 'SAT normal must follow the centre offset when it is clear');
   // A long wall whose near face lies on z = 10, and a run loop that records
-  // per-step impact, speed and heading. Hits are counted like main.ts does.
+  // per-step impact, speed and heading. Touches are counted like main.ts does.
   const WALL_Z = 10;
   const wall: OBB = { x: 0, z: WALL_Z + 0.3, hw: 60, hl: 0.3, rot: 0 };
   interface Trace {
@@ -437,16 +442,11 @@ console.log('Collision response');
   }
   const run = (car: CarPhysics, obs: OBB[], seconds: number, throttle: number, steer = 0): Trace => {
     const t: Trace = { impact: [], v: [], heading: [], z: [], hits: 0, firstContact: -1, maxFront: -Infinity };
-    let cooldown = 0;
     for (let i = 0; i < Math.round(seconds / STEP); i++) {
-      cooldown = Math.max(0, cooldown - STEP);
       car.step(STEP, { throttle, steer, handbrake: false });
       const imp = car.resolveCollisions(obs);
       if (imp > 0 && t.firstContact < 0) t.firstContact = i;
-      if (imp > HIT_MIN_SPEED && cooldown === 0) {
-        t.hits++;
-        cooldown = HIT_COOLDOWN;
-      }
+      if (isTouch(imp, TOUCH_MIN_SPEED)) t.hits++;
       t.impact.push(imp);
       t.v.push(car.v);
       t.heading.push(car.heading);
@@ -455,7 +455,7 @@ console.log('Collision response');
     }
     return t;
   };
-  const settle = Math.round(HIT_COOLDOWN / STEP); // steps after first contact
+  const settle = Math.round(0.5 / STEP); // steps after first contact
   const maxOf = (a: number[]) => a.reduce((m, x) => Math.max(m, x), -Infinity);
   const minOf = (a: number[]) => a.reduce((m, x) => Math.min(m, x), Infinity);
 
@@ -471,7 +471,7 @@ console.log('Collision response');
 
   // (b) Full speed at 10 degrees into the wall: the impact is the normal
   // component, v*sin(10deg) = 0.17*v (~1.6 m/s): still a real scrape at
-  // 32 km/h, so it may cost a heart once, but it must be far below head-on
+  // 32 km/h, so it counts as a touch (which fails the level), but it must be far below head-on
   // (< 25%). The car then aligns with the wall and slides on, keeping most of
   // its speed (> 60%, friction takes ~10%), and holding throttle against it
   // never registers another hit after the first contact has settled.
@@ -496,8 +496,8 @@ console.log('Collision response');
     `glance impact should be ~v*sin(10deg) (${glance.toFixed(2)})`,
   );
   check(minOf(slide) > 0.6 * MAX_FWD, `glance: lost too much speed (min ${minOf(slide).toFixed(2)})`);
-  check(maxOf(after) < HIT_MIN_SPEED, `glance: repeated hits while sliding (${maxOf(after).toFixed(2)})`);
-  check(g.hits <= 1, `glance: ${g.hits} hits counted`);
+  check(maxOf(after) < TOUCH_MIN_SPEED, `glance: repeated hits while sliding (${maxOf(after).toFixed(2)})`);
+  check(g.hits === 1, `glance: ${g.hits} touches counted`);
   check(g.maxFront <= WALL_Z + 0.01, `glance: car pushed into the wall (z=${g.maxFront.toFixed(3)})`);
   const hEnd = g.heading.at(-1)!;
   check(
@@ -518,7 +518,7 @@ console.log('Collision response');
   check(gr.firstContact >= 0, 'reverse glance: never touched the wall');
   check(maxOf(gr.impact) < 0.25 * MAX_REV, `reverse glance impact too high (${maxOf(gr.impact).toFixed(2)})`);
   check(maxOf(rSlide) < -0.6 * MAX_REV, `reverse glance: lost too much speed (${maxOf(rSlide).toFixed(2)})`);
-  check(maxOf(gr.impact.slice(gr.firstContact + settle)) < HIT_MIN_SPEED, 'reverse glance: repeated hits');
+  check(maxOf(gr.impact.slice(gr.firstContact + settle)) < TOUCH_MIN_SPEED, 'reverse glance: repeated hits');
   check(gr.maxFront <= WALL_Z + 0.01, `reverse glance: car pushed into the wall (z=${gr.maxFront.toFixed(3)})`);
   check(
     rEnd >= Math.PI / 2 - 0.1 && rEnd <= Math.PI / 2 + 0.05,
@@ -542,7 +542,7 @@ console.log('Collision response');
   check(!sat(car.obb, pillar), 'pillar: car left overlapping');
 
   // (d) Drive into the wall from 1 m and hold full throttle against it for
-  // 3 s: one hit for the arrival, then a quiet, jitter-free rest.
+  // 3 s: a touch on arrival (it ends the level in game), then a quiet, jitter-free rest.
   car.reset(0, WALL_Z - CAR_L / 2 - 1, 0);
   const r = run(car, [wall], 3, 1);
   const restImp = r.impact.slice(r.firstContact + settle);
@@ -553,13 +553,52 @@ console.log('Collision response');
     `  resting: arrival ${maxOf(r.impact).toFixed(2)} m/s, then max impact ${maxOf(restImp).toFixed(3)} m/s, ` +
       `max step dz ${(jitter * 1000).toFixed(2)} mm`,
   );
-  check(r.hits === 1, `resting: expected exactly 1 hit, got ${r.hits}`);
-  check(maxOf(restImp) < HIT_MIN_SPEED, `resting: impact while pushing (${maxOf(restImp).toFixed(3)})`);
+  check(r.hits >= 1, 'resting: the arrival should count as a touch');
+  check(maxOf(restImp) < TOUCH_MIN_SPEED, `resting: impact while pushing (${maxOf(restImp).toFixed(3)})`);
   check(maxOf(r.heading.map(Math.abs)) < 1e-9, 'resting: heading changed');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
 
+console.log('Star rules');
+for (const lvl of LEVELS) {
+  const { three, two } = lvl.stars;
+  check(
+    0 < three && three < two && two < lvl.time,
+    `${lvl.id}: stars need 0 < three (${three}) < two (${two}) < time (${lvl.time})`,
+  );
+}
+{
+  const t = { three: 20, two: 30 };
+  check(starsForTime(0, t) === 3 && starsForTime(20, t) === 3, 'stars: 3 at or under the three-star time');
+  check(starsForTime(20.01, t) === 2 && starsForTime(30, t) === 2, 'stars: 2 just over three, up to the two-star time');
+  check(starsForTime(30.01, t) === 1 && starsForTime(59.9, t) === 1, 'stars: 1 when slower than the two-star time');
+  check(
+    nextStarTime(1, t) === 30 && nextStarTime(2, t) === 20 && nextStarTime(3, t) === null,
+    'stars: time for next star',
+  );
+  check(
+    isTouch(0.03, TOUCH_MIN_SPEED) && !isTouch(0, TOUCH_MIN_SPEED),
+    'touch: any real approach counts, rest does not',
+  );
+}
+
+// Restarting with the car resting against something is not a touch: spawns must not overlap obstacles.
+for (const lvl of LEVELS) {
+  const car = new CarPhysics();
+  const s = new Surfaces(lvl);
+  car.reset(lvl.spawn.x, lvl.spawn.z, lvl.spawn.rot, s);
+  check(
+    !car.reachable(s, levelObstacles(lvl, s)).some((o) => sat(car.obb, o)),
+    `${lvl.id}: spawn overlaps an obstacle`,
+  );
+}
+
+console.log('Loading label');
+check(loadingLabel(0, 0) === 'Loading…', 'loading: unknown total');
+check(loadingLabel(0, 7) === 'Loading… 0%', 'loading: start');
+check(loadingLabel(3, 7) === 'Loading… 43%', 'loading: partial');
+check(loadingLabel(9, 7) === 'Loading… 100%', 'loading: clamped');
 console.log('Build version');
 check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
 check(buildVersion('1.2.3', 'abc123\n') === '1.2.3+abc123', 'sha whitespace is trimmed');

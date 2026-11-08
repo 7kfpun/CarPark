@@ -1,7 +1,8 @@
 import { corners, pointInOBB, sat, type OBB } from './collision';
-import { CAR_L, CAR_W, HIT_MIN_SPEED, PARK_HOLD, STEP } from './config';
+import { CAR_L, CAR_W, TOUCH_MIN_SPEED, PARK_HOLD, STEP } from './config';
 import { allObstacles, bayOBB, obstacleOBB, type LevelDef } from './layout';
 import { evaluateParking } from './parking';
+import { isTouch } from './rules';
 import { CarPhysics, type Controls } from './physics';
 
 /** Hold `controls` for `t` seconds. */
@@ -66,7 +67,7 @@ export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResu
       steps++;
       const impact = car.resolveCollisions(obs);
       maxImpact = Math.max(maxImpact, impact);
-      if (impact > HIT_MIN_SPEED) hits++;
+      if (isTouch(impact, TOUCH_MIN_SPEED)) hits++;
       // Same bookkeeping as the game loop: the hold drains 3x as fast as it fills.
       hold = evaluateParking(car.obb, car.v, def.target, def.bothWays).ok ? hold + STEP : Math.max(0, hold - STEP * 3);
       if (hold >= PARK_HOLD - 1e-9) return { parked: true, finishTime: steps * STEP, maxImpact, hits };

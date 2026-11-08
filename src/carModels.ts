@@ -63,8 +63,13 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
  * Load every car model. Resolves even if some fail: missing models fall back to
  * the built-in box car, so the game always starts.
  */
-export async function loadCarModels(baseUrl = `${import.meta.env.BASE_URL}models/cars/`): Promise<void> {
-  const loader = new GLTFLoader();
+export async function loadCarModels(
+  baseUrl = `${import.meta.env.BASE_URL}models/cars/`,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> {
+  const manager = new THREE.LoadingManager();
+  if (onProgress) manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
+  const loader = new GLTFLoader(manager);
   await Promise.all(
     ALL.map(async (name) => {
       try {
