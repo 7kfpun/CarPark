@@ -1,9 +1,9 @@
 # Park It 3D
 
 A small browser car-parking game built with [three.js](https://threejs.org/), TypeScript and Vite.
-Each of the six lots has one glowing target bay. Drive in, line up with the bay and hold still for a
+Each lot has one glowing target bay. Drive in, line up with the bay and hold still for a
 moment to park. Every level has a time limit, and three bumps fail the level. You earn up to three
-stars per level: three for no bumps and a time under par. Progress is saved in `localStorage`.
+stars per level: three for no bumps and a time under par. Progress is saved in `localStorage`, keyed by each level's permanent `id` (see `LevelDef`), so levels can be added or reordered without losing stars.
 
 No asset files are loaded at runtime. The cars, the lots and the sound effects are all generated in code.
 
@@ -19,6 +19,18 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 | Restart level          | `R`               |           |
 | Pause / resume         | `Esc` / `P`       | ⏸ button  |
 | Mute                   | `M`               |           |
+
+### Gamepad
+
+| Action                       | Button                                     |
+| ---------------------------- | ------------------------------------------ |
+| Accelerate / brake / reverse | `RT` / `LT`                                |
+| Steer                        | Left stick                                 |
+| Handbrake                    | `A` / `RB`                                 |
+| Pause / resume               | `Start`                                    |
+| Toggle camera                | `Y` / `Back`                               |
+| Restart level                | `X`                                        |
+| Menus and modals             | D-pad or left stick to move, `A` to select |
 
 ## Development
 
@@ -44,7 +56,7 @@ The build uses `base: './'`, so `dist/` can be served from any sub-path.
 
 These parameters help with testing:
 
-- `?level=N` starts level `N` straight away (1-based) and skips the menu, e.g. `http://localhost:5173/?level=3`.
+- `?level=N` starts level `N` straight away (1-based, or a level id such as `?level=cone-gates`) and skips the menu, e.g. `http://localhost:5173/?level=3`.
 - `?cam=top` starts in the top-down camera instead of the chase camera.
 
 You can combine them: `?level=6&cam=top`.
@@ -61,6 +73,7 @@ src/physics.ts       kinematic bicycle-model car physics and collision response
 src/collision.ts     2D oriented bounding boxes (OBB) and SAT overlap tests
 src/parking.ts       decides whether the car is parked correctly inside the target bay
 src/layout.ts        level data types (LevelDef, BayDef, ObstacleDef) and obstacle geometry helpers
+src/floors.ts        floors and ramps: surface height, layer hand-over, which obstacles the car can reach, generated kerbs
 src/levels.ts        the level definitions
 src/level.ts         builds the three.js scene for a level (ground, lines, bays, obstacles)
 src/car.ts           car mesh construction and the player car (physics + model)

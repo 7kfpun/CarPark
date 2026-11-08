@@ -1,12 +1,24 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
-import { corners, sat, type OBB } from '../src/collision';
-import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
-import { deadzone, steerFromOffset, strongest } from '../src/input';
-import { allObstacles, obstacleOBB } from '../src/layout';
+import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
+import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP } from '../src/config';
+import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
+import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
+import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { loadingLabel } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
+import { buildVersion } from './version';
+import {
+  bestFor,
+  loadProgress,
+  parseProgress,
+  recordBest,
+  recordWin,
+  resumeIndex,
+  V1_LEVEL_IDS,
+} from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -95,6 +107,157 @@ console.log('Drive-through (level 1)');
   check(car.z - CAR_L / 2 >= -lvl.lot.l / 2 - 0.01, `car pushed through the wall (z=${car.z.toFixed(2)})`);
 }
 
+console.log('Floors and ramps');
+{
+  // Ground floor z -30..0, a 15 m ramp (11.3 deg) from z 0 to 15, upper floor (y = 3) z 15..35.
+  const rampLevel = (rampLen: number): LevelDef => ({
+    ...LEVELS[0],
+    lot: { w: 20, l: 65 },
+    spawn: { x: 0, z: -10, rot: 0 },
+    obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
+      { id: 'upper', y: 3, area: [{ x: 0, z: 15 + rampLen - 15 + 10, hw: 10, hl: 10, rot: 0 }] },
+    ],
+    ramps: [{ id: 'ramp', from: 'ground', to: 'upper', x: 0, z: rampLen / 2, rot: 0, w: 4, l: rampLen }],
+    target: { ...LEVELS[0].target, x: 0, z: 25, floor: 'upper' },
+  });
+  const lvl = rampLevel(15);
+  const surf = new Surfaces(lvl);
+  const obs = levelObstacles(lvl, surf);
+  check(floorProblems(lvl).length === 0, `ramp level rejected: ${floorProblems(lvl).join('; ')}`);
+  check(
+    floorProblems(rampLevel(12)).some((m) => m.includes('over the limit')),
+    'a 14 deg ramp should be rejected',
+  );
+  check(surf.rampSlope(lvl.ramps![0]) <= RAMP_MAX_SLOPE, 'test ramp is steeper than the limit');
+
+  const car = new CarPhysics();
+  const drive = (seconds: number, ctl: (c: CarPhysics) => { throttle: number; handbrake: boolean }, steer = 0) => {
+    const layers = new Set<string>();
+    let impact = 0;
+    for (let i = 0; i < Math.round(seconds / STEP); i++) {
+      const c = ctl(car);
+      car.step(STEP, { throttle: c.throttle, steer, handbrake: c.handbrake }, surf);
+      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs)));
+      layers.add(car.layer);
+    }
+    return { layers, impact };
+  };
+
+  // Driving up: full throttle climbs the ramp, ends on the upper floor, level.
+  car.reset(0, -10, 0, surf);
+  check(car.layer === 'ground' && car.y === 0 && car.pitch === 0, 'car should start flat on the ground floor');
+  let maxPitch = 0;
+  const up = drive(16, (c) => {
+    maxPitch = Math.max(maxPitch, c.pitch);
+    return { throttle: c.z > 20 ? 0 : 1, handbrake: c.z > 20 };
+  });
+  console.log(
+    `  climb: layer ${car.layer}, y ${car.y.toFixed(2)}, max pitch ${((maxPitch * 180) / Math.PI).toFixed(1)}deg, v ${car.v.toFixed(2)}`,
+  );
+  check(up.layers.has('ramp'), 'driving up never entered the ramp layer');
+  check(car.layer === 'upper', `did not reach the upper floor (layer ${car.layer}, z ${car.z.toFixed(1)})`);
+  check(Math.abs(car.y - 3) < 1e-6 && Math.abs(car.pitch) < 1e-9, `not level on top (y ${car.y.toFixed(3)})`);
+  check(maxPitch > 0.15 && maxPitch < RAMP_MAX_SLOPE + 1e-6, `pitch on the ramp out of range (${maxPitch.toFixed(3)})`);
+  check(up.impact === 0, `hit something driving up (${up.impact.toFixed(2)})`);
+
+  // Slope slows the car: same throttle from standstill accelerates less than on the flat.
+  car.reset(0, 2, 0, surf);
+  car.layer = 'ramp';
+  drive(1, () => ({ throttle: 1, handbrake: false }));
+  check(car.v > 0 && car.v < 1.5, `climbing from rest should be slow (v ${car.v.toFixed(2)})`);
+
+  // Stopping at the top: brake on the upper floor, the car stays put, level.
+  car.reset(0, -10, 0, surf);
+  drive(30, (c) => {
+    const want = Math.min(3, Math.sqrt(Math.max(0, 2 * 4 * (22 - c.z))));
+    return { throttle: c.v < want - 0.2 ? 1 : c.v > want + 0.2 ? -1 : 0, handbrake: c.z > 21.7 };
+  });
+  const topZ = car.z;
+  drive(3, () => ({ throttle: 0, handbrake: true }));
+  check(car.layer === 'upper' && car.v === 0 && Math.abs(car.z - topZ) < 1e-9, 'car should stay stopped at the top');
+  check(Math.abs(car.y - 3) < 1e-6 && car.z > 20, `stopped at the wrong place (z ${car.z.toFixed(2)})`);
+  // A bay on the upper floor counts only for a car on the upper floor.
+  const topBay = { ...lvl.target, z: car.z };
+  check(evaluateParking(car.obb, 0, topBay, true, 'upper').ok, 'car on the upper floor should park in an upper bay');
+  check(!evaluateParking(car.obb, 0, topBay, true, 'ground').ok, 'wrong floor counted as parked');
+  check(!evaluateParking(car.obb, 0, topBay, true, 'ramp').ok, 'car on a ramp counted as parked');
+
+  // Rolling back: left alone on the ramp the car rolls down and onto the ground floor.
+  car.reset(0, 7.5, 0, surf);
+  car.layer = 'ramp';
+  const roll = drive(1.5, () => ({ throttle: 0, handbrake: false }));
+  check(car.v < -1 && car.z < 7.5, `car should roll back on the ramp (v ${car.v.toFixed(2)}, z ${car.z.toFixed(2)})`);
+  const rolled = drive(12, () => ({ throttle: 0, handbrake: false }));
+  check(roll.impact === 0 && rolled.impact < 1, 'rolling back hit something hard');
+  check(car.layer === 'ground' && car.y === 0, `rolled back to layer ${car.layer}, y ${car.y.toFixed(2)}`);
+  // The handbrake holds it, and braking (throttle against the roll) stops it.
+  car.reset(0, 7.5, 0, surf);
+  car.layer = 'ramp';
+  drive(3, () => ({ throttle: 0, handbrake: true }));
+  check(car.v === 0 && car.z === 7.5, `handbrake should hold the car on the ramp (z ${car.z.toFixed(3)})`);
+
+  // Layers: a pillar on the ground floor never blocks a car on the floor above it.
+  const pillar = obs.find((o) => o.layer === 'ground' && o.hw === 0.4)!;
+  car.reset(0, 25, 0, surf);
+  car.layer = 'upper';
+  car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
+  check(!car.reachable(surf, obs).includes(pillar), 'a pillar on the floor below blocks the upper floor');
+  check(
+    car.resolveCollisions(car.reachable(surf, obs)) === 0 && Math.abs(car.z - 25) < 1e-9,
+    'car pushed by a pillar below',
+  );
+  car.layer = 'ground';
+  car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
+  check(car.reachable(surf, obs).includes(pillar), 'a pillar on the car’s own floor should block it');
+
+  // Edges: nowhere to drive off. Full throttle straight on, and hard over to each side.
+  for (const [name, x, z, rot, steer] of [
+    ['floor end', 0, 30, 0, 0],
+    ['upper floor side', 6, 20, Math.PI / 2, 0],
+    ['ramp side (left)', 0, 5, 0, 1],
+    ['ramp side (right)', 0, 5, 0, -1],
+  ] as const) {
+    car.reset(x, z, rot, surf);
+    car.layer = z > 15 ? 'upper' : 'ramp';
+    const box = obs.filter((o) => o.layer === car.layer);
+    drive(8, () => ({ throttle: 1, handbrake: false }), steer);
+    const inside = corners(car.obb).every(([cx, cz]) => {
+      if (car.layer === 'upper') return Math.abs(cx) <= 10.01 && cz <= 35.01;
+      return Math.abs(cx) <= 2.01 || cz < 0 || cz > 15;
+    });
+    check(inside && box.length > 0, `${name}: car left the surface (x ${car.x.toFixed(2)}, z ${car.z.toFixed(2)})`);
+  }
+
+  // Flat levels: no floors declared, so physics, obstacles and parking are as before.
+  for (const [i, flat] of LEVELS.entries()) {
+    const fs = new Surfaces(flat);
+    const lo = levelObstacles(flat, fs);
+    const plain = allObstacles(flat).map(obstacleOBB);
+    check(
+      lo.length === plain.length && lo.every((o, k) => o.layer === 'ground' && sat(o, plain[k]) !== null),
+      `level ${i + 1}: flat obstacles changed`,
+    );
+    check(floorProblems(flat).length === 0, `level ${i + 1}: unexpected floor problems`);
+    const a = new CarPhysics();
+    const b = new CarPhysics();
+    a.reset(flat.spawn.x, flat.spawn.z, flat.spawn.rot, fs);
+    b.reset(flat.spawn.x, flat.spawn.z, flat.spawn.rot);
+    for (let k = 0; k < 600; k++) {
+      const ctl = { throttle: k < 400 ? 1 : -1, steer: Math.sin(k / 50), handbrake: false };
+      a.step(STEP, ctl, fs);
+      b.step(STEP, ctl);
+      a.resolveCollisions(a.reachable(fs, lo));
+      b.resolveCollisions(plain);
+    }
+    check(
+      a.x === b.x && a.z === b.z && a.heading === b.heading && a.v === b.v && a.y === 0 && a.pitch === 0,
+      `level ${i + 1}: flat physics differs with surfaces`,
+    );
+  }
+}
+
 console.log('Input mapping');
 check(deadzone(0.05, 0.1) === 0 && deadzone(-0.1, 0.1) === 0, 'dead zone should swallow small values');
 check(deadzone(1, 0.1) === 1 && deadzone(-2, 0.1) === -1, 'dead zone output should reach and clamp to ±1');
@@ -106,6 +269,105 @@ check(
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+{
+  // 3x2 grid of 10px boxes with 2px gaps, plus a lone row of two modal buttons.
+  const box = (c: number, r: number) => ({ left: c * 12, top: r * 12, right: c * 12 + 10, bottom: r * 12 + 10 });
+  const grid = [box(0, 0), box(1, 0), box(2, 0), box(0, 1), box(1, 1), box(2, 1)];
+  check(
+    pickNeighbor(null, grid, 'right') === 0 && pickNeighbor(null, grid, 'left') === 5,
+    'nav with no focus enters the list',
+  );
+  check(
+    pickNeighbor(grid[0], grid, 'right') === 1 && pickNeighbor(grid[1], grid, 'left') === 0,
+    'nav moves along a row',
+  );
+  check(
+    pickNeighbor(grid[1], grid, 'down') === 4 && pickNeighbor(grid[4], grid, 'up') === 1,
+    'nav moves down/up a column',
+  );
+  check(
+    pickNeighbor(grid[2], grid, 'right') === -1 && pickNeighbor(grid[0], grid, 'up') === -1,
+    'nav stops at the edges',
+  );
+  check(pickNeighbor(grid[2], grid, 'down') === 5, 'nav down keeps the column');
+  check(pickNeighbor(grid[0], [], 'down') === -1, 'nav with no buttons finds nothing');
+}
+
+console.log('Broad phase');
+{
+  // The allocation-free SAT must match the original array-based version.
+  const refAxes = (o: OBB): [number, number][] => [
+    [Math.cos(o.rot), -Math.sin(o.rot)],
+    [Math.sin(o.rot), Math.cos(o.rot)],
+  ];
+  const refRadius = (o: OBB, ax: [number, number]): number => {
+    const [a1, a2] = refAxes(o);
+    return o.hw * Math.abs(a1[0] * ax[0] + a1[1] * ax[1]) + o.hl * Math.abs(a2[0] * ax[0] + a2[1] * ax[1]);
+  };
+  const refSat = (a: OBB, b: OBB, hx: number, hz: number): Contact | null => {
+    const dx = a.x - b.x;
+    const dz = a.z - b.z;
+    let best: Contact | null = null;
+    let bestDist = 0;
+    for (const ax of [...refAxes(a), ...refAxes(b)]) {
+      const dist = dx * ax[0] + dz * ax[1];
+      const overlap = refRadius(a, ax) + refRadius(b, ax) - Math.abs(dist);
+      if (overlap <= 0) return null;
+      if (!best || overlap < best.depth - 1e-9) {
+        best = { depth: overlap, nx: ax[0], nz: ax[1] };
+        bestDist = dist;
+      }
+    }
+    if (!best) return null;
+    let sign = bestDist >= 0 ? 1 : -1;
+    if (Math.abs(bestDist) < 1e-4) sign = hx * best.nx + hz * best.nz < 0 ? -1 : 1;
+    return { depth: best.depth, nx: best.nx * sign, nz: best.nz * sign };
+  };
+  let seed = 12345;
+  const rnd = (): number => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  let mismatches = 0;
+  let hits = 0;
+  for (let i = 0; i < 20000; i++) {
+    const a: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const b: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const want = refSat(a, b, 0.3, -0.7);
+    const got = sat(a, b, 0.3, -0.7);
+    if (want) hits++;
+    const same =
+      (!want && !got) ||
+      (!!want &&
+        !!got &&
+        Math.abs(want.depth - got.depth) < 1e-9 &&
+        Math.abs(want.nx - got.nx) < 1e-9 &&
+        Math.abs(want.nz - got.nz) < 1e-9);
+    if (!same) mismatches++;
+  }
+  check(hits > 2000 && hits < 18000, `SAT equivalence sample should mix hits and misses (${hits}/20000)`);
+  check(mismatches === 0, `SAT differs from the reference in ${mismatches} cases`);
+
+  const far: OBB = { x: 50, z: 50, hw: 1, hl: 1, rot: 0.4 };
+  check(sat(carBox(0, 0, 0), far) === null, 'far obstacle should be rejected');
+
+  // Parking sensor bands: nearest band wins, nothing in range gives 0.
+  const wall: OBB = { x: 0, z: 0, hw: 5, hl: 0.1, rot: 0 };
+  const gap = (g: number): number => sensorInterval(carBox(0, -(CAR_L / 2 + 0.1 + g), 0), [wall]);
+  check(gap(0.1) === 0.09, 'sensor: 0.1 m gap should use the fastest band');
+  check(gap(0.4) === 0.22, 'sensor: 0.4 m gap should use the middle band');
+  check(gap(0.9) === 0.45, 'sensor: 0.9 m gap should use the slowest band');
+  check(gap(1.5) === 0 && sensorInterval(carBox(0, -40, 0), [wall]) === 0, 'sensor: nothing in range should be 0');
+}
 
 console.log('Collision response');
 {
@@ -259,6 +521,165 @@ check(loadingLabel(0, 0) === 'Loading…', 'loading: unknown total');
 check(loadingLabel(0, 7) === 'Loading… 0%', 'loading: start');
 check(loadingLabel(3, 7) === 'Loading… 43%', 'loading: partial');
 check(loadingLabel(9, 7) === 'Loading… 100%', 'loading: clamped');
+console.log('Build version');
+check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
+check(buildVersion('1.2.3', 'abc123\n') === '1.2.3+abc123', 'sha whitespace is trimmed');
+check(buildVersion('1.2.3', undefined) === '1.2.3+unknown', 'missing sha falls back to unknown');
+// --- Level ids and saved progress ---------------------------------------------
+console.log('Level ids and progress');
+const ids = LEVELS.map((l) => l.id);
+check(
+  ids.every((id) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)),
+  'level ids must be non-empty kebab-case',
+);
+check(new Set(ids).size === ids.length, 'level ids must be unique');
+check(
+  V1_LEVEL_IDS.every((id) => ids.includes(id)),
+  'a v1 level id no longer exists (ids are permanent)',
+);
+
+const v1 = { unlocked: 4, stars: [3, 2, 1, 2, 0, 0] };
+const mig = parseProgress(v1, ids);
+check(mig.v === 2, 'migration: result is v2');
+check(
+  V1_LEVEL_IDS.every((id, i) => (mig.stars[id] ?? 0) === v1.stars[i]),
+  'migration: stars moved to ids',
+);
+check(mig.unlocked.join() === V1_LEVEL_IDS.slice(0, 4).join(), `migration: unlocked ${mig.unlocked.join()}`);
+
+// Inserting a level in the middle must leave an existing player's stars on the right levels.
+const withTest = [...ids.slice(0, 2), 'test-level', ...ids.slice(2)];
+const after = parseProgress(JSON.parse(JSON.stringify(mig)), withTest);
+check(
+  V1_LEVEL_IDS.every((id, i) => (after.stars[id] ?? 0) === v1.stars[i]),
+  'insert: stars stay on their levels',
+);
+check(!after.stars['test-level'], 'insert: new level has no stars');
+check(!after.unlocked.includes('test-level'), 'insert: new level starts locked');
+check(
+  mig.unlocked.every((id) => after.unlocked.includes(id)),
+  'insert: unlocked levels stay unlocked',
+);
+const rec = parseProgress(null, withTest);
+recordWin(rec, withTest, 1, 2);
+check(rec.unlocked.includes('test-level') && rec.stars[withTest[1]] === 2, 'recordWin unlocks next by position');
+recordWin(rec, withTest, 1, 1);
+check(rec.stars[withTest[1]] === 2, 'recordWin keeps best stars');
+check(resumeIndex(rec, withTest) === 2, 'resumeIndex is the furthest unlocked level');
+check(parseProgress('junk', ids).unlocked.length === 1, 'junk save falls back to fresh');
+const v2 = parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids);
+check(v2.stars['first-steps'] === 3 && !('gone' in v2.stars), 'v2: stars clamped to 0-3 and unknown ids dropped');
+
+// loadProgress reads localStorage: check it survives bad, missing and throwing storage.
+const store: { value: string | null; throws: boolean } = { value: null, throws: false };
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: () => {
+    if (store.throws) throw new Error('unavailable');
+    return store.value;
+  },
+};
+const four = ids.slice(0, 4);
+const load = (raw: string | null, list = four) => {
+  store.value = raw;
+  return loadProgress(list);
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]], best: {} };
+check(same(load(null), fresh4), 'missing storage gives fresh progress');
+check(same(load('{not json'), fresh4), 'corrupt JSON gives fresh progress');
+check(same(load('null'), fresh4), 'JSON null gives fresh progress');
+check(same(load('{"stars":"x","unlocked":"y"}'), fresh4), 'wrong-typed fields give fresh progress');
+store.throws = true;
+check(same(load('{"unlocked":3}'), fresh4), 'throwing storage gives fresh progress');
+store.throws = false;
+check(
+  same(load('{"unlocked":3,"stars":[1,2,3]}'), {
+    v: 2,
+    stars: { [ids[0]]: 1, [ids[1]]: 2, [ids[2]]: 3 },
+    unlocked: ids.slice(0, 3),
+    best: {},
+  }),
+  'valid v1 progress loads and migrates',
+);
+check(
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', ids).stars, { [ids[0]]: 3, [ids[2]]: 2 }),
+  'out-of-range, fractional and non-number stars are clamped to integers 0-3',
+);
+check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count is clamped');
+check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
+check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');
+check(load('{"unlocked":2.9}').unlocked.length === 2, 'fractional unlocked is floored');
+
+console.log('Progress: best times');
+{
+  const a = ids[0];
+  const b = ids[1];
+  const old = parseProgress({ unlocked: 3, stars: [3, 2] }, ids);
+  check(Object.keys(old.best).length === 0, 'old save without best loads with no times');
+  check(old.unlocked.length === 3 && old.stars[a] === 3, 'old save keeps unlocked and stars');
+  const bad = parseProgress(
+    { v: 2, best: { [a]: 12.3, [b]: -1, [ids[2]]: NaN, [ids[3]]: 'x', [ids[4]]: Infinity, gone: 5 } },
+    ids,
+  );
+  check(
+    JSON.stringify(bad.best) === JSON.stringify({ [a]: 12.3 }),
+    `bad best values dropped (${JSON.stringify(bad.best)})`,
+  );
+  check(Object.keys(parseProgress({ best: 'nope' }, ids).best).length === 0, 'non-object best ignored');
+  check(Object.keys(parseProgress({ best: [1, 2] }, ids).best).length === 0, 'array best ignored');
+  const p = parseProgress(null, ids);
+  check(recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'first time is recorded');
+  check(!recordBest(p, a, 25) && bestFor(p, a) === 20.5, 'slower time never replaces');
+  check(!recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'equal time is not a new best');
+  check(recordBest(p, a, 18.2) && bestFor(p, a) === 18.2, 'faster time replaces');
+  check(!recordBest(p, b, NaN) && !recordBest(p, b, 0) && bestFor(p, b) === 0, 'invalid time is not recorded');
+  const ins = parseProgress(JSON.parse(JSON.stringify(p)), [ids[0], 'test-level', ...ids.slice(1)]);
+  check(bestFor(ins, a) === 18.2, 'best time stays on its level when a level is inserted');
+}
+
+// Update check
+console.log('Update check');
+const me = { version: '1.2.0', build: 'abc' };
+const rem = (version: string, build: string, minVersion: string | null = null) => ({ version, build, minVersion });
+check(compareVersions(parseVersion('1.10.0')!, parseVersion('1.9.0')!) > 0, 'versions compare numerically');
+check(compareVersions(parseVersion('1.2')!, parseVersion('1.2.0')!) === 0, 'missing parts count as 0');
+check(parseVersion('1.2.x') === null && parseVersion('') === null && parseVersion(3) === null, 'bad versions rejected');
+check(decideUpdate(me, rem('1.2.0', 'abc')) === 'none', 'same build is up to date');
+check(decideUpdate(me, rem('1.2.0', 'def')) === 'optional', 'new build of the same version is optional');
+check(decideUpdate(me, rem('1.3.0', 'def')) === 'optional', 'newer version is optional');
+check(decideUpdate(me, rem('1.1.0', 'def')) === 'none', 'older remote is ignored');
+check(decideUpdate(me, rem('1.3.0', 'def', '1.2.0')) === 'optional', 'at min version is not required');
+check(decideUpdate(me, rem('1.3.0', 'def', '1.2.1')) === 'required', 'below min version is required');
+check(decideUpdate(me, rem('1.2.0', 'abc', '1.5.0')) === 'required', 'required even when build matches');
+check(parseRemote({ version: '1.0.0', build: 'x' })?.minVersion === null, 'minVersion is optional');
+check(parseRemote({ version: 'nope', build: 'x' }) === null, 'bad remote version rejected');
+check(parseRemote({ version: '1.0.0', build: 'x', minVersion: 'zz' }) === null, 'bad minVersion rejected');
+check(parseRemote(null) === null && parseRemote('x') === null, 'non-object remote rejected');
+const ok = (body: unknown, status = 200) =>
+  (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
+check(
+  (await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd', '1.3.0')))) === 'required',
+  'fetched required update',
+);
+check((await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))) === 'optional', 'fetched optional update');
+check((await checkForUpdate(me, 'v.json', 50, ok({}, 404))) === 'none', 'HTTP error never blocks');
+check((await checkForUpdate(me, 'v.json', 50, ok({ junk: 1 }))) === 'none', 'junk body never blocks');
+check(
+  (await checkForUpdate(me, 'v.json', 50, (async () => {
+    throw new Error('offline');
+  }) as typeof fetch)) === 'none',
+  'offline never blocks',
+);
+check(
+  (await checkForUpdate(
+    me,
+    'v.json',
+    20,
+    ((_u: unknown, init?: RequestInit) =>
+      new Promise((_r, rej) => init?.signal?.addEventListener('abort', () => rej(new Error('abort'))))) as typeof fetch,
+  )) === 'none',
+  'hung server times out without blocking',
+);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

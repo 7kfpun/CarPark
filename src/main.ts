@@ -5,9 +5,9 @@ import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
 import { loadCarModels } from './carModels';
-import { expand, sat } from './collision';
+import { sensorInterval } from './collision';
 import { HIT_COOLDOWN, HIT_MIN_SPEED, MAX_HITS, PARK_HOLD, STEP } from './config';
-import { Hud, type ModalButton } from './hud';
+import { bestLabel, Hud, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import { LEVELS } from './levels';
@@ -15,10 +15,11 @@ import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
-import { loadProgress, saveProgress } from './progress';
+import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
 import { loadSettings, SettingsPanel } from './settings';
+import { checkForUpdate, type UpdateKind } from './update';
 
-type State = 'menu' | 'playing' | 'paused' | 'done';
+type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
 // --- Renderer & scene -------------------------------------------------------
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -84,7 +85,8 @@ const player = new PlayerCar();
 const mirror = new RearMirror();
 scene.add(player.model.root);
 
-const progress = loadProgress(LEVELS.length);
+const LEVEL_IDS = LEVELS.map((l) => l.id);
+const progress = loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
 let level: BuiltLevel | null = null;
@@ -93,6 +95,9 @@ let hits = 0;
 let hitCooldown = 0;
 let parkHold = 0;
 let sensorTimer = 0;
+let sensorCheckTimer = 0;
+let sensorBeep = 0;
+const SENSOR_CHECK_HZ = 20;
 let accumulator = 0;
 
 function loadLevel(i: number): void {
@@ -123,7 +128,7 @@ function startLevel(i: number): void {
   sfx.unlock();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
-  player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot);
+  player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
   player.model.root.visible = true;
   elapsed = 0;
   hits = 0;
@@ -134,11 +139,12 @@ function startLevel(i: number): void {
   rig.snap(player.physics);
   hud.startLevel(i, def);
   state = 'playing';
+  hud.hideUpdateBanner(); // never interrupt a level; it comes back at the next menu
 }
 
 function showMenu(): void {
   state = 'menu';
-  if (!level) loadLevel(Math.min(progress.unlocked - 1, LEVELS.length - 1));
+  if (!level) loadLevel(resumeIndex(progress, LEVEL_IDS));
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, (i) => {
     if (state !== 'menu') return;
@@ -146,6 +152,7 @@ function showMenu(): void {
     sfx.click();
     startLevel(i);
   });
+  applyUpdate();
 }
 
 function pause(): void {
@@ -174,8 +181,9 @@ function finish(win: boolean, reason: string): void {
   if (win) {
     sfx.win();
     const stars = hits === 0 && elapsed <= def.par ? 3 : hits <= 1 ? 2 : 1;
-    progress.stars[levelIndex] = Math.max(progress.stars[levelIndex], stars);
-    progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, levelIndex + 2));
+    recordWin(progress, LEVEL_IDS, levelIndex, stars);
+    const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
+    const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     saveProgress(progress);
     const last = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
@@ -186,7 +194,7 @@ function finish(win: boolean, reason: string): void {
     const tip = stars < 3 ? `  (3★: no bumps and under ${def.par}s)` : '';
     hud.showModal(
       last ? 'All levels cleared!' : 'Parked!',
-      `${elapsed.toFixed(1)}s · ${hits} bump${hits === 1 ? '' : 's'}${tip}`,
+      `${elapsed.toFixed(1)}s · ${hits} bump${hits === 1 ? '' : 's'}${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
     );
@@ -197,15 +205,64 @@ function finish(win: boolean, reason: string): void {
       { label: 'Menu', onClick: showMenu },
     ]);
   }
+  applyUpdate();
 }
+
+// --- Updates ------------------------------------------------------------------
+// Only shown from the menu or after a level ends, never mid-level.
+let pendingUpdate: UpdateKind = 'none';
+let updateDismissed = false;
+let lastUpdateCheck = 0;
+const reloadPage = (): void => location.reload();
+
+function applyUpdate(): void {
+  if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
+  if (pendingUpdate === 'required') {
+    state = 'blocked';
+    input.clear();
+    hud.hideUpdateBanner();
+    hud.showModal('Please update to keep playing', 'A new version of Park It 3D is required.', null, [
+      { label: 'Update', primary: true, onClick: reloadPage },
+    ]);
+  } else if (!updateDismissed) {
+    hud.showUpdateBanner(reloadPage, () => (updateDismissed = true));
+  }
+}
+
+async function runUpdateCheck(): Promise<void> {
+  const now = Date.now();
+  if (now - lastUpdateCheck < 30_000) return; // launch and resume can fire back to back
+  lastUpdateCheck = now;
+  const kind = await checkForUpdate(
+    { version: __APP_SEMVER__, build: __APP_BUILD__ },
+    new URL('version.json', document.baseURI).href,
+  );
+  // A newer answer replaces an older one, but a required update is never downgraded.
+  if (kind !== 'none' && pendingUpdate !== 'required') pendingUpdate = kind;
+  applyUpdate();
+}
+document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());
 
 // --- Keyboard actions ---------------------------------------------------------
 input.driving = () => state === 'playing';
 input.actionsEnabled = () => !settingsPanel.isOpen;
+input.navRoot = () =>
+  settingsPanel.isOpen
+    ? document.getElementById('settings')
+    : hud.modalOpen
+      ? document.getElementById('modal')
+      : state === 'menu'
+        ? document.getElementById('menu')
+        : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
+// Routes through settings so the panel shows it and it is saved (onChange sets rig.mode).
+function toggleCamera(): string {
+  settingsPanel.set('camera', rig.mode === 'chase' ? 'top' : 'chase');
+  return rig.mode === 'top' ? 'Top-down camera' : 'Chase camera';
+}
 input.on('KeyC', () => {
   if (state !== 'playing') return;
-  hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
+  hud.showHint(toggleCamera(), 1.2);
 });
 input.on('KeyM', () => {
   settingsPanel.set('sound', sfx.muted); // flips the setting; onChange updates sfx.muted
@@ -219,7 +276,7 @@ input.on('Escape', () => {
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
-  if (state === 'menu') startLevel(progress.unlocked - 1);
+  if (state === 'menu') startLevel(resumeIndex(progress, LEVEL_IDS));
   else if (hud.modalOpen) hud.clickPrimary();
 });
 
@@ -246,11 +303,21 @@ document.getElementById('btn-settings')!.addEventListener('click', (e) => {
 document.getElementById('btn-settings-menu')!.addEventListener('click', openSettings);
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
-  if (state === 'playing') hud.showHint(rig.toggle() === 'top' ? 'Top-down camera' : 'Chase camera', 1.2);
+  if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
 });
 input.bindTouch(document.getElementById('touch')!);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
-document.addEventListener('visibilitychange', () => document.hidden && pause());
+// Backgrounded (home, app switch, call, screen lock): pause, silence audio and stop the loop.
+// On return the Pause screen is showing and the car doesn't move until the player taps Resume.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pause();
+    sfx.suspend();
+  } else {
+    sfx.resume();
+    startLoop();
+  }
+});
 // Pause when the window loses focus (alt-tab), unless focus comes straight back.
 let blurTimer = 0;
 addEventListener('blur', () => {
@@ -268,10 +335,11 @@ function step(dt: number): void {
   hitCooldown = Math.max(0, hitCooldown - dt);
   if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
-  car.step(dt, input.controls);
+  car.step(dt, input.controls, level.surfaces);
+  const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: gentle touches are free, real bumps cost a heart.
-  const impact = car.resolveCollisions(level.obstacles);
+  const impact = car.resolveCollisions(nearby);
   if (impact > HIT_MIN_SPEED && hitCooldown === 0) {
     hits++;
     hitCooldown = HIT_COOLDOWN;
@@ -281,13 +349,14 @@ function step(dt: number): void {
   }
 
   // Parking check.
-  const park = evaluateParking(car.obb, car.v, def.target, def.bothWays);
+  const park = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer);
   if (park.ok) parkHold += dt;
   else parkHold = Math.max(0, parkHold - dt * 3);
-  const color = park.ok ? 0x2ee66b : park.inside ? 0xffe14d : 0xffa31a;
+  const over = park.inside && park.onFloor; // in the bay's footprint on the right floor
+  const color = park.ok ? 0x2ee66b : over ? 0xffe14d : 0xffa31a;
   level.bayFill.color.setHex(color);
   level.bayEdge.color.setHex(color);
-  if (park.inside) {
+  if (over) {
     const label = !park.aligned
       ? def.bothWays
         ? 'Straighten up'
@@ -299,32 +368,35 @@ function step(dt: number): void {
   } else hud.setPark(null, '');
   if (parkHold >= PARK_HOLD) return finish(true, '');
 
-  // Parking sensor beeps when slow and close to something.
+  // Parking sensor beeps when slow and close to something. The proximity test
+  // only runs at SENSOR_CHECK_HZ; the beep timer still ticks every step.
   sensorTimer -= dt;
   if (Math.abs(car.v) > 0.05 && Math.abs(car.v) < 4) {
-    const box = car.obb;
-    let interval = 0;
-    for (const [margin, iv] of [
-      [0.25, 0.09],
-      [0.6, 0.22],
-      [1.1, 0.45],
-    ] as const) {
-      const e = expand(box, margin);
-      if (level.obstacles.some((o) => sat(e, o))) {
-        interval = iv;
-        break;
-      }
+    sensorCheckTimer -= dt;
+    if (sensorCheckTimer <= 0) {
+      sensorCheckTimer = 1 / SENSOR_CHECK_HZ;
+      sensorBeep = sensorInterval(car.obb, nearby);
     }
-    if (interval && sensorTimer <= 0) {
+    if (sensorBeep && sensorTimer <= 0) {
       sfx.beep();
-      sensorTimer = interval;
+      sensorTimer = sensorBeep;
     }
+  } else {
+    sensorCheckTimer = 0;
+    sensorBeep = 0;
   }
 }
 
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
+let rafId = 0;
+function startLoop(): void {
+  if (rafId || !gfx.ok || document.hidden) return;
+  last = performance.now(); // no time jump after a long stay in the background
+  rafId = requestAnimationFrame(frame);
+}
 function frame(now: number): void {
+  rafId = 0;
   const frameStart = last;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -356,14 +428,16 @@ function frame(now: number): void {
   gfx.render(camera);
   mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
   if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
-  requestAnimationFrame(frame);
+  if (!document.hidden) rafId = requestAnimationFrame(frame); // stops while hidden: no battery drain
 }
 
 // ?level=N jumps straight into a level, ?cam=top starts top-down (handy for testing).
 const params = new URLSearchParams(location.search);
 if (params.get('cam') === 'top') rig.mode = 'top';
 const qs = params.get('level');
-const direct = qs ? Number(qs) - 1 : -1;
+const byId = qs ? LEVEL_IDS.indexOf(qs) : -1;
+const direct = byId >= 0 ? byId : qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
 else showMenu();
-if (gfx.ok) requestAnimationFrame(frame);
+startLoop();
+void runUpdateCheck();

@@ -1,8 +1,12 @@
 name: Deploy
 
+# Every merge to main deploys, after the same gate CI uses. The daily run is a
+# backstop (07:00 Taipei = 23:00 UTC) and workflow_dispatch allows a manual release.
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 23 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +30,8 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run build
+      # Same gate as CI, so a broken main never goes live.
+      - run: npm run typecheck && npm run lint && npm run format:check && npm run validate && npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
