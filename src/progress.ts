@@ -1,39 +1,117 @@
+/** Saved progress, keyed by permanent level id so adding or reordering levels never shifts it. */
 export interface Progress {
-  unlocked: number; // number of levels playable
-  stars: number[]; // best stars per level
-  best: number[]; // best completion time per level in seconds, 0 = none
+  v: 2;
+  stars: Record<string, number>; // best stars per level id
+  unlocked: string[]; // ids of playable levels
+  best: Record<string, number>; // best completion time in seconds per level id
 }
 
 const KEY = 'car-parking-3d:progress';
+const MAX_STARS = 3;
+
+function toInt(v: unknown, min: number, max: number, fallback: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(v)));
+}
+
+/** The level order when saves were keyed by position (v1). Never edit: it describes old saves. */
+export const V1_LEVEL_IDS = ['first-steps', 'back-it-in', 'parallel-pro', 'cone-gates', 'the-garage', 'rush-hour'];
+
+/** Ids in play order; the first level is always playable. */
+export function freshProgress(ids: string[]): Progress {
+  return { v: 2, stars: {}, unlocked: ids.slice(0, 1), best: {} };
+}
+
+/** Stars clamped to integers 0-3; anything that isn't a finite number counts as 0. */
+function starCount(n: unknown): number {
+  return toInt(n, 0, MAX_STARS, 0);
+}
+
+/** Turn whatever was stored (v1, v2 or junk) into progress for the current level list. */
+export function parseProgress(raw: unknown, ids: string[]): Progress {
+  const out = freshProgress(ids);
+  if (!raw || typeof raw !== 'object') return out;
+  const p = raw as { v?: unknown; stars?: unknown; unlocked?: unknown; best?: unknown };
+  const known0 = new Set(ids);
+  if (p.best && typeof p.best === 'object' && !Array.isArray(p.best)) {
+    for (const [id, t] of Object.entries(p.best)) if (known0.has(id) && cleanTime(t)) out.best[id] = cleanTime(t);
+  }
+  const known = new Set(ids);
+  const unlocked = new Set(out.unlocked);
+
+  if (p.v === 2) {
+    if (p.stars && typeof p.stars === 'object') {
+      for (const [id, n] of Object.entries(p.stars)) if (known.has(id) && starCount(n)) out.stars[id] = starCount(n);
+    }
+    if (Array.isArray(p.unlocked)) for (const id of p.unlocked) if (known.has(id)) unlocked.add(id);
+  } else {
+    // v1: stars[] by position and `unlocked` = number of playable levels, in the old order.
+    if (Array.isArray(p.stars)) {
+      p.stars.forEach((n, i) => {
+        const id = V1_LEVEL_IDS[i];
+        if (id && known.has(id) && starCount(n)) out.stars[id] = starCount(n);
+      });
+    }
+    const count = toInt(p.unlocked, 1, V1_LEVEL_IDS.length, 1);
+    for (const id of V1_LEVEL_IDS.slice(0, count)) if (known.has(id)) unlocked.add(id);
+  }
+  // Keep the saved order of the current list and make sure a starred level counts as unlocked.
+  for (const id of Object.keys(out.stars)) unlocked.add(id);
+  out.unlocked = ids.filter((id) => unlocked.has(id));
+  return out;
+}
 
 /** A stored best time is only valid when it is a finite, positive number. */
 function cleanTime(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-/** Turns parsed saved data (any shape, `best` may be missing) into a valid Progress. */
-export function sanitizeProgress(p: Partial<Progress> | null | undefined, count: number): Progress {
-  const stars = new Array<number>(count).fill(0).map((_, i) => Number(p?.stars?.[i]) || 0);
-  const best = new Array<number>(count).fill(0).map((_, i) => cleanTime(Array.isArray(p?.best) ? p.best[i] : 0));
-  return { unlocked: Math.min(count, Math.max(1, Number(p?.unlocked) || 1)), stars, best };
+/** Best time in seconds for a level id, 0 when none. */
+export function bestFor(p: Progress, id: string): number {
+  return cleanTime(p.best[id]);
 }
 
 /** Stores `time` as the level's best if it beats the saved one. Returns true when it did. */
-export function recordBest(p: Progress, level: number, time: number): boolean {
+export function recordBest(p: Progress, id: string, time: number): boolean {
   const t = cleanTime(time);
   if (!t) return false;
-  const old = p.best[level] ?? 0;
+  const old = bestFor(p, id);
   if (old && t >= old) return false;
-  p.best[level] = t;
+  p.best[id] = t;
   return true;
 }
 
-export function loadProgress(count: number): Progress {
+export function isUnlocked(p: Progress, id: string): boolean {
+  return p.unlocked.includes(id);
+}
+
+export function starsFor(p: Progress, id: string): number {
+  return p.stars[id] ?? 0;
+}
+
+/** Index of the furthest unlocked level in play order (where "Enter" resumes). */
+export function resumeIndex(p: Progress, ids: string[]): number {
+  let at = 0;
+  ids.forEach((id, i) => {
+    if (isUnlocked(p, id)) at = i;
+  });
+  return at;
+}
+
+/** Record a win on ids[index]: keep the best stars and unlock the next level by position. */
+export function recordWin(p: Progress, ids: string[], index: number, stars: number): void {
+  const id = ids[index];
+  p.stars[id] = Math.max(starsFor(p, id), stars);
+  const next = ids[index + 1];
+  if (next && !isUnlocked(p, next)) p.unlocked = ids.filter((x) => isUnlocked(p, x) || x === next);
+}
+
+export function loadProgress(ids: string[]): Progress {
   try {
     const raw = localStorage.getItem(KEY);
-    return sanitizeProgress(raw ? (JSON.parse(raw) as Partial<Progress>) : null, count);
+    return raw ? parseProgress(JSON.parse(raw), ids) : freshProgress(ids);
   } catch {
-    return sanitizeProgress(null, count);
+    return freshProgress(ids);
   }
 }
 

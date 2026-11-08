@@ -1,12 +1,20 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
-import { corners, sat, type OBB } from '../src/collision';
+import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
-import { deadzone, steerFromOffset, strongest } from '../src/input';
+import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
 import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
-import { recordBest, sanitizeProgress } from '../src/progress';
+import {
+  bestFor,
+  loadProgress,
+  parseProgress,
+  recordBest,
+  recordWin,
+  resumeIndex,
+  V1_LEVEL_IDS,
+} from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -106,6 +114,105 @@ check(
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+{
+  // 3x2 grid of 10px boxes with 2px gaps, plus a lone row of two modal buttons.
+  const box = (c: number, r: number) => ({ left: c * 12, top: r * 12, right: c * 12 + 10, bottom: r * 12 + 10 });
+  const grid = [box(0, 0), box(1, 0), box(2, 0), box(0, 1), box(1, 1), box(2, 1)];
+  check(
+    pickNeighbor(null, grid, 'right') === 0 && pickNeighbor(null, grid, 'left') === 5,
+    'nav with no focus enters the list',
+  );
+  check(
+    pickNeighbor(grid[0], grid, 'right') === 1 && pickNeighbor(grid[1], grid, 'left') === 0,
+    'nav moves along a row',
+  );
+  check(
+    pickNeighbor(grid[1], grid, 'down') === 4 && pickNeighbor(grid[4], grid, 'up') === 1,
+    'nav moves down/up a column',
+  );
+  check(
+    pickNeighbor(grid[2], grid, 'right') === -1 && pickNeighbor(grid[0], grid, 'up') === -1,
+    'nav stops at the edges',
+  );
+  check(pickNeighbor(grid[2], grid, 'down') === 5, 'nav down keeps the column');
+  check(pickNeighbor(grid[0], [], 'down') === -1, 'nav with no buttons finds nothing');
+}
+
+console.log('Broad phase');
+{
+  // The allocation-free SAT must match the original array-based version.
+  const refAxes = (o: OBB): [number, number][] => [
+    [Math.cos(o.rot), -Math.sin(o.rot)],
+    [Math.sin(o.rot), Math.cos(o.rot)],
+  ];
+  const refRadius = (o: OBB, ax: [number, number]): number => {
+    const [a1, a2] = refAxes(o);
+    return o.hw * Math.abs(a1[0] * ax[0] + a1[1] * ax[1]) + o.hl * Math.abs(a2[0] * ax[0] + a2[1] * ax[1]);
+  };
+  const refSat = (a: OBB, b: OBB, hx: number, hz: number): Contact | null => {
+    const dx = a.x - b.x;
+    const dz = a.z - b.z;
+    let best: Contact | null = null;
+    let bestDist = 0;
+    for (const ax of [...refAxes(a), ...refAxes(b)]) {
+      const dist = dx * ax[0] + dz * ax[1];
+      const overlap = refRadius(a, ax) + refRadius(b, ax) - Math.abs(dist);
+      if (overlap <= 0) return null;
+      if (!best || overlap < best.depth - 1e-9) {
+        best = { depth: overlap, nx: ax[0], nz: ax[1] };
+        bestDist = dist;
+      }
+    }
+    if (!best) return null;
+    let sign = bestDist >= 0 ? 1 : -1;
+    if (Math.abs(bestDist) < 1e-4) sign = hx * best.nx + hz * best.nz < 0 ? -1 : 1;
+    return { depth: best.depth, nx: best.nx * sign, nz: best.nz * sign };
+  };
+  let seed = 12345;
+  const rnd = (): number => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  let mismatches = 0;
+  let hits = 0;
+  for (let i = 0; i < 20000; i++) {
+    const a: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const b: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const want = refSat(a, b, 0.3, -0.7);
+    const got = sat(a, b, 0.3, -0.7);
+    if (want) hits++;
+    const same =
+      (!want && !got) ||
+      (!!want &&
+        !!got &&
+        Math.abs(want.depth - got.depth) < 1e-9 &&
+        Math.abs(want.nx - got.nx) < 1e-9 &&
+        Math.abs(want.nz - got.nz) < 1e-9);
+    if (!same) mismatches++;
+  }
+  check(hits > 2000 && hits < 18000, `SAT equivalence sample should mix hits and misses (${hits}/20000)`);
+  check(mismatches === 0, `SAT differs from the reference in ${mismatches} cases`);
+
+  const far: OBB = { x: 50, z: 50, hw: 1, hl: 1, rot: 0.4 };
+  check(sat(carBox(0, 0, 0), far) === null, 'far obstacle should be rejected');
+
+  // Parking sensor bands: nearest band wins, nothing in range gives 0.
+  const wall: OBB = { x: 0, z: 0, hw: 5, hl: 0.1, rot: 0 };
+  const gap = (g: number): number => sensorInterval(carBox(0, -(CAR_L / 2 + 0.1 + g), 0), [wall]);
+  check(gap(0.1) === 0.09, 'sensor: 0.1 m gap should use the fastest band');
+  check(gap(0.4) === 0.22, 'sensor: 0.4 m gap should use the middle band');
+  check(gap(0.9) === 0.45, 'sensor: 0.9 m gap should use the slowest band');
+  check(gap(1.5) === 0 && sensorInterval(carBox(0, -40, 0), [wall]) === 0, 'sensor: nothing in range should be 0');
+}
 
 console.log('Collision response');
 {
@@ -254,21 +361,116 @@ console.log('Collision response');
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
 
+// --- Level ids and saved progress ---------------------------------------------
+console.log('Level ids and progress');
+const ids = LEVELS.map((l) => l.id);
+check(
+  ids.every((id) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)),
+  'level ids must be non-empty kebab-case',
+);
+check(new Set(ids).size === ids.length, 'level ids must be unique');
+check(
+  V1_LEVEL_IDS.every((id) => ids.includes(id)),
+  'a v1 level id no longer exists (ids are permanent)',
+);
+
+const v1 = { unlocked: 4, stars: [3, 2, 1, 2, 0, 0] };
+const mig = parseProgress(v1, ids);
+check(mig.v === 2, 'migration: result is v2');
+check(
+  V1_LEVEL_IDS.every((id, i) => (mig.stars[id] ?? 0) === v1.stars[i]),
+  'migration: stars moved to ids',
+);
+check(mig.unlocked.join() === V1_LEVEL_IDS.slice(0, 4).join(), `migration: unlocked ${mig.unlocked.join()}`);
+
+// Inserting a level in the middle must leave an existing player's stars on the right levels.
+const withTest = [...ids.slice(0, 2), 'test-level', ...ids.slice(2)];
+const after = parseProgress(JSON.parse(JSON.stringify(mig)), withTest);
+check(
+  V1_LEVEL_IDS.every((id, i) => (after.stars[id] ?? 0) === v1.stars[i]),
+  'insert: stars stay on their levels',
+);
+check(!after.stars['test-level'], 'insert: new level has no stars');
+check(!after.unlocked.includes('test-level'), 'insert: new level starts locked');
+check(
+  mig.unlocked.every((id) => after.unlocked.includes(id)),
+  'insert: unlocked levels stay unlocked',
+);
+const rec = parseProgress(null, withTest);
+recordWin(rec, withTest, 1, 2);
+check(rec.unlocked.includes('test-level') && rec.stars[withTest[1]] === 2, 'recordWin unlocks next by position');
+recordWin(rec, withTest, 1, 1);
+check(rec.stars[withTest[1]] === 2, 'recordWin keeps best stars');
+check(resumeIndex(rec, withTest) === 2, 'resumeIndex is the furthest unlocked level');
+check(parseProgress('junk', ids).unlocked.length === 1, 'junk save falls back to fresh');
+const v2 = parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids);
+check(v2.stars['first-steps'] === 3 && !('gone' in v2.stars), 'v2: stars clamped to 0-3 and unknown ids dropped');
+
+// loadProgress reads localStorage: check it survives bad, missing and throwing storage.
+const store: { value: string | null; throws: boolean } = { value: null, throws: false };
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: () => {
+    if (store.throws) throw new Error('unavailable');
+    return store.value;
+  },
+};
+const four = ids.slice(0, 4);
+const load = (raw: string | null, list = four) => {
+  store.value = raw;
+  return loadProgress(list);
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]], best: {} };
+check(same(load(null), fresh4), 'missing storage gives fresh progress');
+check(same(load('{not json'), fresh4), 'corrupt JSON gives fresh progress');
+check(same(load('null'), fresh4), 'JSON null gives fresh progress');
+check(same(load('{"stars":"x","unlocked":"y"}'), fresh4), 'wrong-typed fields give fresh progress');
+store.throws = true;
+check(same(load('{"unlocked":3}'), fresh4), 'throwing storage gives fresh progress');
+store.throws = false;
+check(
+  same(load('{"unlocked":3,"stars":[1,2,3]}'), {
+    v: 2,
+    stars: { [ids[0]]: 1, [ids[1]]: 2, [ids[2]]: 3 },
+    unlocked: ids.slice(0, 3),
+    best: {},
+  }),
+  'valid v1 progress loads and migrates',
+);
+check(
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', ids).stars, { [ids[0]]: 3, [ids[2]]: 2 }),
+  'out-of-range, fractional and non-number stars are clamped to integers 0-3',
+);
+check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count is clamped');
+check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
+check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');
+check(load('{"unlocked":2.9}').unlocked.length === 2, 'fractional unlocked is floored');
+
 console.log('Progress: best times');
 {
-  const old = sanitizeProgress({ unlocked: 3, stars: [3, 2] }, 4);
-  check(old.best.length === 4 && old.best.every((b) => b === 0), 'old save without best must load as zeros');
-  check(old.unlocked === 3 && old.stars[0] === 3, 'old save keeps unlocked and stars');
-  const bad = sanitizeProgress({ best: [12.3, -1, NaN, 'x', Infinity, 5] as unknown as number[] }, 6);
-  check(bad.best.join() === '12.3,0,0,0,0,5', `bad best values must be dropped (${bad.best.join()})`);
-  check(sanitizeProgress({ best: 'nope' as unknown as number[] }, 2).best.join() === '0,0', 'non-array best ignored');
-  check(sanitizeProgress(null, 2).best.join() === '0,0', 'null save gives fresh progress');
-  const p = sanitizeProgress(null, 2);
-  check(recordBest(p, 0, 20.5) && p.best[0] === 20.5, 'first time is recorded');
-  check(!recordBest(p, 0, 25) && p.best[0] === 20.5, 'slower time never replaces');
-  check(!recordBest(p, 0, 20.5) && p.best[0] === 20.5, 'equal time is not a new best');
-  check(recordBest(p, 0, 18.2) && p.best[0] === 18.2, 'faster time replaces');
-  check(!recordBest(p, 1, NaN) && !recordBest(p, 1, 0) && p.best[1] === 0, 'invalid time is not recorded');
+  const a = ids[0];
+  const b = ids[1];
+  const old = parseProgress({ unlocked: 3, stars: [3, 2] }, ids);
+  check(Object.keys(old.best).length === 0, 'old save without best loads with no times');
+  check(old.unlocked.length === 3 && old.stars[a] === 3, 'old save keeps unlocked and stars');
+  const bad = parseProgress(
+    { v: 2, best: { [a]: 12.3, [b]: -1, [ids[2]]: NaN, [ids[3]]: 'x', [ids[4]]: Infinity, gone: 5 } },
+    ids,
+  );
+  check(
+    JSON.stringify(bad.best) === JSON.stringify({ [a]: 12.3 }),
+    `bad best values dropped (${JSON.stringify(bad.best)})`,
+  );
+  check(Object.keys(parseProgress({ best: 'nope' }, ids).best).length === 0, 'non-object best ignored');
+  check(Object.keys(parseProgress({ best: [1, 2] }, ids).best).length === 0, 'array best ignored');
+  const p = parseProgress(null, ids);
+  check(recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'first time is recorded');
+  check(!recordBest(p, a, 25) && bestFor(p, a) === 20.5, 'slower time never replaces');
+  check(!recordBest(p, a, 20.5) && bestFor(p, a) === 20.5, 'equal time is not a new best');
+  check(recordBest(p, a, 18.2) && bestFor(p, a) === 18.2, 'faster time replaces');
+  check(!recordBest(p, b, NaN) && !recordBest(p, b, 0) && bestFor(p, b) === 0, 'invalid time is not recorded');
+  const ins = parseProgress(JSON.parse(JSON.stringify(p)), [ids[0], 'test-level', ...ids.slice(1)]);
+  check(bestFor(ins, a) === 18.2, 'best time stays on its level when a level is inserted');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
