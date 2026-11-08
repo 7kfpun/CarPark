@@ -1,8 +1,10 @@
 name: Deploy
 
-# One release a day: merged PRs accumulate on main and go live at 07:00 Taipei
-# (23:00 UTC). Run the workflow by hand for an out-of-band release.
+# Every merge to main deploys, after the same gate CI uses. The daily run is a
+# backstop (07:00 Taipei = 23:00 UTC) and workflow_dispatch allows a manual release.
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: '0 23 * * *'
   workflow_dispatch:
