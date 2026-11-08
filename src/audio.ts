@@ -12,6 +12,24 @@ export class Sfx {
     }
   }
 
+  /** Silence everything while the app is in the background. */
+  suspend(): void {
+    try {
+      if (this.ctx?.state === 'running') void this.ctx.suspend();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Undo suspend() when the app returns to the foreground. */
+  resume(): void {
+    try {
+      if (this.ctx?.state === 'suspended') void this.ctx.resume();
+    } catch {
+      /* ignore */
+    }
+  }
+
   private tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, endFreq?: number): void {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;
