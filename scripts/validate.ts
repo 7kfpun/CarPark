@@ -1,5 +1,5 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
-import { corners, sat, type OBB } from '../src/collision';
+import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
 import { deadzone, steerFromOffset, strongest } from '../src/input';
 import { allObstacles, obstacleOBB } from '../src/layout';
@@ -105,6 +105,82 @@ check(
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+
+console.log('Broad phase');
+{
+  // The allocation-free SAT must match the original array-based version.
+  const refAxes = (o: OBB): [number, number][] => [
+    [Math.cos(o.rot), -Math.sin(o.rot)],
+    [Math.sin(o.rot), Math.cos(o.rot)],
+  ];
+  const refRadius = (o: OBB, ax: [number, number]): number => {
+    const [a1, a2] = refAxes(o);
+    return o.hw * Math.abs(a1[0] * ax[0] + a1[1] * ax[1]) + o.hl * Math.abs(a2[0] * ax[0] + a2[1] * ax[1]);
+  };
+  const refSat = (a: OBB, b: OBB, hx: number, hz: number): Contact | null => {
+    const dx = a.x - b.x;
+    const dz = a.z - b.z;
+    let best: Contact | null = null;
+    let bestDist = 0;
+    for (const ax of [...refAxes(a), ...refAxes(b)]) {
+      const dist = dx * ax[0] + dz * ax[1];
+      const overlap = refRadius(a, ax) + refRadius(b, ax) - Math.abs(dist);
+      if (overlap <= 0) return null;
+      if (!best || overlap < best.depth - 1e-9) {
+        best = { depth: overlap, nx: ax[0], nz: ax[1] };
+        bestDist = dist;
+      }
+    }
+    if (!best) return null;
+    let sign = bestDist >= 0 ? 1 : -1;
+    if (Math.abs(bestDist) < 1e-4) sign = hx * best.nx + hz * best.nz < 0 ? -1 : 1;
+    return { depth: best.depth, nx: best.nx * sign, nz: best.nz * sign };
+  };
+  let seed = 12345;
+  const rnd = (): number => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  let mismatches = 0;
+  let hits = 0;
+  for (let i = 0; i < 20000; i++) {
+    const a: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const b: OBB = {
+      x: rnd() * 8 - 4,
+      z: rnd() * 8 - 4,
+      hw: 0.2 + rnd() * 2,
+      hl: 0.2 + rnd() * 3,
+      rot: rnd() * 7 - 3.5,
+    };
+    const want = refSat(a, b, 0.3, -0.7);
+    const got = sat(a, b, 0.3, -0.7);
+    if (want) hits++;
+    const same =
+      (!want && !got) ||
+      (!!want &&
+        !!got &&
+        Math.abs(want.depth - got.depth) < 1e-9 &&
+        Math.abs(want.nx - got.nx) < 1e-9 &&
+        Math.abs(want.nz - got.nz) < 1e-9);
+    if (!same) mismatches++;
+  }
+  check(hits > 2000 && hits < 18000, `SAT equivalence sample should mix hits and misses (${hits}/20000)`);
+  check(mismatches === 0, `SAT differs from the reference in ${mismatches} cases`);
+
+  const far: OBB = { x: 50, z: 50, hw: 1, hl: 1, rot: 0.4 };
+  check(sat(carBox(0, 0, 0), far) === null, 'far obstacle should be rejected');
+
+  // Parking sensor bands: nearest band wins, nothing in range gives 0.
+  const wall: OBB = { x: 0, z: 0, hw: 5, hl: 0.1, rot: 0 };
+  const gap = (g: number): number => sensorInterval(carBox(0, -(CAR_L / 2 + 0.1 + g), 0), [wall]);
+  check(gap(0.1) === 0.09, 'sensor: 0.1 m gap should use the fastest band');
+  check(gap(0.4) === 0.22, 'sensor: 0.4 m gap should use the middle band');
+  check(gap(0.9) === 0.45, 'sensor: 0.9 m gap should use the slowest band');
+  check(gap(1.5) === 0 && sensorInterval(carBox(0, -40, 0), [wall]) === 0, 'sensor: nothing in range should be 0');
+}
 
 console.log('Collision response');
 {
