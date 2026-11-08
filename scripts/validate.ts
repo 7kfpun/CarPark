@@ -5,10 +5,12 @@ import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
+import { SOLUTIONS } from '../src/levels.solutions';
 import { loadingLabel } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
+import { replaySolution, staticProblems } from '../src/solution';
 import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
 import { buildVersion } from './version';
 import {
@@ -59,6 +61,52 @@ for (const [i, lvl] of LEVELS.entries()) {
   check(
     obs.every((o) => !sat(side, o)),
     'less than 0.3m side clearance at target',
+  );
+
+  // Static geometry: spawn and bay clear, bay fits the car and sits inside the lot.
+  for (const problem of staticProblems(lvl)) check(false, problem);
+
+  // Scripted solution: must park within the 3-star time and without a touch.
+  const solution = SOLUTIONS[lvl.id];
+  check(solution !== undefined, `no scripted solution in src/levels.solutions.ts for "${lvl.id}"`);
+  if (solution) {
+    const r = replaySolution(lvl, solution);
+    check(r.parked, 'scripted solution does not end parked');
+    check(
+      r.hits === 0 && r.maxImpact <= TOUCH_MIN_SPEED,
+      `scripted solution touches something (impact ${r.maxImpact.toFixed(2)})`,
+    );
+    check(
+      r.finishTime !== null && r.finishTime <= lvl.stars.three,
+      `scripted solution too slow (${r.finishTime?.toFixed(1) ?? 'never'}s, 3-star ${lvl.stars.three}s)`,
+    );
+    check(r.finishTime === null || r.finishTime <= lvl.time, 'scripted solution exceeds the time limit');
+  }
+}
+const levelNames = new Set(LEVELS.map((l) => l.id));
+for (const name of Object.keys(SOLUTIONS)) check(levelNames.has(name), `solution for unknown level "${name}"`);
+
+console.log('Solution checker');
+{
+  // The checker itself must reject bad inputs, or CI would pass vacuously.
+  const lvl = LEVELS[0];
+  check(!replaySolution(lvl, []).parked, 'empty solution counted as parked');
+  const wall = replaySolution(lvl, [{ t: 6, throttle: -1, steer: 0, handbrake: false }]);
+  check(wall.hits > 0, 'reversing into the wall was not counted as a bump');
+  const overlapping = {
+    ...lvl,
+    obstacles: [...lvl.obstacles, { kind: 'cone' as const, x: lvl.spawn.x, z: lvl.spawn.z }],
+  };
+  check(
+    staticProblems(overlapping).some((m) => m.includes('spawn')),
+    'spawn overlap not detected',
+  );
+  const tiny = { ...lvl, target: { ...lvl.target, w: 1.5 } };
+  check(staticProblems(tiny).length > 0, 'undersized bay not detected');
+  const outside = { ...lvl, target: { ...lvl.target, z: lvl.lot.l } };
+  check(
+    staticProblems(outside).some((m) => m.includes('lot')),
+    'bay outside lot not detected',
   );
 }
 
