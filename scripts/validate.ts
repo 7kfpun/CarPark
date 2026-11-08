@@ -6,6 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -252,6 +253,54 @@ console.log('Collision response');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
+
+// --- Level ids and saved progress ---------------------------------------------
+console.log('Level ids and progress');
+const ids = LEVELS.map((l) => l.id);
+check(
+  ids.every((id) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)),
+  'level ids must be non-empty kebab-case',
+);
+check(new Set(ids).size === ids.length, 'level ids must be unique');
+check(
+  V1_LEVEL_IDS.every((id) => ids.includes(id)),
+  'a v1 level id no longer exists (ids are permanent)',
+);
+
+const v1 = { unlocked: 4, stars: [3, 2, 1, 2, 0, 0] };
+const mig = parseProgress(v1, ids);
+check(mig.v === 2, 'migration: result is v2');
+check(
+  V1_LEVEL_IDS.every((id, i) => (mig.stars[id] ?? 0) === v1.stars[i]),
+  'migration: stars moved to ids',
+);
+check(mig.unlocked.join() === V1_LEVEL_IDS.slice(0, 4).join(), `migration: unlocked ${mig.unlocked.join()}`);
+
+// Inserting a level in the middle must leave an existing player's stars on the right levels.
+const withTest = [...ids.slice(0, 2), 'test-level', ...ids.slice(2)];
+const after = parseProgress(JSON.parse(JSON.stringify(mig)), withTest);
+check(
+  V1_LEVEL_IDS.every((id, i) => (after.stars[id] ?? 0) === v1.stars[i]),
+  'insert: stars stay on their levels',
+);
+check(!after.stars['test-level'], 'insert: new level has no stars');
+check(!after.unlocked.includes('test-level'), 'insert: new level starts locked');
+check(
+  mig.unlocked.every((id) => after.unlocked.includes(id)),
+  'insert: unlocked levels stay unlocked',
+);
+const rec = parseProgress(null, withTest);
+recordWin(rec, withTest, 1, 2);
+check(rec.unlocked.includes('test-level') && rec.stars[withTest[1]] === 2, 'recordWin unlocks next by position');
+recordWin(rec, withTest, 1, 1);
+check(rec.stars[withTest[1]] === 2, 'recordWin keeps best stars');
+check(resumeIndex(rec, withTest) === 2, 'resumeIndex is the furthest unlocked level');
+check(parseProgress('junk', ids).unlocked.length === 1, 'junk save falls back to fresh');
+check(
+  parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids).stars['first-steps'] ===
+    undefined,
+  'bad star values and unknown ids are dropped',
+);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

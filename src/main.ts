@@ -14,7 +14,7 @@ import { LEVELS } from './levels';
 import { RearMirror } from './mirror';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
-import { loadProgress, saveProgress } from './progress';
+import { loadProgress, recordWin, resumeIndex, saveProgress } from './progress';
 import { loadSettings, SettingsPanel } from './settings';
 
 type State = 'menu' | 'playing' | 'paused' | 'done';
@@ -72,7 +72,8 @@ const player = new PlayerCar();
 const mirror = new RearMirror();
 scene.add(player.model.root);
 
-const progress = loadProgress(LEVELS.length);
+const LEVEL_IDS = LEVELS.map((l) => l.id);
+const progress = loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
 let level: BuiltLevel | null = null;
@@ -126,7 +127,7 @@ function startLevel(i: number): void {
 
 function showMenu(): void {
   state = 'menu';
-  if (!level) loadLevel(Math.min(progress.unlocked - 1, LEVELS.length - 1));
+  if (!level) loadLevel(resumeIndex(progress, LEVEL_IDS));
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, (i) => {
     if (state !== 'menu') return;
@@ -162,8 +163,7 @@ function finish(win: boolean, reason: string): void {
   if (win) {
     sfx.win();
     const stars = hits === 0 && elapsed <= def.par ? 3 : hits <= 1 ? 2 : 1;
-    progress.stars[levelIndex] = Math.max(progress.stars[levelIndex], stars);
-    progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, levelIndex + 2));
+    recordWin(progress, LEVEL_IDS, levelIndex, stars);
     saveProgress(progress);
     const last = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
@@ -207,7 +207,7 @@ input.on('Escape', () => {
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
-  if (state === 'menu') startLevel(progress.unlocked - 1);
+  if (state === 'menu') startLevel(resumeIndex(progress, LEVEL_IDS));
   else if (hud.modalOpen) hud.clickPrimary();
 });
 
@@ -351,7 +351,8 @@ function frame(now: number): void {
 const params = new URLSearchParams(location.search);
 if (params.get('cam') === 'top') rig.mode = 'top';
 const qs = params.get('level');
-const direct = qs ? Number(qs) - 1 : -1;
+const byId = qs ? LEVEL_IDS.indexOf(qs) : -1;
+const direct = byId >= 0 ? byId : qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
 else showMenu();
 if (gfx.ok) requestAnimationFrame(frame);

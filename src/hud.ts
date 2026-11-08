@@ -1,5 +1,5 @@
 import type { LevelDef } from './layout';
-import type { Progress } from './progress';
+import { isUnlocked, starsFor, type Progress } from './progress';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -44,19 +44,21 @@ export class Hud {
   readonly touchEnabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
   showMenu(levels: LevelDef[], progress: Progress, onSelect: (i: number) => void): void {
+    $('tagline').textContent = `${levels.length} lots. One bay each. Don't scratch the paint.`;
     const grid = $('level-grid');
     grid.replaceChildren();
     levels.forEach((lvl, i) => {
       const b = document.createElement('button');
       b.className = 'level-btn';
-      const locked = i >= progress.unlocked;
+      const locked = !isUnlocked(progress, lvl.id);
+      const stars = starsFor(progress, lvl.id);
       b.disabled = locked;
-      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`);
-      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>`;
+      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(stars)}`);
+      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(stars)}</span>`;
       b.addEventListener('click', () => onSelect(i));
       grid.appendChild(b);
     });
-    const total = progress.stars.reduce((a, b) => a + b, 0);
+    const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
     this.menu.classList.remove('hidden');
