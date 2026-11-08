@@ -1,5 +1,6 @@
 import type { LevelDef } from './layout';
 import type { Progress } from './progress';
+import { APP_VERSION } from './version';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -59,6 +60,7 @@ export class Hud {
     const total = progress.stars.reduce((a, b) => a + b, 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+    $('menu-version').textContent = `v${APP_VERSION}`;
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');
