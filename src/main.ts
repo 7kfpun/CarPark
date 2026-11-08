@@ -6,8 +6,9 @@ import { CameraRig } from './camera';
 import { PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
-import { HIT_COOLDOWN, HIT_MIN_SPEED, MAX_HITS, PARK_HOLD, STEP } from './config';
-import { bestLabel, Hud, type ModalButton } from './hud';
+import { isTouch, nextStarTime, starsForTime } from './rules';
+import { PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
+import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import { LEVELS } from './levels';
@@ -91,8 +92,6 @@ let state: State = 'menu';
 let levelIndex = 0;
 let level: BuiltLevel | null = null;
 let elapsed = 0;
-let hits = 0;
-let hitCooldown = 0;
 let parkHold = 0;
 let sensorTimer = 0;
 let sensorCheckTimer = 0;
@@ -131,8 +130,6 @@ function startLevel(i: number): void {
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
   player.model.root.visible = true;
   elapsed = 0;
-  hits = 0;
-  hitCooldown = 0;
   parkHold = 0;
   accumulator = 0;
   input.clear();
@@ -159,7 +156,7 @@ function pause(): void {
   if (state !== 'playing') return;
   state = 'paused';
   input.clear();
-  hud.showModal('Paused', LEVELS[levelIndex].hint, null, [
+  hud.showModal('Paused', `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`, null, [
     { label: 'Resume', primary: true, onClick: resume },
     { label: 'Restart', onClick: () => startLevel(levelIndex) },
     { label: 'Menu', onClick: showMenu },
@@ -180,7 +177,7 @@ function finish(win: boolean, reason: string): void {
   const def = LEVELS[levelIndex];
   if (win) {
     sfx.win();
-    const stars = hits === 0 && elapsed <= def.par ? 3 : hits <= 1 ? 2 : 1;
+    const stars = starsForTime(elapsed, def.stars);
     recordWin(progress, LEVEL_IDS, levelIndex, stars);
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
@@ -191,10 +188,11 @@ function finish(win: boolean, reason: string): void {
       { label: 'Retry', onClick: () => startLevel(levelIndex) },
       { label: 'Menu', primary: last, onClick: showMenu },
     ];
-    const tip = stars < 3 ? `  (3★: no bumps and under ${def.par}s)` : '';
+    const next = nextStarTime(stars, def.stars);
+    const tip = next === null ? '' : ` · ${stars + 1}★ needs ${next}s or less`;
     hud.showModal(
       last ? 'All levels cleared!' : 'Parked!',
-      `${elapsed.toFixed(1)}s · ${hits} bump${hits === 1 ? '' : 's'}${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
+      `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
     );
@@ -332,20 +330,16 @@ function step(dt: number): void {
   const def = level.def;
   const car = player.physics;
   elapsed += dt;
-  hitCooldown = Math.max(0, hitCooldown - dt);
   if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controls, level.surfaces);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
-  // Collisions: gentle touches are free, real bumps cost a heart.
-  const impact = car.resolveCollisions(nearby);
-  if (impact > HIT_MIN_SPEED && hitCooldown === 0) {
-    hits++;
-    hitCooldown = HIT_COOLDOWN;
+  // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
+  if (isTouch(car.resolveCollisions(nearby), TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
-    if (hits >= MAX_HITS) return finish(false, `${MAX_HITS} bumps. Easy does it!`);
+    return finish(false, 'You hit something.');
   }
 
   // Parking check.
@@ -407,7 +401,7 @@ function frame(now: number): void {
       step(STEP);
       accumulator -= STEP;
     }
-    hud.update(LEVELS[levelIndex].time - elapsed, hits, MAX_HITS, player.physics.v);
+    hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
   }

@@ -59,6 +59,12 @@ export interface BayDef {
   floor?: string;
 }
 
+/** Seconds to finish in for 3 stars and for 2 stars (0 < three < two < time). */
+export interface StarTimes {
+  three: number;
+  two: number;
+}
+
 export interface LevelDef {
   /** Permanent id (kebab-case). Saved progress is keyed by it, so never change or reuse one. */
   id: string;
@@ -69,8 +75,10 @@ export interface LevelDef {
   target: BayDef;
   /** If true the car may face either way inside the bay. */
   bothWays: boolean;
+  /** Time limit in seconds. Finishing within it earns at least 1 star. */
   time: number;
-  par: number;
+  /** Star thresholds in seconds; see `starsForTime`. */
+  stars: StarTimes;
   obstacles: ObstacleDef[];
   /** Decorative painted bays (lines on three sides, closed at local +z). */
   bays?: BayDef[];
