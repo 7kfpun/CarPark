@@ -51,16 +51,14 @@ export class Hud {
       b.className = 'level-btn';
       const locked = i >= progress.unlocked;
       b.disabled = locked;
-      b.setAttribute(
-        'aria-label',
-        `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`,
-      );
+      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`);
       b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>`;
       b.addEventListener('click', () => onSelect(i));
       grid.appendChild(b);
     });
     const total = progress.stars.reduce((a, b) => a + b, 0);
-    $('menu-total').innerHTML = `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+    $('menu-total').innerHTML =
+      `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');

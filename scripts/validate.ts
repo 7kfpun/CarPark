@@ -23,7 +23,10 @@ for (const [i, lvl] of LEVELS.entries()) {
   console.log(`Level ${i + 1}: ${lvl.name}`);
   const obs = allObstacles(lvl).map(obstacleOBB);
   const spawn = carBox(lvl.spawn.x, lvl.spawn.z, lvl.spawn.rot);
-  check(obs.every((o) => !sat(spawn, o)), 'spawn overlaps an obstacle');
+  check(
+    obs.every((o) => !sat(spawn, o)),
+    'spawn overlaps an obstacle',
+  );
 
   const t = lvl.target;
   const parked = carBox(t.x, t.z, t.rot);
@@ -39,14 +42,20 @@ for (const [i, lvl] of LEVELS.entries()) {
   // Free space around the bay: car should have >= 0.3m clearance sideways.
   const side = carBox(t.x, t.z, t.rot);
   side.hw += 0.3;
-  check(obs.every((o) => !sat(side, o)), 'less than 0.3m side clearance at target');
+  check(
+    obs.every((o) => !sat(side, o)),
+    'less than 0.3m side clearance at target',
+  );
 }
 
 console.log('Physics');
 const p = new CarPhysics();
 p.reset(0, 0, 0);
 for (let i = 0; i < 240; i++) p.step(STEP, { throttle: 1, steer: 0, handbrake: false });
-check(p.v > 3.5 && Math.abs(p.x) < 1e-6 && p.z > 3.5, `straight acceleration (v=${p.v.toFixed(2)}, z=${p.z.toFixed(2)})`);
+check(
+  p.v > 3.5 && Math.abs(p.x) < 1e-6 && p.z > 3.5,
+  `straight acceleration (v=${p.v.toFixed(2)}, z=${p.z.toFixed(2)})`,
+);
 const h0 = p.heading;
 for (let i = 0; i < 60; i++) p.step(STEP, { throttle: 0, steer: 1, handbrake: false });
 check(p.heading < h0, 'steer right while moving forward should decrease heading');
@@ -89,7 +98,10 @@ console.log('Input mapping');
 check(deadzone(0.05, 0.1) === 0 && deadzone(-0.1, 0.1) === 0, 'dead zone should swallow small values');
 check(deadzone(1, 0.1) === 1 && deadzone(-2, 0.1) === -1, 'dead zone output should reach and clamp to ±1');
 check(Math.abs(deadzone(0.55, 0.1) - 0.5) < 1e-9, 'dead zone should rescale linearly');
-check(strongest(1, -0.4) === 1 && strongest(0.2, -0.7, 0) === -0.7 && strongest() === 0, 'strongest picks largest magnitude');
+check(
+  strongest(1, -0.4) === 1 && strongest(0.2, -0.7, 0) === -0.7 && strongest() === 0,
+  'strongest picks largest magnitude',
+);
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
@@ -168,14 +180,23 @@ console.log('Collision response');
       `min slide speed ${minOf(slide).toFixed(2)} m/s, final heading ${((g.heading.at(-1)! * 180) / Math.PI).toFixed(1)}deg`,
   );
   check(g.firstContact >= 0, 'glance: never touched the wall');
-  check(glance > 0 && glance < 0.25 * headOn, `glance impact too high (${glance.toFixed(2)} vs head-on ${headOn.toFixed(2)})`);
-  check(Math.abs(glance - MAX_FWD * Math.sin(ang)) < 0.3, `glance impact should be ~v*sin(10deg) (${glance.toFixed(2)})`);
+  check(
+    glance > 0 && glance < 0.25 * headOn,
+    `glance impact too high (${glance.toFixed(2)} vs head-on ${headOn.toFixed(2)})`,
+  );
+  check(
+    Math.abs(glance - MAX_FWD * Math.sin(ang)) < 0.3,
+    `glance impact should be ~v*sin(10deg) (${glance.toFixed(2)})`,
+  );
   check(minOf(slide) > 0.6 * MAX_FWD, `glance: lost too much speed (min ${minOf(slide).toFixed(2)})`);
   check(maxOf(after) < HIT_MIN_SPEED, `glance: repeated hits while sliding (${maxOf(after).toFixed(2)})`);
   check(g.hits <= 1, `glance: ${g.hits} hits counted`);
   check(g.maxFront <= WALL_Z + 0.01, `glance: car pushed into the wall (z=${g.maxFront.toFixed(3)})`);
   const hEnd = g.heading.at(-1)!;
-  check(hEnd >= Math.PI / 2 - 0.05 && hEnd <= Math.PI / 2 + 0.1, `glance: car not aligned with the wall (${hEnd.toFixed(3)})`);
+  check(
+    hEnd >= Math.PI / 2 - 0.05 && hEnd <= Math.PI / 2 + 0.1,
+    `glance: car not aligned with the wall (${hEnd.toFixed(3)})`,
+  );
 
   // Same glance in full reverse: the car keeps reversing (v stays negative)
   // and squares up with the wall instead of turning into it.
@@ -184,13 +205,18 @@ console.log('Collision response');
   const gr = run(car, [wall], 6, -1);
   const rSlide = gr.v.slice(gr.firstContact, gr.firstContact + settle);
   const rEnd = gr.heading.at(-1)!;
-  console.log(`  reverse 10deg glance ${maxOf(gr.impact).toFixed(2)} m/s, max slide speed ${maxOf(rSlide).toFixed(2)} m/s`);
+  console.log(
+    `  reverse 10deg glance ${maxOf(gr.impact).toFixed(2)} m/s, max slide speed ${maxOf(rSlide).toFixed(2)} m/s`,
+  );
   check(gr.firstContact >= 0, 'reverse glance: never touched the wall');
   check(maxOf(gr.impact) < 0.25 * MAX_REV, `reverse glance impact too high (${maxOf(gr.impact).toFixed(2)})`);
   check(maxOf(rSlide) < -0.6 * MAX_REV, `reverse glance: lost too much speed (${maxOf(rSlide).toFixed(2)})`);
   check(maxOf(gr.impact.slice(gr.firstContact + settle)) < HIT_MIN_SPEED, 'reverse glance: repeated hits');
   check(gr.maxFront <= WALL_Z + 0.01, `reverse glance: car pushed into the wall (z=${gr.maxFront.toFixed(3)})`);
-  check(rEnd >= Math.PI / 2 - 0.1 && rEnd <= Math.PI / 2 + 0.05, `reverse glance: car not aligned (${rEnd.toFixed(3)})`);
+  check(
+    rEnd >= Math.PI / 2 - 0.1 && rEnd <= Math.PI / 2 + 0.05,
+    `reverse glance: car not aligned (${rEnd.toFixed(3)})`,
+  );
 
   // (c) Clip a 0.8 m pillar with the right front corner (0.3 m overlap).
   // The car glances off with a small, bounded heading change and no spin.
@@ -200,7 +226,9 @@ console.log('Collision response');
   const p = run(car, [pillar], 3, 0);
   const dh = p.heading.at(-1)!;
   const late = p.heading.slice(-120);
-  console.log(`  pillar clip at 4 m/s: impact ${maxOf(p.impact).toFixed(2)} m/s, heading change ${((dh * 180) / Math.PI).toFixed(1)}deg`);
+  console.log(
+    `  pillar clip at 4 m/s: impact ${maxOf(p.impact).toFixed(2)} m/s, heading change ${((dh * 180) / Math.PI).toFixed(1)}deg`,
+  );
   check(p.firstContact >= 0, 'pillar: never touched');
   check(dh > 0.01 && dh < 0.35, `pillar: heading change out of range (${dh.toFixed(3)} rad)`);
   check(maxOf(late) - minOf(late) < 1e-9, 'pillar: car still turning after the clip');

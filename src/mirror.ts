@@ -23,7 +23,10 @@ export class RearMirror {
     const tex = this.target.texture;
     tex.repeat.x = -1; // mirror image
     tex.offset.x = 1;
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: tex, depthTest: false }));
+    const quad = new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: tex, depthTest: false }),
+    );
     this.quadScene.add(quad);
   }
 

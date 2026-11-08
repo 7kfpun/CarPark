@@ -16,9 +16,7 @@ function bayRow(xs: number[], z: number, rot: number, w = 3, l = 5.6): BayDef[] 
 
 /** Parked cars in every x slot except the ones listed in `skip`. */
 function carRow(xs: number[], z: number, skip: number[], rots: number[] = [0, PI]): ObstacleDef[] {
-  return xs
-    .filter((x) => !skip.includes(x))
-    .map((x, i) => car(x, z, rots[i % rots.length]));
+  return xs.filter((x) => !skip.includes(x)).map((x, i) => car(x, z, rots[i % rots.length]));
 }
 
 /** A line of cones across x from x0 to x1 with a gap. */
@@ -58,10 +56,7 @@ export const LEVELS: LevelDef[] = [
     time: 75,
     par: 35,
     bays: [...bayRow(row8, 13, 0), ...bayRow(row8, -13, PI)],
-    obstacles: [
-      ...carRow(row8, 13, [4.5, -7.5]),
-      ...carRow(row8, -13, [-4.5, 7.5]),
-    ],
+    obstacles: [...carRow(row8, 13, [4.5, -7.5]), ...carRow(row8, -13, [-4.5, 7.5])],
   },
   {
     name: 'Parallel Pro',

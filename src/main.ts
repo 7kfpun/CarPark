@@ -277,8 +277,12 @@ function step(dt: number): void {
   level.bayEdge.color.setHex(color);
   if (park.inside) {
     const label = !park.aligned
-      ? def.bothWays ? 'Straighten up' : 'Wrong way round'
-      : !park.stopped ? 'Stop the car' : 'Hold still…';
+      ? def.bothWays
+        ? 'Straighten up'
+        : 'Wrong way round'
+      : !park.stopped
+        ? 'Stop the car'
+        : 'Hold still…';
     hud.setPark(parkHold / PARK_HOLD, label);
   } else hud.setPark(null, '');
   if (parkHold >= PARK_HOLD) return finish(true, '');
@@ -288,7 +292,11 @@ function step(dt: number): void {
   if (Math.abs(car.v) > 0.05 && Math.abs(car.v) < 4) {
     const box = car.obb;
     let interval = 0;
-    for (const [margin, iv] of [[0.25, 0.09], [0.6, 0.22], [1.1, 0.45]] as const) {
+    for (const [margin, iv] of [
+      [0.25, 0.09],
+      [0.6, 0.22],
+      [1.1, 0.45],
+    ] as const) {
       const e = expand(box, margin);
       if (level.obstacles.some((o) => sat(e, o))) {
         interval = iv;

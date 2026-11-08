@@ -28,10 +28,7 @@ function axes(o: OBB): [Vec, Vec] {
 
 function radius(o: OBB, ax: Vec): number {
   const [a1, a2] = axes(o);
-  return (
-    o.hw * Math.abs(a1[0] * ax[0] + a1[1] * ax[1]) +
-    o.hl * Math.abs(a2[0] * ax[0] + a2[1] * ax[1])
-  );
+  return o.hw * Math.abs(a1[0] * ax[0] + a1[1] * ax[1]) + o.hl * Math.abs(a2[0] * ax[0] + a2[1] * ax[1]);
 }
 
 /**
@@ -75,10 +72,7 @@ export function corners(o: OBB): Vec[] {
     [-1, -1],
     [-1, 1],
   ]) {
-    out.push([
-      o.x + ax[0] * o.hw * sx + az[0] * o.hl * sz,
-      o.z + ax[1] * o.hw * sx + az[1] * o.hl * sz,
-    ]);
+    out.push([o.x + ax[0] * o.hw * sx + az[0] * o.hl * sz, o.z + ax[1] * o.hw * sx + az[1] * o.hl * sz]);
   }
   return out;
 }

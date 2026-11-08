@@ -57,7 +57,8 @@ function modelCar(t: CarTemplate): CarModel {
   const sx = CAR_W / size.x;
   const sz = CAR_L / size.z;
   const sy = sx; // keep the height and wheel size in proportion with the width
-  const toCar = (p: THREE.Vector3) => new THREE.Vector3((p.x - centre.x) * sx, (p.y - t.box.min.y) * sy, (p.z - centre.z) * sz);
+  const toCar = (p: THREE.Vector3) =>
+    new THREE.Vector3((p.x - centre.x) * sx, (p.y - t.box.min.y) * sy, (p.z - centre.z) * sz);
 
   const shell = t.body.clone();
   shell.scale.set(sx, sy, sz);
