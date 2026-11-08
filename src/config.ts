@@ -5,10 +5,10 @@ export const WHEELBASE = 2.6;
 export const WHEEL_R = 0.36;
 
 // Car-park speeds: a gentle automatic, not a race car.
-export const MAX_FWD = 5; // m/s (18 km/h)
-export const MAX_REV = 2.5; // m/s (9 km/h)
-export const ACCEL = 2; // m/s^2, light throttle
-export const REV_ACCEL = 1.5;
+export const MAX_FWD = 3.5; // m/s (12.6 km/h)
+export const MAX_REV = 2; // m/s (7.2 km/h)
+export const ACCEL = 1.5; // m/s^2, light throttle
+export const REV_ACCEL = 1.2;
 export const BRAKE = 6; // m/s^2, firm braking (~0.6 g)
 export const ROLL_DRAG = 1.2; // coasting slow-down
 export const HANDBRAKE = 9;

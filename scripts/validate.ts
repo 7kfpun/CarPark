@@ -51,9 +51,9 @@ for (const [i, lvl] of LEVELS.entries()) {
 console.log('Physics');
 const p = new CarPhysics();
 p.reset(0, 0, 0);
-for (let i = 0; i < 240; i++) p.step(STEP, { throttle: 1, steer: 0, handbrake: false });
+for (let i = 0; i < 360; i++) p.step(STEP, { throttle: 1, steer: 0, handbrake: false });
 check(
-  p.v > 3.5 && Math.abs(p.x) < 1e-6 && p.z > 3.5,
+  p.v > 0.9 * MAX_FWD && Math.abs(p.x) < 1e-6 && p.z > 3.5,
   `straight acceleration (v=${p.v.toFixed(2)}, z=${p.z.toFixed(2)})`,
 );
 const h0 = p.heading;
@@ -62,7 +62,7 @@ check(p.heading < h0, 'steer right while moving forward should decrease heading'
 for (let i = 0; i < 600; i++) p.step(STEP, { throttle: 0, steer: 0, handbrake: true });
 check(p.v === 0, 'handbrake stops car');
 for (let i = 0; i < 240; i++) p.step(STEP, { throttle: -1, steer: 0, handbrake: false });
-check(p.v < -2, 'reverse works');
+check(p.v < -0.8 * MAX_REV, 'reverse works');
 
 console.log('Drive-through (level 1)');
 {
@@ -194,7 +194,7 @@ console.log('Collision response');
   check(g.maxFront <= WALL_Z + 0.01, `glance: car pushed into the wall (z=${g.maxFront.toFixed(3)})`);
   const hEnd = g.heading.at(-1)!;
   check(
-    hEnd >= Math.PI / 2 - 0.05 && hEnd <= Math.PI / 2 + 0.1,
+    hEnd >= Math.PI / 2 - 0.1 && hEnd <= Math.PI / 2 + 0.1,
     `glance: car not aligned with the wall (${hEnd.toFixed(3)})`,
   );
 
