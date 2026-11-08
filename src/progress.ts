@@ -4,6 +4,12 @@ export interface Progress {
 }
 
 const KEY = 'car-parking-3d:progress';
+const MAX_STARS = 3;
+
+function toInt(v: unknown, min: number, max: number, fallback: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(v)));
+}
 
 export function loadProgress(count: number): Progress {
   const fresh: Progress = { unlocked: 1, stars: new Array(count).fill(0) };
@@ -11,8 +17,9 @@ export function loadProgress(count: number): Progress {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
     const p = JSON.parse(raw) as Partial<Progress>;
-    const stars = fresh.stars.map((_, i) => Number(p.stars?.[i]) || 0);
-    return { unlocked: Math.min(count, Math.max(1, Number(p.unlocked) || 1)), stars };
+    const saved: unknown = p?.stars;
+    const stars = fresh.stars.map((_, i) => toInt(Array.isArray(saved) ? saved[i] : undefined, 0, MAX_STARS, 0));
+    return { unlocked: toInt(p?.unlocked, 1, count, 1), stars };
   } catch {
     return fresh;
   }
