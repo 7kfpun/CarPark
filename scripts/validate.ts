@@ -279,7 +279,7 @@ check(same(load('{"unlocked":3}'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'throw
 store.throws = false;
 check(same(load('{"unlocked":3,"stars":[1,2,3]}'), { unlocked: 3, stars: [1, 2, 3, 0] }), 'valid progress loads as-is');
 check(
-  same(load('{"stars":[99,-5,2.7,"3",null,NaN,1]}'.replace('NaN', '"NaN"')).stars, [3, 0, 2, 0]),
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', 7).stars, [3, 0, 2, 0, 0, 0, 1]),
   'out-of-range, fractional and non-number stars are clamped to integers 0-3',
 );
 check(load('{"unlocked":99}').unlocked === 4, 'unlocked above level count is clamped');
