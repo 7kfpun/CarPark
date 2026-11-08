@@ -190,6 +190,14 @@ function finish(win: boolean, reason: string): void {
 // --- Keyboard actions ---------------------------------------------------------
 input.driving = () => state === 'playing';
 input.actionsEnabled = () => !settingsPanel.isOpen;
+input.navRoot = () =>
+  settingsPanel.isOpen
+    ? document.getElementById('settings')
+    : hud.modalOpen
+      ? document.getElementById('modal')
+      : state === 'menu'
+        ? document.getElementById('menu')
+        : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
 input.on('KeyC', () => {
   if (state !== 'playing') return;
