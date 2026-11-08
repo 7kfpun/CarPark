@@ -2,8 +2,8 @@
 
 A small browser car-parking game built with [three.js](https://threejs.org/), TypeScript and Vite.
 Each lot has one glowing target bay. Drive in, line up with the bay and hold still for a
-moment to park. Every level has a time limit, and three bumps fail the level. You earn up to three
-stars per level: three for no bumps and a time under par. Progress is saved in `localStorage`, keyed by each level's permanent `id` (see `LevelDef`), so levels can be added or reordered without losing stars.
+moment to park. Every level has a time limit, and touching anything (a car, wall, pillar or cone) fails the level at once. You earn up to three
+stars per level from your time: finishing in time is one star, and each level sets the times for two and three stars. Progress is saved in `localStorage`, keyed by each level's permanent `id` (see `LevelDef`), so levels can be added or reordered without losing stars.
 
 No asset files are loaded at runtime. The cars, the lots and the sound effects are all generated in code.
 
@@ -81,6 +81,7 @@ src/camera.ts        chase and top-down camera rig
 src/input.ts         keyboard and touch input mapped to driving controls
 src/hud.ts           DOM HUD, menu, level grid and modal dialogs
 src/audio.ts         tiny WebAudio synth for beeps, bumps and win/fail jingles
+src/rules.ts         star thresholds and the touch rule (pure, tested by validate)
 src/progress.ts      unlocked levels and best stars saved to localStorage
 src/style.css        all page styles
 src/vite-env.d.ts    Vite client type references
@@ -94,7 +95,7 @@ src/vite-env.d.ts    Vite client type references
    - `spawn`: start pose `{ x, z, rot }`. `rot` is a heading in radians, and `0` faces +z.
    - `target`: the bay to park in, `{ x, z, rot, w, l }`.
    - `bothWays`: set it to `true` if the car may face either way in the bay. When it is `false`, the car must face `target.rot`.
-   - `time`: the time limit in seconds. `par`: the time to beat for three stars.
+   - `time`: the time limit in seconds. `stars: { three, two }`: seconds to finish in for three and two stars (`0 < three < two < time`).
    - `obstacles`: cars, walls, cones and pillars. Use the helpers `car()`, `carRow()` and `coneLine()` at the top of the file.
    - `bays` (optional): painted bay markings, for decoration only. `bayRow()` builds a row of them.
 2. Run `npm run validate`. It checks that the spawn does not overlap anything, that the target pose is a valid park,

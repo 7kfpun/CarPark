@@ -43,7 +43,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: 0, z: 12, rot: 0, w: 3, l: 5.6 },
     bothWays: true,
     time: 60,
-    par: 20,
+    stars: { three: 20, two: 32 },
     bays: bayRow(row7, 12, 0),
     obstacles: [car(-3, 12, 0), car(3, 12, PI), car(-9, 12, PI), car(6, 12, 0)],
   },
@@ -56,7 +56,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: 4.5, z: 13, rot: PI, w: 3, l: 5.6 },
     bothWays: false,
     time: 75,
-    par: 35,
+    stars: { three: 35, two: 52 },
     bays: [...bayRow(row8, 13, 0), ...bayRow(row8, -13, PI)],
     obstacles: [...carRow(row8, 13, [4.5, -7.5]), ...carRow(row8, -13, [-4.5, 7.5])],
   },
@@ -69,7 +69,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: 8.1, z: -0.6, rot: 0, w: 2.4, l: 6.4 },
     bothWays: true,
     time: 90,
-    par: 40,
+    stars: { three: 40, two: 62 },
     obstacles: [
       { kind: 'wall', x: 9.6, z: 0, w: 0.4, l: 46, h: 0.25 },
       car(8.1, -17, 0),
@@ -94,7 +94,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: 3, z: 28, rot: 0, w: 3, l: 5.6 },
     bothWays: true,
     time: 90,
-    par: 45,
+    stars: { three: 45, two: 66 },
     bays: bayRow([-6, -3, 0, 3, 6], 28, 0),
     obstacles: [
       ...coneLine(-14.4, 14.4, -18, -6, 4.5),
@@ -116,7 +116,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: 0, z: 14.1, rot: 0, w: 2.8, l: 5.4 },
     bothWays: true,
     time: 75,
-    par: 35,
+    stars: { three: 35, two: 52 },
     obstacles: [
       { kind: 'wall', x: -1.65, z: 14, w: 0.3, l: 6, h: 2.4 },
       { kind: 'wall', x: 1.65, z: 14, w: 0.3, l: 6, h: 2.4 },
@@ -140,7 +140,7 @@ export const LEVELS: LevelDef[] = [
     target: { x: -3, z: 18, rot: PI, w: 2.8, l: 5.6 },
     bothWays: false,
     time: 120,
-    par: 60,
+    stars: { three: 60, two: 88 },
     bays: bayRow(row9, 18, 0, 2.8),
     obstacles: [
       { kind: 'wall', x: -5, z: -6, w: 24, l: 0.4, h: 1.2 },

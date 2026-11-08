@@ -16,9 +16,8 @@ export const MAX_STEER = 0.6; // rad at the front wheels
 export const STEER_RATE = 1.2; // rad/s while turning the wheel (~0.5 s to full lock)
 export const STEER_RETURN = 1.6; // rad/s self-centring when released
 
-export const MAX_HITS = 3;
-export const HIT_MIN_SPEED = 0.35;
-export const HIT_COOLDOWN = 0.5;
+/** Approach speed (m/s) under which a contact is numerical resting noise, not a touch. */
+export const TOUCH_MIN_SPEED = 0.02;
 export const PARK_HOLD = 1.0;
 export const STOP_SPEED = 0.15;
 export const ALIGN_TOL = (15 * Math.PI) / 180;

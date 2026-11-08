@@ -104,11 +104,6 @@ button:focus-visible {
   color: var(--bad);
 }
 
-.hearts {
-  color: #ff6b6b;
-  letter-spacing: 2px;
-}
-
 .gear {
   position: absolute;
   left: calc(16px + var(--safe-l));
