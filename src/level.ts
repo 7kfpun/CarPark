@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { CAR_SHARED, createCarModel } from './car';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
+import { levelObstacles, Surfaces } from './floors';
 import {
   allObstacles,
   bayOBB,
   obstacleDims,
-  obstacleOBB,
   type BayDef,
+  type LayeredOBB,
   type LevelDef,
   type ObstacleDef,
 } from './layout';
@@ -15,7 +16,8 @@ import {
 export interface BuiltLevel {
   def: LevelDef;
   group: THREE.Group;
-  obstacles: OBB[];
+  obstacles: LayeredOBB[];
+  surfaces: Surfaces;
   bay: OBB;
   bayFill: THREE.MeshBasicMaterial;
   bayEdge: THREE.MeshBasicMaterial;
@@ -176,6 +178,7 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   group.add(lot);
 
   for (const b of def.bays ?? []) group.add(decorBay(b));
+  const surfaces = new Surfaces(def);
   const obstacleDefs = allObstacles(def);
   for (const o of obstacleDefs) group.add(obstacleMesh(o));
 
@@ -244,7 +247,8 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   return {
     def,
     group,
-    obstacles: obstacleDefs.map(obstacleOBB),
+    obstacles: levelObstacles(def, surfaces),
+    surfaces,
     bay: bayOBB(t),
     bayFill,
     bayEdge,
