@@ -5,7 +5,7 @@ import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
 import { loadCarModels } from './carModels';
-import { expand, sat } from './collision';
+import { sensorInterval } from './collision';
 import { HIT_COOLDOWN, HIT_MIN_SPEED, MAX_HITS, PARK_HOLD, STEP } from './config';
 import { Hud, type ModalButton } from './hud';
 import { Input } from './input';
@@ -81,6 +81,9 @@ let hits = 0;
 let hitCooldown = 0;
 let parkHold = 0;
 let sensorTimer = 0;
+let sensorCheckTimer = 0;
+let sensorBeep = 0;
+const SENSOR_CHECK_HZ = 20;
 let accumulator = 0;
 
 function loadLevel(i: number): void {
@@ -310,26 +313,22 @@ function step(dt: number): void {
   } else hud.setPark(null, '');
   if (parkHold >= PARK_HOLD) return finish(true, '');
 
-  // Parking sensor beeps when slow and close to something.
+  // Parking sensor beeps when slow and close to something. The proximity test
+  // only runs at SENSOR_CHECK_HZ; the beep timer still ticks every step.
   sensorTimer -= dt;
   if (Math.abs(car.v) > 0.05 && Math.abs(car.v) < 4) {
-    const box = car.obb;
-    let interval = 0;
-    for (const [margin, iv] of [
-      [0.25, 0.09],
-      [0.6, 0.22],
-      [1.1, 0.45],
-    ] as const) {
-      const e = expand(box, margin);
-      if (level.obstacles.some((o) => sat(e, o))) {
-        interval = iv;
-        break;
-      }
+    sensorCheckTimer -= dt;
+    if (sensorCheckTimer <= 0) {
+      sensorCheckTimer = 1 / SENSOR_CHECK_HZ;
+      sensorBeep = sensorInterval(car.obb, level.obstacles);
     }
-    if (interval && sensorTimer <= 0) {
+    if (sensorBeep && sensorTimer <= 0) {
       sfx.beep();
-      sensorTimer = interval;
+      sensorTimer = sensorBeep;
     }
+  } else {
+    sensorCheckTimer = 0;
+    sensorBeep = 0;
   }
 }
 
