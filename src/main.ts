@@ -251,7 +251,17 @@ document.getElementById('btn-cam')!.addEventListener('click', (e) => {
 });
 input.bindTouch(document.getElementById('touch')!);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
-document.addEventListener('visibilitychange', () => document.hidden && pause());
+// Backgrounded (home, app switch, call, screen lock): pause, silence audio and stop the loop.
+// On return the Pause screen is showing and the car doesn't move until the player taps Resume.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pause();
+    sfx.suspend();
+  } else {
+    sfx.resume();
+    startLoop();
+  }
+});
 // Pause when the window loses focus (alt-tab), unless focus comes straight back.
 let blurTimer = 0;
 addEventListener('blur', () => {
@@ -325,7 +335,14 @@ function step(dt: number): void {
 
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
+let rafId = 0;
+function startLoop(): void {
+  if (rafId || !gfx.ok || document.hidden) return;
+  last = performance.now(); // no time jump after a long stay in the background
+  rafId = requestAnimationFrame(frame);
+}
 function frame(now: number): void {
+  rafId = 0;
   const frameStart = last;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -357,7 +374,7 @@ function frame(now: number): void {
   gfx.render(camera);
   mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
   if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
-  requestAnimationFrame(frame);
+  if (!document.hidden) rafId = requestAnimationFrame(frame); // stops while hidden: no battery drain
 }
 
 // ?level=N jumps straight into a level, ?cam=top starts top-down (handy for testing).
@@ -367,4 +384,4 @@ const qs = params.get('level');
 const direct = qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
 else showMenu();
-if (gfx.ok) requestAnimationFrame(frame);
+startLoop();
