@@ -6,7 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
-import { loadProgress } from '../src/progress';
+import { loadProgress, parseProgress, recordWin, resumeIndex, V1_LEVEL_IDS } from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -353,7 +353,52 @@ console.log('Collision response');
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
 
-console.log('Progress');
+// --- Level ids and saved progress ---------------------------------------------
+console.log('Level ids and progress');
+const ids = LEVELS.map((l) => l.id);
+check(
+  ids.every((id) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)),
+  'level ids must be non-empty kebab-case',
+);
+check(new Set(ids).size === ids.length, 'level ids must be unique');
+check(
+  V1_LEVEL_IDS.every((id) => ids.includes(id)),
+  'a v1 level id no longer exists (ids are permanent)',
+);
+
+const v1 = { unlocked: 4, stars: [3, 2, 1, 2, 0, 0] };
+const mig = parseProgress(v1, ids);
+check(mig.v === 2, 'migration: result is v2');
+check(
+  V1_LEVEL_IDS.every((id, i) => (mig.stars[id] ?? 0) === v1.stars[i]),
+  'migration: stars moved to ids',
+);
+check(mig.unlocked.join() === V1_LEVEL_IDS.slice(0, 4).join(), `migration: unlocked ${mig.unlocked.join()}`);
+
+// Inserting a level in the middle must leave an existing player's stars on the right levels.
+const withTest = [...ids.slice(0, 2), 'test-level', ...ids.slice(2)];
+const after = parseProgress(JSON.parse(JSON.stringify(mig)), withTest);
+check(
+  V1_LEVEL_IDS.every((id, i) => (after.stars[id] ?? 0) === v1.stars[i]),
+  'insert: stars stay on their levels',
+);
+check(!after.stars['test-level'], 'insert: new level has no stars');
+check(!after.unlocked.includes('test-level'), 'insert: new level starts locked');
+check(
+  mig.unlocked.every((id) => after.unlocked.includes(id)),
+  'insert: unlocked levels stay unlocked',
+);
+const rec = parseProgress(null, withTest);
+recordWin(rec, withTest, 1, 2);
+check(rec.unlocked.includes('test-level') && rec.stars[withTest[1]] === 2, 'recordWin unlocks next by position');
+recordWin(rec, withTest, 1, 1);
+check(rec.stars[withTest[1]] === 2, 'recordWin keeps best stars');
+check(resumeIndex(rec, withTest) === 2, 'resumeIndex is the furthest unlocked level');
+check(parseProgress('junk', ids).unlocked.length === 1, 'junk save falls back to fresh');
+const v2 = parseProgress({ v: 2, stars: { gone: 3, 'first-steps': 9 }, unlocked: ['gone'] }, ids);
+check(v2.stars['first-steps'] === 3 && !('gone' in v2.stars), 'v2: stars clamped to 0-3 and unknown ids dropped');
+
+// loadProgress reads localStorage: check it survives bad, missing and throwing storage.
 const store: { value: string | null; throws: boolean } = { value: null, throws: false };
 (globalThis as { localStorage?: unknown }).localStorage = {
   getItem: () => {
@@ -361,30 +406,36 @@ const store: { value: string | null; throws: boolean } = { value: null, throws: 
     return store.value;
   },
 };
-const load = (raw: string | null, n = 4) => {
+const four = ids.slice(0, 4);
+const load = (raw: string | null, list = four) => {
   store.value = raw;
-  return loadProgress(n);
+  return loadProgress(list);
 };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-check(same(load(null), { unlocked: 1, stars: [0, 0, 0, 0] }), 'missing storage gives fresh progress');
-check(same(load('{not json'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'corrupt JSON gives fresh progress');
-check(same(load('null'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'JSON null gives fresh progress');
-check(
-  same(load('{"stars":"x","unlocked":"y"}'), { unlocked: 1, stars: [0, 0, 0, 0] }),
-  'wrong-typed fields give fresh progress',
-);
+const fresh4 = { v: 2, stars: {}, unlocked: [ids[0]] };
+check(same(load(null), fresh4), 'missing storage gives fresh progress');
+check(same(load('{not json'), fresh4), 'corrupt JSON gives fresh progress');
+check(same(load('null'), fresh4), 'JSON null gives fresh progress');
+check(same(load('{"stars":"x","unlocked":"y"}'), fresh4), 'wrong-typed fields give fresh progress');
 store.throws = true;
-check(same(load('{"unlocked":3}'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'throwing storage gives fresh progress');
+check(same(load('{"unlocked":3}'), fresh4), 'throwing storage gives fresh progress');
 store.throws = false;
-check(same(load('{"unlocked":3,"stars":[1,2,3]}'), { unlocked: 3, stars: [1, 2, 3, 0] }), 'valid progress loads as-is');
 check(
-  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', 7).stars, [3, 0, 2, 0, 0, 0, 1]),
+  same(load('{"unlocked":3,"stars":[1,2,3]}'), {
+    v: 2,
+    stars: { [ids[0]]: 1, [ids[1]]: 2, [ids[2]]: 3 },
+    unlocked: ids.slice(0, 3),
+  }),
+  'valid v1 progress loads and migrates',
+);
+check(
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', ids).stars, { [ids[0]]: 3, [ids[2]]: 2 }),
   'out-of-range, fractional and non-number stars are clamped to integers 0-3',
 );
-check(load('{"unlocked":99}').unlocked === 4, 'unlocked above level count is clamped');
-check(load('{"unlocked":-3}').unlocked === 1, 'negative unlocked is clamped to 1');
-check(load('{"unlocked":0}').unlocked === 1, 'zero unlocked is clamped to 1');
-check(load('{"unlocked":2.9}').unlocked === 2, 'fractional unlocked is floored');
+check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count is clamped');
+check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
+check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');
+check(load('{"unlocked":2.9}').unlocked.length === 2, 'fractional unlocked is floored');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
