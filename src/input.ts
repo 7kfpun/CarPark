@@ -25,6 +25,7 @@ const TRIGGER_DEADZONE = 0.05;
 /**
  * Standard-mapping gamepad buttons -> key codes, so pad presses fire the same
  * actions registered via `on()`: Start = pause, Y / Back = camera, X = restart.
+ * Menus and modals use `PAD_NAV` instead (see `navigate`).
  */
 const PAD_ACTIONS: ReadonlyArray<readonly [number, string]> = [
   [9, 'Escape'],
@@ -32,6 +33,61 @@ const PAD_ACTIONS: ReadonlyArray<readonly [number, string]> = [
   [8, 'KeyC'],
   [2, 'KeyR'],
 ];
+
+type NavDir = 'left' | 'right' | 'up' | 'down';
+
+/** d-pad buttons -> menu focus direction. */
+const PAD_NAV: ReadonlyArray<readonly [number, NavDir]> = [
+  [12, 'up'],
+  [13, 'down'],
+  [14, 'left'],
+  [15, 'right'],
+];
+/** Pad button that activates the focused menu / modal button (the handbrake while driving). */
+const PAD_CONFIRM = 0;
+/** Left-stick travel that counts as a d-pad press for menu navigation. */
+const NAV_STICK = 0.6;
+/** Visible layers that own the pad when not driving, topmost first. */
+const NAV_ROOTS = ['#settings', '#modal', '#menu'];
+
+export interface NavRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Spatial focus move: the index of the rect to focus when pressing `dir` from `current`
+ * (-1 = nothing focused yet, picks the first). Prefers the nearest rect in that direction,
+ * wraps to the far side when there is none, and stays put when the rects share no axis.
+ */
+export function navigate(rects: readonly NavRect[], current: number, dir: NavDir): number {
+  if (!rects.length) return -1;
+  if (current < 0 || current >= rects.length) return 0;
+  const cx = (r: NavRect) => r.left + r.width / 2;
+  const cy = (r: NavRect) => r.top + r.height / 2;
+  const horizontal = dir === 'left' || dir === 'right';
+  const sign = dir === 'right' || dir === 'down' ? 1 : -1;
+  const from = rects[current];
+  let best = current;
+  let bestScore = Infinity;
+  let wrap = current;
+  let wrapScore = Infinity;
+  let wrapFar = 0;
+  rects.forEach((r, i) => {
+    if (i === current) return;
+    const along = sign * (horizontal ? cx(r) - cx(from) : cy(r) - cy(from));
+    const across = Math.abs(horizontal ? cy(r) - cy(from) : cx(r) - cx(from));
+    if (along > 1) {
+      const score = along + 2 * across;
+      if (score < bestScore) [best, bestScore] = [i, score];
+    } else if (along < -1 && (-along > wrapFar + 1 || (Math.abs(-along - wrapFar) <= 1 && across < wrapScore))) {
+      [wrap, wrapScore, wrapFar] = [i, across, -along];
+    }
+  });
+  return bestScore < Infinity ? best : wrap;
+}
 
 /** Zero inside the dead zone, then rescaled so the output still spans 0..±1 (clamped). */
 export function deadzone(v: number, dz: number): number {
@@ -81,6 +137,7 @@ export class Input {
   private pad: PadState = { steer: 0, throttle: 0, handbrake: false };
   private readonly padButtons = new Map<number, boolean>();
   private padLoop = 0;
+  private navHeld = new Set<NavDir>();
 
   /** Set by the game: true while the car is being driven (game keys are captured). */
   driving: () => boolean = () => false;
@@ -249,6 +306,7 @@ export class Input {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     const next: PadState = { steer: 0, throttle: 0, handbrake: false };
     const pressed = new Set<number>();
+    const navDown = new Set<NavDir>();
     let connected = false;
     for (const gp of pads) {
       if (!gp?.connected) continue;
@@ -259,6 +317,12 @@ export class Input {
       next.throttle = strongest(next.throttle, trigger(7) - trigger(6));
       next.handbrake ||= !!btn(0)?.pressed || !!btn(5)?.pressed;
       for (const [i] of PAD_ACTIONS) if (btn(i)?.pressed) pressed.add(i);
+      if (btn(PAD_CONFIRM)?.pressed) pressed.add(PAD_CONFIRM);
+      for (const [i, dir] of PAD_NAV) if (btn(i)?.pressed) navDown.add(dir);
+      const lx = gp.axes[0] ?? 0;
+      const ly = gp.axes[1] ?? 0;
+      if (Math.abs(lx) > NAV_STICK && Math.abs(lx) >= Math.abs(ly)) navDown.add(lx > 0 ? 'right' : 'left');
+      else if (Math.abs(ly) > NAV_STICK) navDown.add(ly > 0 ? 'down' : 'up');
     }
     this.pad = next;
     const fired = new Set<string>();
@@ -270,7 +334,37 @@ export class Input {
       }
       this.padButtons.set(i, down);
     }
+    this.padNav(pressed.has(PAD_CONFIRM), navDown);
     return connected;
+  }
+
+  /** Menus and modals: d-pad / left stick move focus, A clicks the focused button. Never while driving. */
+  private padNav(confirm: boolean, dirs: ReadonlySet<NavDir>): void {
+    const confirmEdge = confirm && !this.padButtons.get(PAD_CONFIRM);
+    this.padButtons.set(PAD_CONFIRM, confirm);
+    const edges = (['up', 'down', 'left', 'right'] as const).filter((d) => dirs.has(d) && !this.navHeld.has(d));
+    this.navHeld = new Set(dirs);
+    if (this.driving() || (!confirmEdge && !edges.length)) return;
+    const root = NAV_ROOTS.map((q) => document.querySelector<HTMLElement>(q)).find(
+      (el) => el && !el.classList.contains('hidden'),
+    );
+    if (!root) return;
+    const btns = [...root.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(
+      (b) => b.offsetParent !== null,
+    );
+    const at = btns.indexOf(document.activeElement as HTMLButtonElement);
+    if (confirmEdge && at >= 0) btns[at].click();
+    else if (confirmEdge || edges.length) {
+      let i = at;
+      for (const d of edges)
+        i = navigate(
+          btns.map((b) => b.getBoundingClientRect()),
+          i,
+          d,
+        );
+      if (confirmEdge && i < 0) i = 0;
+      btns[i]?.focus();
+    }
   }
 
   private any(...codes: string[]): boolean {

@@ -1,7 +1,7 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { corners, sat, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, HIT_COOLDOWN, HIT_MIN_SPEED, MAX_FWD, MAX_REV, STEP } from '../src/config';
-import { deadzone, steerFromOffset, strongest } from '../src/input';
+import { deadzone, navigate, steerFromOffset, strongest } from '../src/input';
 import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
@@ -105,6 +105,24 @@ check(
 check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
 check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
 check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+
+// Gamepad menu navigation: spatial focus moves over a 3-column grid, a modal button row, and a stack.
+{
+  const cell = (c: number, r: number) => ({ left: c * 100, top: r * 60, width: 90, height: 50 });
+  const grid = [cell(0, 0), cell(1, 0), cell(2, 0), cell(0, 1), cell(1, 1), cell(2, 1)];
+  check(navigate(grid, 0, 'right') === 1 && navigate(grid, 4, 'left') === 3, 'pad right/left should move along a row');
+  check(navigate(grid, 1, 'down') === 4 && navigate(grid, 5, 'up') === 2, 'pad down/up should move along a column');
+  check(navigate(grid, 2, 'right') === 0 && navigate(grid, 0, 'left') === 2, 'pad left/right should wrap within a row');
+  check(navigate(grid, 4, 'down') === 1 && navigate(grid, 1, 'up') === 4, 'pad up/down should wrap within a column');
+  check(navigate(grid, -1, 'down') === 0, 'first pad press with nothing focused should pick the first button');
+  const row = [cell(0, 0), cell(1, 0), cell(2, 0)];
+  check(
+    navigate(row, 1, 'down') === 1 && navigate(row, 1, 'up') === 1,
+    'vertical pad press on a single row should stay put',
+  );
+  check(navigate(row, 2, 'right') === 0, 'modal button row should wrap on the pad');
+  check(navigate([], 0, 'right') === -1, 'no buttons should give no focus');
+}
 
 console.log('Collision response');
 {

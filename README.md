@@ -20,6 +20,8 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 | Pause / resume         | `Esc` / `P`       | ⏸ button  |
 | Mute                   | `M`               |           |
 
+On a gamepad, Start pauses, Y / Back toggles the camera and X restarts. In menus and dialogs the d-pad or left stick moves focus and A confirms (A is the handbrake while driving).
+
 ## Development
 
 Requires Node.js (current LTS) and npm.
