@@ -342,6 +342,7 @@ function frame(now: number): void {
   }
 
   gfx.render(camera);
+  mirror.quality = gfx.quality;
   mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
   if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
   requestAnimationFrame(frame);
