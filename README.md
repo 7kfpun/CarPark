@@ -84,9 +84,13 @@ src/vite-env.d.ts    Vite client type references
    - `time`: the time limit in seconds. `par`: the time to beat for three stars.
    - `obstacles`: cars, walls, cones and pillars. Use the helpers `car()`, `carRow()` and `coneLine()` at the top of the file.
    - `bays` (optional): painted bay markings, for decoration only. `bayRow()` builds a row of them.
-2. Run `npm run validate`. It checks that the spawn does not overlap anything, that the target pose is a valid park,
-   that the car has at least 0.3 m of side clearance in the bay, and that the orientation rule behaves as set.
-3. Play it with `npm run dev`, then open `?level=N` to jump straight to the new level.
+2. Add a scripted solution for it to `src/levels.solutions.ts`, keyed by the level `name`: a list of
+   `S(seconds, throttle, steer, handbrake?)` control segments that parks the car within `par` seconds without a bump.
+3. Run `npm run validate`. It checks that the spawn does not overlap anything, that the bay is inside the lot and fits
+   the car, that the target pose is a valid park, that the car has at least 0.3 m of side clearance in the bay, and that
+   the orientation rule behaves as set. It also replays the scripted solution through the game physics and fails if it
+   does not park within `par` without a bump, or if the level has no solution.
+4. Play it with `npm run dev`, then open `?level=N` to jump straight to the new level.
 
 The menu grid, unlocking and saved progress all follow `LEVELS.length`, so nothing else needs to change.
 
