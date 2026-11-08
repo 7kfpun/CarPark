@@ -6,6 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { loadProgress } from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -252,6 +253,39 @@ console.log('Collision response');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
+
+console.log('Progress');
+const store: { value: string | null; throws: boolean } = { value: null, throws: false };
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: () => {
+    if (store.throws) throw new Error('unavailable');
+    return store.value;
+  },
+};
+const load = (raw: string | null, n = 4) => {
+  store.value = raw;
+  return loadProgress(n);
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+check(same(load(null), { unlocked: 1, stars: [0, 0, 0, 0] }), 'missing storage gives fresh progress');
+check(same(load('{not json'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'corrupt JSON gives fresh progress');
+check(same(load('null'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'JSON null gives fresh progress');
+check(
+  same(load('{"stars":"x","unlocked":"y"}'), { unlocked: 1, stars: [0, 0, 0, 0] }),
+  'wrong-typed fields give fresh progress',
+);
+store.throws = true;
+check(same(load('{"unlocked":3}'), { unlocked: 1, stars: [0, 0, 0, 0] }), 'throwing storage gives fresh progress');
+store.throws = false;
+check(same(load('{"unlocked":3,"stars":[1,2,3]}'), { unlocked: 3, stars: [1, 2, 3, 0] }), 'valid progress loads as-is');
+check(
+  same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', 7).stars, [3, 0, 2, 0, 0, 0, 1]),
+  'out-of-range, fractional and non-number stars are clamped to integers 0-3',
+);
+check(load('{"unlocked":99}').unlocked === 4, 'unlocked above level count is clamped');
+check(load('{"unlocked":-3}').unlocked === 1, 'negative unlocked is clamped to 1');
+check(load('{"unlocked":0}').unlocked === 1, 'zero unlocked is clamped to 1');
+check(load('{"unlocked":2.9}').unlocked === 2, 'fractional unlocked is floored');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
