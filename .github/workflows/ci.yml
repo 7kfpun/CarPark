@@ -1,9 +1,13 @@
 name: CI
 
+# The ticket routines work on draft PRs and mark them ready when done, so CI
+# runs on ready PRs only (and on pushes to main). ready_for_review re-triggers
+# the run when a draft is marked ready.
 on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -14,7 +18,9 @@ permissions:
 
 jobs:
   check:
+    if: github.event_name == 'push' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +30,5 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run validate
-      - run: npm run build
+      # One command, same as the worker brief: typecheck, lint, validate, build.
+      - run: npm run typecheck && npm run lint && npm run validate && npm run build
