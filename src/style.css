@@ -447,6 +447,12 @@ h2 {
   letter-spacing: 2px;
 }
 
+.level-btn .best {
+  font-size: clamp(12px, 3.2vmin, 13px);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .stars {
   font-size: clamp(28px, 9vmin, 38px);
 }

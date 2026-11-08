@@ -6,6 +6,7 @@ import { allObstacles, obstacleOBB } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { recordBest, sanitizeProgress } from '../src/progress';
 
 declare const process: { exit(code: number): never };
 
@@ -251,6 +252,23 @@ console.log('Collision response');
   check(maxOf(r.heading.map(Math.abs)) < 1e-9, 'resting: heading changed');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
+}
+
+console.log('Progress: best times');
+{
+  const old = sanitizeProgress({ unlocked: 3, stars: [3, 2] }, 4);
+  check(old.best.length === 4 && old.best.every((b) => b === 0), 'old save without best must load as zeros');
+  check(old.unlocked === 3 && old.stars[0] === 3, 'old save keeps unlocked and stars');
+  const bad = sanitizeProgress({ best: [12.3, -1, NaN, 'x', Infinity, 5] as unknown as number[] }, 6);
+  check(bad.best.join() === '12.3,0,0,0,0,5', `bad best values must be dropped (${bad.best.join()})`);
+  check(sanitizeProgress({ best: 'nope' as unknown as number[] }, 2).best.join() === '0,0', 'non-array best ignored');
+  check(sanitizeProgress(null, 2).best.join() === '0,0', 'null save gives fresh progress');
+  const p = sanitizeProgress(null, 2);
+  check(recordBest(p, 0, 20.5) && p.best[0] === 20.5, 'first time is recorded');
+  check(!recordBest(p, 0, 25) && p.best[0] === 20.5, 'slower time never replaces');
+  check(!recordBest(p, 0, 20.5) && p.best[0] === 20.5, 'equal time is not a new best');
+  check(recordBest(p, 0, 18.2) && p.best[0] === 18.2, 'faster time replaces');
+  check(!recordBest(p, 1, NaN) && !recordBest(p, 1, 0) && p.best[1] === 0, 'invalid time is not recorded');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

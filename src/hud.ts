@@ -21,6 +21,10 @@ function starLabel(n: number, total = 3): string {
   return `${n} of ${total} star${total === 1 ? '' : 's'}`;
 }
 
+export function bestLabel(t: number): string {
+  return `${t.toFixed(1)}s`;
+}
+
 export class Hud {
   private readonly hud = $('hud');
   private readonly menu = $('menu');
@@ -51,8 +55,12 @@ export class Hud {
       b.className = 'level-btn';
       const locked = i >= progress.unlocked;
       b.disabled = locked;
-      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`);
-      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>`;
+      const best = progress.best[i] > 0 ? progress.best[i] : 0;
+      b.setAttribute(
+        'aria-label',
+        `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}${best ? `, best time ${bestLabel(best)}` : ''}`,
+      );
+      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>${best ? `<span class="best" aria-hidden="true">${bestLabel(best)}</span>` : ''}`;
       b.addEventListener('click', () => onSelect(i));
       grid.appendChild(b);
     });
