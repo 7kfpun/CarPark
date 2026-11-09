@@ -31,6 +31,7 @@ import {
 } from '../src/storey';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
+import { mirrorRendersScene, mirrorScale } from '../src/mirror';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings } from '../src/settings';
@@ -1011,6 +1012,18 @@ console.log('Collision response');
   check(jitter < 1e-3, `resting: position jitter ${jitter.toFixed(4)} m`);
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
+
+console.log('Rear mirror cost');
+check(mirrorScale('high') === 1, 'high mirror is full resolution');
+check(mirrorScale('low') < 1, 'low mirror is reduced resolution');
+check(
+  [0, 1, 2, 3].every((f) => mirrorRendersScene('high', f)),
+  'high re-renders the mirror every frame',
+);
+check(
+  [0, 1, 2, 3].filter((f) => mirrorRendersScene('low', f)).length === 2,
+  'low re-renders the mirror every other frame',
+);
 
 console.log('Star rules');
 for (const lvl of LEVELS) {

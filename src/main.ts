@@ -662,6 +662,7 @@ function frameBody(now: number): void {
   }
 
   gfx.render(camera);
+  mirror.quality = gfx.quality;
   mirror.visible =
     settings.mirror &&
     state !== 'menu' &&
