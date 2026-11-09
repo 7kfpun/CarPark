@@ -7,7 +7,7 @@ stars per level from your time: finishing in time is one star, and each level se
 
 Levels are grouped into themed locations (worlds): Open-Air Lots, Multi-Storey, Industrial Yard, Twilight District and Proving Ground (turn-arounds, a winding reverse lane, double parallel parking and tight bays). The menu shows the worlds with a star total each; finish a world (at least one star on every level) to open the next. Each level's `location` field (`LevelDef`) and the world order live in `src/layout.ts`, `src/levels.ts` and `src/worlds.ts`.
 
-The lots, the sound effects (an engine hum that follows your speed, crash and fail stings, a win jingle that grows with stars) and the background music are generated in code. Settings has separate effects and music volumes and a music toggle. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
+The lots, the sound effects (an engine hum that follows your speed, crash and fail stings, a win jingle that grows with stars) and the background music are generated in code. Settings has separate effects and music volumes and a music toggle. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). The first vehicle's model loads before the menu; the rest load in the background, and a level starts once they are in. Model URLs carry the build id (`?v=`) so a redeploy never serves a stale cached model. If a model is slow or fails to load, a box car is used instead.
 
 ## Controls
 
