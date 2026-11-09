@@ -55,7 +55,7 @@
         <div class="pill hidden" id="hud-floor"></div>
       </div>
       <div class="hud-corner">
-        <button class="icon-btn" id="btn-cam" aria-label="Toggle camera">🎥</button>
+        <button class="icon-btn" id="btn-cam" aria-label="Change camera view">🎥</button>
         <button class="icon-btn" id="btn-pause" aria-label="Pause">⏸</button>
         <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
       </div>
@@ -98,7 +98,7 @@
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
           <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
-          <div><kbd>C</kbd> camera · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
+          <div><kbd>C</kbd> camera view · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
         </div>
         <div id="menu-version"></div>
       </div>
@@ -148,11 +148,21 @@
             <button data-setting="quality" data-value="auto">Auto</button>
           </div>
         </div>
-        <div class="setting-row">
+        <div class="setting-row wrap">
           <span class="setting-label" id="lbl-camera">Camera</span>
-          <div class="seg" role="group" aria-labelledby="lbl-camera">
+          <div class="seg wrap" role="group" aria-labelledby="lbl-camera">
             <button data-setting="camera" data-value="chase">Chase</button>
+            <button data-setting="camera" data-value="cockpit">Cockpit</button>
+            <button data-setting="camera" data-value="hood">Hood</button>
             <button data-setting="camera" data-value="top">Top</button>
+            <button data-setting="camera" data-value="corner">Corner</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-autorear">Rear view when reversing</span>
+          <div class="seg" role="group" aria-labelledby="lbl-autorear">
+            <button data-setting="autoRear" data-value="true">On</button>
+            <button data-setting="autoRear" data-value="false">Off</button>
           </div>
         </div>
         <div class="setting-row">

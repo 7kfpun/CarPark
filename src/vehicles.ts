@@ -29,6 +29,10 @@ export interface VehicleDef {
   /** Chase camera: metres behind the car and above the ground. */
   camDistance: number;
   camHeight: number;
+  /** Driver's eye for the cockpit view, in vehicle-local metres: x left, y up, z forward (from the centre). */
+  eye: { x: number; y: number; z: number };
+  /** Hood camera: low on the bonnet (or over the flat front of a bus). */
+  hood: { x: number; y: number; z: number };
   /** Rear-view mirror eye point: metres behind the centre and above the ground. */
   eyeBack: number;
   eyeHeight: number;
@@ -54,6 +58,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: MAX_REV,
     camDistance: 7.5,
     camHeight: 3.8,
+    eye: { x: 0.36, y: 1.2, z: -0.1 },
+    hood: { x: 0, y: 1.25, z: 1.15 },
     eyeBack: 0.7,
     eyeHeight: 1.75,
   },
@@ -74,6 +80,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 2,
     camDistance: 8,
     camHeight: 3.9,
+    eye: { x: 0.36, y: 1.2, z: 0 },
+    hood: { x: 0, y: 1.25, z: 1.4 },
     eyeBack: 0.8,
     eyeHeight: 1.75,
   },
@@ -94,6 +102,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 2,
     camDistance: 8.2,
     camHeight: 4.3,
+    eye: { x: 0.4, y: 1.5, z: 0 },
+    hood: { x: 0, y: 1.7, z: 1.4 },
     eyeBack: 0.8,
     eyeHeight: 2.05,
   },
@@ -114,6 +124,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 1.9,
     camDistance: 9,
     camHeight: 4.6,
+    eye: { x: 0.45, y: 1.6, z: 0.9 },
+    hood: { x: 0, y: 1.75, z: 2 },
     eyeBack: 1,
     eyeHeight: 2.2,
   },
@@ -133,6 +145,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 1.8,
     camDistance: 10,
     camHeight: 5,
+    eye: { x: 0.5, y: 1.8, z: 1.7 },
+    hood: { x: 0, y: 1.95, z: 2.6 },
     eyeBack: 1.6,
     eyeHeight: 2.5,
   },
@@ -152,6 +166,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 1.6,
     camDistance: 13.5,
     camHeight: 6.5,
+    eye: { x: 0.7, y: 2.1, z: 4 },
+    hood: { x: 0, y: 2.3, z: 5 },
     eyeBack: 3.6,
     eyeHeight: 3.3,
   },
@@ -171,6 +187,8 @@ export const VEHICLES: VehicleDef[] = [
     maxRev: 1.7,
     camDistance: 11,
     camHeight: 5.6,
+    eye: { x: 0.5, y: 2.1, z: 2 },
+    hood: { x: 0, y: 2.3, z: 3.2 },
     eyeBack: 2.4,
     eyeHeight: 3.2,
   },

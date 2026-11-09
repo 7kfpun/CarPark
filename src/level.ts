@@ -12,6 +12,7 @@ import {
   type LevelDef,
   type ObstacleDef,
 } from './layout';
+import { surfaceMaterial, tileBoxUV } from './materials';
 import { floorShown, rampSignText, SLAB } from './storey';
 
 export interface BuiltLevel {
@@ -32,24 +33,8 @@ export interface BuiltLevel {
   dispose(): void;
 }
 
-let asphaltTex: THREE.CanvasTexture | null = null;
-function asphalt(): THREE.CanvasTexture {
-  if (asphaltTex) return asphaltTex;
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#44474d';
-  g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 9000; i++) {
-    const v = 50 + Math.random() * 40;
-    g.fillStyle = `rgba(${v},${v},${v + 4},${0.25 + Math.random() * 0.35})`;
-    g.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5);
-  }
-  asphaltTex = new THREE.CanvasTexture(c);
-  asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping;
-  asphaltTex.colorSpace = THREE.SRGBColorSpace;
-  return asphaltTex;
-}
+/** Metres covered by one ground texture tile. */
+const TILE_M = 6;
 
 /** Deterministic RNG so decoration is stable per level. */
 function rng(seed: number): () => number {
@@ -60,13 +45,13 @@ function rng(seed: number): () => number {
 }
 
 const lineMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.8 });
-const concrete = new THREE.MeshStandardMaterial({ color: 0xb9b5ac, roughness: 0.9 });
-const curbMat = new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.9 });
+const concrete = surfaceMaterial('concrete', 0xe6e2d8);
+const curbMat = surfaceMaterial('concrete', 0xf6f0e0);
 const coneMat = new THREE.MeshStandardMaterial({ color: 0xff6a13, roughness: 0.6 });
 const coneStripe = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
 const pillarMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.8 });
 const hazardMat = new THREE.MeshStandardMaterial({ color: 0xf5c400, roughness: 0.7 });
-const deckMat = new THREE.MeshStandardMaterial({ color: 0x8e9095, roughness: 0.95 });
+const deckMat = surfaceMaterial('concrete', 0xb4b6bb);
 const ceilingMat = new THREE.MeshBasicMaterial({ color: 0x8a8d93 });
 const stripMat = new THREE.MeshBasicMaterial({ color: 0xfff3d2 });
 const stripGeo = new THREE.BoxGeometry(0.25, 0.06, 2.4);
@@ -176,7 +161,9 @@ function obstacleMesh(o: ObstacleDef, y: number): THREE.Object3D {
       break;
     }
     case 'wall': {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(d.w, d.h, d.l), d.h < 0.7 ? curbMat : concrete);
+      const geo = new THREE.BoxGeometry(d.w, d.h, d.l);
+      tileBoxUV(geo, TILE_M);
+      const m = new THREE.Mesh(geo, d.h < 0.7 ? curbMat : concrete);
       m.position.y = d.h / 2;
       obj = m;
       break;
@@ -222,7 +209,9 @@ function buildStoreys(
   for (const f of surfaces.floors) {
     if (f.y === 0 && !hasBasement) continue; // the lot plane is the ground floor
     for (const a of f.area) {
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(a.hw * 2, SLAB, a.hl * 2), [
+      const deckGeo = new THREE.BoxGeometry(a.hw * 2, SLAB, a.hl * 2);
+      tileBoxUV(deckGeo, TILE_M);
+      const deck = new THREE.Mesh(deckGeo, [
         deckMat,
         deckMat,
         deckMat,
@@ -259,11 +248,15 @@ function buildStoreys(
     pivot.rotation.order = 'YXZ';
     pivot.rotation.y = r.rot;
     pivot.rotation.x = -angle;
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(r.w, SLAB, len), deckMat);
+    const slabGeo = new THREE.BoxGeometry(r.w, SLAB, len);
+    tileBoxUV(slabGeo, TILE_M);
+    const slab = new THREE.Mesh(slabGeo, deckMat);
     slab.position.y = -SLAB / 2;
     pivot.add(slab);
     for (const sx of [-1, 1]) {
-      const side = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, len), curbMat);
+      const sideGeo = new THREE.BoxGeometry(0.3, 0.6, len);
+      tileBoxUV(sideGeo, TILE_M);
+      const side = new THREE.Mesh(sideGeo, curbMat);
       side.position.set(sx * (r.w / 2 + 0.15), 0.3 - SLAB / 2, 0);
       pivot.add(side);
     }
@@ -305,11 +298,10 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   const hasBasement = multi && def.floors!.some((f) => f.y < 0);
   if (!hasBasement) group.add(grass);
 
-  const tex = asphalt();
-  const lotMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
+  const lotMat = surfaceMaterial('asphalt');
   const lotGeo = new THREE.PlaneGeometry(w + 1.2, l + 1.2);
   const uv = lotGeo.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * (w + 1.2)) / 8, (uv.getY(i) * (l + 1.2)) / 8);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * (w + 1.2)) / TILE_M, (uv.getY(i) * (l + 1.2)) / TILE_M);
   const lot = new THREE.Mesh(lotGeo, lotMat);
   lot.rotation.x = -Math.PI / 2;
   lot.receiveShadow = true;

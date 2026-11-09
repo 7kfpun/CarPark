@@ -9,16 +9,17 @@ The lots and the sound effects are generated in code. The only assets fetched at
 
 ## Controls
 
-| Action                 | Keyboard          | Touch                                 |
-| ---------------------- | ----------------- | ------------------------------------- |
-| Accelerate             | `W` / `↑`         | Accelerator pedal                     |
-| Brake / reverse        | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
-| Steer                  | `A` `D` / `←` `→` | Drag the steering wheel round         |
-| Handbrake              | `Space`           | Brake pedal                           |
-| Toggle chase / top cam | `C`               | 🎥 button                             |
-| Restart level          | `R`               |                                       |
-| Pause / resume         | `Esc` / `P`       | ⏸ button                              |
-| Mute                   | `M`               |                                       |
+| Action               | Keyboard          | Touch                                 |
+| -------------------- | ----------------- | ------------------------------------- |
+| Accelerate           | `W` / `↑`         | Accelerator pedal                     |
+| Brake / reverse      | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
+| Steer                | `A` `D` / `←` `→` | Drag the steering wheel round         |
+| Handbrake            | `Space`           | Brake pedal                           |
+| Cycle camera view    | `C`               | 🎥 button                             |
+| Look around (paused) | Drag              | Drag the backdrop                     |
+| Restart level        | `R`               |                                       |
+| Pause / resume       | `Esc` / `P`       | ⏸ button                              |
+| Mute                 | `M`               |                                       |
 
 ### Admin mode (testing)
 
@@ -32,7 +33,7 @@ Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it o
 | Steer                        | Left stick                                 |
 | Handbrake                    | `A` / `RB`                                 |
 | Pause / resume               | `Start`                                    |
-| Toggle camera                | `Y` / `Back`                               |
+| Cycle camera view            | `Y` / `Back`                               |
 | Restart level                | `X`                                        |
 | Menus and modals             | D-pad or left stick to move, `A` to select |
 
@@ -74,9 +75,13 @@ The build uses `base: './'`, so `dist/` can be served from any sub-path.
 These parameters help with testing:
 
 - `?level=N` starts level `N` straight away (1-based, or a level id such as `?level=cone-gates`) and skips the menu, e.g. `http://localhost:5173/?level=3`.
-- `?cam=top` starts in the top-down camera instead of the chase camera.
+- `?cam=VIEW` starts in that camera view (`chase`, `cockpit`, `hood`, `top` or `corner`) for this visit; it is not saved.
 
 You can combine them: `?level=6&cam=top`.
+
+### Camera views
+
+`C` (or the 🎥 button) cycles chase, cockpit, hood, top-down and corner views, blending over 0.3 s (instantly with reduced motion); the choice is saved, and Settings shows it too. Cockpit hides the body and draws a dashboard, steering wheel (turns with the steering) and pillars in code; the rear mirror stays on in chase, cockpit and hood. Top-down and corner hide decks above the car. The corner view is a close view of the front corner on the side the wheel is turned to, or a rear camera while reversing; Settings > Rear view when reversing (off by default) switches to it automatically when reversing in chase, cockpit or hood. While paused or after a level, drag the backdrop to orbit the car (mouse wheel zooms); resuming returns to the chosen view. Cameras never affect physics, collisions or star times. Pure view logic: `src/views.ts`; the interior: `src/cockpit.ts`.
 
 ## Project structure
 

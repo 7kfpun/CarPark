@@ -1,5 +1,5 @@
 import { nextFocusIndex } from './focus';
-import type { CamMode } from './camera';
+import { CAM_MODES, parseCamMode, type CamMode } from './views';
 
 export type QualitySetting = 'auto' | 'low' | 'high';
 
@@ -7,6 +7,8 @@ export interface Settings {
   sound: boolean;
   quality: QualitySetting;
   camera: CamMode;
+  /** Switch to the corner (rear) view while reversing. */
+  autoRear: boolean;
   mirror: boolean;
   wheel: 'left' | 'right';
 }
@@ -14,7 +16,14 @@ export interface Settings {
 const KEY = 'car-parking-3d:settings:v1';
 
 export function loadSettings(): Settings {
-  const fresh: Settings = { sound: true, quality: 'auto', camera: 'chase', mirror: true, wheel: 'left' };
+  const fresh: Settings = {
+    sound: true,
+    quality: 'auto',
+    camera: 'chase',
+    autoRear: false,
+    mirror: true,
+    wheel: 'left',
+  };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
@@ -23,7 +32,8 @@ export function loadSettings(): Settings {
     return {
       sound: typeof s.sound === 'boolean' ? s.sound : fresh.sound,
       quality: s.quality === 'low' || s.quality === 'high' || s.quality === 'auto' ? s.quality : fresh.quality,
-      camera: s.camera === 'top' || s.camera === 'chase' ? s.camera : fresh.camera,
+      camera: parseCamMode(s.camera, fresh.camera),
+      autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
       wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
     };
@@ -48,7 +58,8 @@ export class SettingsPanel {
   private readonly rows: Choice<keyof Settings>[] = [
     { key: 'sound', values: [true, false] },
     { key: 'quality', values: ['low', 'high', 'auto'] },
-    { key: 'camera', values: ['chase', 'top'] },
+    { key: 'camera', values: [...CAM_MODES] },
+    { key: 'autoRear', values: [true, false] },
     { key: 'mirror', values: [true, false] },
     { key: 'wheel', values: ['left', 'right'] },
   ];

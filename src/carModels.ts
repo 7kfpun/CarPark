@@ -1,5 +1,6 @@
 import { VEHICLES } from './vehicles';
 import { MODEL_TIMEOUT_MS, withTimeout } from './loading';
+import { upgradeCarMaterial } from './materials';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -52,10 +53,18 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     MODEL_SHARED.add(mesh.geometry);
-    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-      MODEL_SHARED.add(mat);
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      MODEL_SHARED.add(mat); // the original palette material (Low graphics) ...
       const map = (mat as THREE.MeshStandardMaterial).map;
       if (map) MODEL_SHARED.add(map);
+    }
+    const up = mats.map(upgradeCarMaterial);
+    mesh.material = Array.isArray(mesh.material) ? up : up[0];
+    for (const mat of up) {
+      MODEL_SHARED.add(mat); // ... and the clear-coated one (High), with its control map
+      const m = mat as THREE.MeshPhysicalMaterial;
+      for (const t of [m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t) MODEL_SHARED.add(t);
     }
   });
   return { body, wheels, box };
