@@ -25,6 +25,8 @@ export interface Settings {
   autoRear: boolean;
   mirror: boolean;
   wheel: 'left' | 'right';
+  /** Fail a level when its time runs out. Off: the timer counts up and stars still follow the finish time. */
+  timeLimit: boolean;
   /** Scale of the menus, HUD text and panels. */
   textSize: TextSize;
 }
@@ -42,6 +44,7 @@ export function loadSettings(): Settings {
     autoRear: false,
     mirror: true,
     wheel: 'left',
+    timeLimit: true,
     textSize: 'normal',
   };
   try {
@@ -59,6 +62,7 @@ export function loadSettings(): Settings {
       autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
       wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
+      timeLimit: typeof s.timeLimit === 'boolean' ? s.timeLimit : fresh.timeLimit,
       textSize: parseTextSize(s.textSize, fresh.textSize),
     };
   } catch {
@@ -89,6 +93,7 @@ export class SettingsPanel {
     { key: 'autoRear', values: [true, false] },
     { key: 'mirror', values: [true, false] },
     { key: 'wheel', values: ['left', 'right'] },
+    { key: 'timeLimit', values: [true, false] },
     { key: 'textSize', values: [...TEXT_SIZES] },
   ];
   private readonly tabs = [...this.root.querySelectorAll<HTMLButtonElement>('[data-tab]')];

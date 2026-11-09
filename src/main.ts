@@ -614,7 +614,7 @@ function step(dt: number): void {
   const def = level.def;
   const car = player.physics;
   elapsed += dt;
-  if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
+  if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controls, level.surfaces);
   recorder.step(car);
@@ -842,7 +842,7 @@ function frameBody(now: number): void {
       accumulator -= STEP;
     }
     updateGhost(elapsed);
-    hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
+    hud.update(settings.timeLimit ? LEVELS[levelIndex].time - elapsed : elapsed, player.physics.v, !settings.timeLimit);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     syncAdminBar();
   }
