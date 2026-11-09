@@ -58,7 +58,7 @@ import {
   lightTarget,
   rampSignText,
 } from '../src/storey';
-import { detailLayout, detailProblems } from '../src/detail';
+import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { MODEL_SHARED, toTemplate } from '../src/carModels';
@@ -1852,6 +1852,10 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
     check(
       JSON.stringify(d) === JSON.stringify(detailLayout(def, i, flat)),
       `${def.id}: scenery layout is deterministic`,
+    );
+    check(
+      !def.spawn || !d.poles.some((p) => Math.hypot(p.x - def.spawn!.x, p.z - def.spawn!.z) < POLE_CLEAR),
+      `${def.id}: no light pole near the spawn`,
     );
     check(
       flat ? d.poles.length >= 2 && d.posts.length > 0 && d.rails.length > 0 : d.poles.length === 0,
