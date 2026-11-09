@@ -4,6 +4,15 @@ import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/col
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { nextFocusIndex } from '../src/focus';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
+import {
+  ceilingAbove,
+  clampCameraDistance,
+  floorHud,
+  floorLabel,
+  floorShown,
+  lightTarget,
+  rampSignText,
+} from '../src/storey';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
@@ -156,6 +165,54 @@ console.log('Drive-through (level 1)');
   }
   check(maxImpact > 1, 'reversing into wall should register an impact');
   check(car.z - CAR_L / 2 >= -lvl.lot.l / 2 - 0.01, `car pushed through the wall (z=${car.z.toFixed(2)})`);
+}
+
+console.log('Multi-storey view helpers');
+{
+  const two: LevelDef = {
+    ...LEVELS[0],
+    lot: { w: 20, l: 65 },
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
+      { id: 'upper', y: 3.5, area: [{ x: 0, z: 25, hw: 10, hl: 10, rot: 0 }] },
+      { id: 'deep', y: -3.5, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
+    ],
+    target: { ...LEVELS[0].target, x: 0, z: 25, floor: 'upper' },
+  };
+  check(floorLabel(two, 'ground') === 'G', 'ground floor is G');
+  check(floorLabel(two, 'upper') === '1' && floorLabel(two, 'deep') === 'B1', 'floors above and below are numbered');
+  check(rampSignText(two, 'upper', true) === 'Level 1 ↑', 'sign text up');
+  check(rampSignText(two, 'ground', false) === 'Ground ↓', 'sign text down');
+  check(floorHud(LEVELS[0], 'ground', 0).pill === null, 'a flat level has no floor pill');
+  const h = floorHud(two, 'ground', 0);
+  check(h.dir === 'up' && h.hint.includes('▲') && h.pill !== null, 'target above: arrow points up');
+  check(floorHud(two, 'upper', 3.5).dir === null, 'no direction on the target floor');
+  check(floorHud(two, 'ramp', 2.9).pill === '🅿 Floor 1', 'a ramp near the top counts as the upper floor');
+  check(floorHud(two, 'deep', -3.5).dir === 'up', 'target above a basement car: up');
+
+  check(ceilingAbove(two, 0, 25, 3.5) === null, 'nothing above the upper deck');
+  check(Math.abs((ceilingAbove(two, 0, 25, 0) ?? 99) - 3.2) < 1e-9, 'under the upper deck: ceiling at its underside');
+  check(ceilingAbove(two, 0, -15, 0) === null, 'ground at z -15 is open (the upper deck is at z 15..35)');
+  check(
+    Math.abs((ceilingAbove(two, 0, 25, -3.5) ?? 99) - 3.2) < 1e-9,
+    'basement under the upper deck sees its underside',
+  );
+  check(ceilingAbove(two, 0, -15, -3.5) === -0.3, 'basement ceiling is the ground deck underside');
+
+  check(clampCameraDistance(7, null) === 7, 'clear line keeps the camera where it is');
+  check(clampCameraDistance(7, 9) === 7, 'a hit beyond the camera does not move it');
+  check(Math.abs(clampCameraDistance(7, 4) - 3.65) < 1e-9, 'a ceiling pulls the camera in short of the hit');
+  check(clampCameraDistance(7, 0.5) === 1.6, 'never closer than the minimum');
+  check(clampCameraDistance(1, 0.2) === 1, 'a short wanted distance is not pushed out');
+
+  check(floorShown(3.5, 0, true) === false && floorShown(0, 0, true), 'top-down hides floors above the car');
+  check(floorShown(3.5, 0, false), 'chase shows every floor');
+  check(floorShown(0, 3.5, true), 'top-down on an upper floor still shows the floors below');
+  const out = lightTarget(false, false);
+  const under = lightTarget(true, false);
+  const deep = lightTarget(true, true);
+  check(out.sun > 0 && under.sun === 0 && deep.sun === 0, 'sun is off under a deck');
+  check(deep.sky < under.sky && under.sky < out.sky, 'underground is darker than covered, covered than outdoors');
 }
 
 console.log('Floors and ramps');

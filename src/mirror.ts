@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 interface Target {
+  y: number;
   x: number;
   z: number;
   heading: number;
@@ -48,8 +49,8 @@ export class RearMirror {
     // Camera above the rear of the roof, looking back and slightly down.
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    this.camera.position.set(car.x - fx * 0.7, 1.75, car.z - fz * 0.7);
-    this.camera.lookAt(car.x - fx * 20, 0.9, car.z - fz * 20);
+    this.camera.position.set(car.x - fx * 0.7, car.y + 1.75, car.z - fz * 0.7);
+    this.camera.lookAt(car.x - fx * 20, car.y + 0.9, car.z - fz * 20);
     this.camera.aspect = rect.width / rect.height;
     this.camera.updateProjectionMatrix();
 

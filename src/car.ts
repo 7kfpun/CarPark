@@ -149,8 +149,10 @@ export class PlayerCar {
   sync(dt: number): void {
     const p = this.physics;
     const m = this.model;
-    m.root.position.set(p.x, 0, p.z);
+    m.root.position.set(p.x, p.y, p.z);
+    m.root.rotation.order = 'YXZ'; // heading first, then tilt about the car's own x axis
     m.root.rotation.y = p.heading;
+    m.root.rotation.x = -p.pitch; // nose up on a climb
     for (const f of m.frontPivots) f.rotation.y = -p.steer;
     for (const s of m.spinners) s.rotation.x += (p.v * dt) / WHEEL_R;
     // Slight body roll for feel.

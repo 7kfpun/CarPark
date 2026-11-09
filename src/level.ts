@@ -2,16 +2,9 @@ import * as THREE from 'three';
 import { CAR_SHARED, createCarModel } from './car';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
-import { levelObstacles, Surfaces } from './floors';
-import {
-  allObstacles,
-  bayOBB,
-  obstacleDims,
-  type BayDef,
-  type LayeredOBB,
-  type LevelDef,
-  type ObstacleDef,
-} from './layout';
+import { levelObstacleDefs, levelObstacles, Surfaces } from './floors';
+import { bayOBB, obstacleDims, type BayDef, type LayeredOBB, type LevelDef, type ObstacleDef } from './layout';
+import { floorShown, rampSignText, SLAB } from './storey';
 
 export interface BuiltLevel {
   def: LevelDef;
@@ -22,6 +15,12 @@ export interface BuiltLevel {
   bayFill: THREE.MeshBasicMaterial;
   bayEdge: THREE.MeshBasicMaterial;
   marker: THREE.Object3D;
+  /** Resting height of the floating target marker. */
+  markerY: number;
+  /** Surfaces the chase camera must not pass through (decks, ramps, walls, pillars). */
+  solids: THREE.Object3D[];
+  /** Top-down view: hide floors above the car. No-op on flat levels. */
+  setView(carY: number, topDown: boolean): void;
   dispose(): void;
 }
 
@@ -59,11 +58,16 @@ const coneMat = new THREE.MeshStandardMaterial({ color: 0xff6a13, roughness: 0.6
 const coneStripe = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
 const pillarMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.8 });
 const hazardMat = new THREE.MeshStandardMaterial({ color: 0xf5c400, roughness: 0.7 });
+const deckMat = new THREE.MeshStandardMaterial({ color: 0x8e9095, roughness: 0.95 });
+const ceilingMat = new THREE.MeshBasicMaterial({ color: 0x8a8d93 });
+const stripMat = new THREE.MeshBasicMaterial({ color: 0xfff3d2 });
+const stripGeo = new THREE.BoxGeometry(0.25, 0.06, 2.4);
+const signMats = new Map<string, THREE.MeshBasicMaterial>();
 const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 1 });
 const leafMat = new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1 });
 const trunkGeo = new THREE.CylinderGeometry(0.18, 0.25, 1.6, 8);
 const leafGeo = new THREE.ConeGeometry(1.4, 3.2, 9);
-const sharedGeo = new Set<THREE.BufferGeometry>([trunkGeo, leafGeo]);
+const sharedGeo = new Set<THREE.BufferGeometry>([trunkGeo, leafGeo, stripGeo]);
 const shared = new Set<THREE.Material>([
   lineMat,
   concrete,
@@ -74,6 +78,9 @@ const shared = new Set<THREE.Material>([
   hazardMat,
   trunkMat,
   leafMat,
+  deckMat,
+  ceilingMat,
+  stripMat,
 ]);
 
 function shadowed<T extends THREE.Object3D>(o: T): T {
@@ -112,7 +119,7 @@ function decorBay(b: BayDef): THREE.Group {
   return g;
 }
 
-function obstacleMesh(o: ObstacleDef): THREE.Object3D {
+function obstacleMesh(o: ObstacleDef, y: number): THREE.Object3D {
   const d = obstacleDims(o);
   let obj: THREE.Object3D;
   switch (o.kind) {
@@ -148,9 +155,111 @@ function obstacleMesh(o: ObstacleDef): THREE.Object3D {
       break;
     }
   }
-  obj.position.set(o.x, 0, o.z);
+  obj.position.set(o.x, y, o.z);
   obj.rotation.y = o.rot ?? 0;
   return shadowed(obj);
+}
+
+/** Floor-paint sign ("Level 2 ↑"), one shared material per text. */
+function signMat(text: string): THREE.MeshBasicMaterial {
+  let m = signMats.get(text);
+  if (m) return m;
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 192;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#f5c400';
+  g.fillRect(0, 0, 512, 192);
+  g.fillStyle = '#23252b';
+  g.fillRect(10, 10, 492, 172);
+  g.fillStyle = '#f5c400';
+  g.font = 'bold 84px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 256, 100);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  m = new THREE.MeshBasicMaterial({ map: tex });
+  signMats.set(text, m);
+  shared.add(m);
+  return m;
+}
+
+/** Decks, ramps with side walls, ceiling light strips and floor signs of a multi-storey level. */
+function buildStoreys(
+  def: LevelDef,
+  surfaces: Surfaces,
+  add: (o: THREE.Object3D, y: number, solid: boolean) => void,
+): void {
+  const hasBasement = surfaces.floors.some((f) => f.y < 0);
+  for (const f of surfaces.floors) {
+    if (f.y === 0 && !hasBasement) continue; // the lot plane is the ground floor
+    for (const a of f.area) {
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(a.hw * 2, SLAB, a.hl * 2), [
+        deckMat,
+        deckMat,
+        deckMat,
+        ceilingMat, // -y face: the ceiling of the floor below, flat and bright (no light reaches it)
+        deckMat,
+        deckMat,
+      ]);
+      deck.position.set(a.x, f.y - SLAB / 2, a.z);
+      deck.rotation.y = a.rot;
+      add(deck, f.y, true);
+      // Light strips under the slab: baked emissive, no real lights.
+      const cols = Math.max(1, Math.floor((a.hw * 2) / 7));
+      const rows = Math.max(1, Math.floor((a.hl * 2) / 8));
+      const strips = new THREE.Group();
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+          const m = new THREE.Mesh(stripGeo, stripMat);
+          m.position.set(((i + 0.5) / cols - 0.5) * a.hw * 2, -SLAB / 2 - 0.03, ((j + 0.5) / rows - 0.5) * a.hl * 2);
+          strips.add(m);
+        }
+      }
+      strips.position.set(a.x, f.y, a.z);
+      strips.rotation.y = a.rot;
+      add(strips, f.y, false);
+    }
+  }
+  for (const r of surfaces.ramps) {
+    const y0 = surfaces.floorHeight(r.from) ?? 0;
+    const y1 = surfaces.floorHeight(r.to) ?? 0;
+    const angle = Math.atan2(y1 - y0, r.l);
+    const len = Math.hypot(r.l, y1 - y0);
+    const pivot = new THREE.Group(); // at the middle of the surface, tilted along the ramp
+    pivot.position.set(r.x, (y0 + y1) / 2, r.z);
+    pivot.rotation.order = 'YXZ';
+    pivot.rotation.y = r.rot;
+    pivot.rotation.x = -angle;
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(r.w, SLAB, len), deckMat);
+    slab.position.y = -SLAB / 2;
+    pivot.add(slab);
+    for (const sx of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, len), curbMat);
+      side.position.set(sx * (r.w / 2 + 0.15), 0.3 - SLAB / 2, 0);
+      pivot.add(side);
+    }
+    add(pivot, Math.min(y0, y1), true);
+    // A sign on each floor just before the ramp, facing the way the car drives onto it.
+    for (const end of [0, 1]) {
+      const toId = end === 0 ? r.to : r.from;
+      const floorId = end === 0 ? r.from : r.to;
+      const up = (surfaces.floorHeight(toId) ?? 0) > (surfaces.floorHeight(floorId) ?? 0);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), signMat(rampSignText(def, toId, up)));
+      sign.rotation.x = -Math.PI / 2;
+      sign.rotation.z = Math.PI;
+      const holder = new THREE.Group();
+      const dist = r.l / 2 + 2.6;
+      const dir = end === 0 ? -1 : 1;
+      const [sin, cos] = [Math.sin(r.rot), Math.cos(r.rot)];
+      const fy = surfaces.floorHeight(floorId) ?? 0;
+      holder.position.set(r.x + sin * dist * dir, fy + 0.03, r.z + cos * dist * dir);
+      holder.rotation.y = r.rot + (end === 0 ? 0 : Math.PI);
+      holder.add(sign);
+      add(holder, fy, false);
+    }
+  }
 }
 
 export function buildLevel(def: LevelDef, index: number): BuiltLevel {
@@ -165,7 +274,9 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.02;
   grass.receiveShadow = true;
-  group.add(grass);
+  const multi = def.floors !== undefined;
+  const hasBasement = multi && def.floors!.some((f) => f.y < 0);
+  if (!hasBasement) group.add(grass);
 
   const tex = asphalt();
   const lotMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
@@ -175,17 +286,34 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   const lot = new THREE.Mesh(lotGeo, lotMat);
   lot.rotation.x = -Math.PI / 2;
   lot.receiveShadow = true;
-  group.add(lot);
+  if (!hasBasement) group.add(lot);
 
   for (const b of def.bays ?? []) group.add(decorBay(b));
   const surfaces = new Surfaces(def);
-  const obstacleDefs = allObstacles(def);
-  for (const o of obstacleDefs) group.add(obstacleMesh(o));
+  // Everything tied to a floor is tracked with its height so the top-down view can hide floors above the car.
+  const tracked: THREE.Object3D[] = [];
+  const solids: THREE.Object3D[] = [];
+  const add = (o: THREE.Object3D, y: number, solid: boolean): void => {
+    o.userData.layerY = y;
+    group.add(o);
+    tracked.push(o);
+    if (solid) solids.push(o);
+  };
+  if (multi) buildStoreys(def, surfaces, add);
+  for (const o of levelObstacleDefs(def, surfaces)) {
+    const layer = o.floor ?? surfaces.startLayer;
+    if (multi && surfaces.floorHeight(layer) === null && o.kind === 'wall') continue; // ramp kerbs are part of the ramp mesh
+    const y = surfaces.heightAt(layer, o.x, o.z);
+    const mesh = obstacleMesh(o, y);
+    if (multi) add(mesh, y, o.kind === 'pillar' || (o.kind === 'wall' && (o.h ?? 1.2) >= 1.5));
+    else group.add(mesh);
+  }
 
   // Target bay: translucent fill, glowing edges, direction arrow, floating marker.
   const t = def.target;
   const bayGroup = new THREE.Group();
-  bayGroup.position.set(t.x, 0, t.z);
+  const bayY = surfaces.heightAt(t.floor ?? surfaces.startLayer, t.x, t.z);
+  bayGroup.position.set(t.x, bayY, t.z);
   bayGroup.rotation.y = t.rot;
   const bayFill = new THREE.MeshBasicMaterial({ color: 0xffa31a, transparent: true, opacity: 0.28, depthWrite: false });
   const fill = new THREE.Mesh(new THREE.PlaneGeometry(t.w, t.l), bayFill);
@@ -214,13 +342,15 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
     arrow.position.y = 0.035;
     bayGroup.add(arrow);
   }
-  group.add(bayGroup);
+  if (multi) add(bayGroup, bayY, false);
+  else group.add(bayGroup);
 
   const marker = new THREE.Mesh(
     new THREE.OctahedronGeometry(0.45),
     new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0xffa31a, emissiveIntensity: 0.8 }),
   );
-  marker.position.set(t.x, 3.2, t.z);
+  const markerY = multi ? bayY + 2.2 : 3.2;
+  marker.position.set(t.x, markerY, t.z);
   group.add(marker);
 
   // Trees around the lot.
@@ -253,6 +383,11 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
     bayFill,
     bayEdge,
     marker,
+    markerY,
+    solids: multi ? solids : [],
+    setView(carY, topDown) {
+      for (const o of tracked) o.visible = floorShown(o.userData.layerY as number, carY, topDown);
+    },
     dispose() {
       group.traverse((o) => {
         const m = o as THREE.Mesh;
