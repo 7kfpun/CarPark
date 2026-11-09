@@ -288,6 +288,25 @@ console.log('Floors and ramps');
   drive(1, () => ({ throttle: 1, handbrake: false }));
   check(car.v > 0 && car.v < 1.5, `climbing from rest should be slow (v ${car.v.toFixed(2)})`);
 
+  // Steepest allowed ramp (12 deg): from rest, full and 60% throttle must both climb to the upper floor.
+  const steep = rampLevel(14.2); // rise 3 m over 14.2 m is ~11.9 deg
+  check(floorProblems(steep).length === 0, `steepest ramp rejected: ${floorProblems(steep).join('; ')}`);
+  const steepSurf = new Surfaces(steep);
+  for (const throttle of [1, 0.6]) {
+    const c = new CarPhysics();
+    c.reset(0, 0.5, 0, steepSurf);
+    c.layer = 'ramp';
+    let climbed = false;
+    for (let i = 0; i < Math.round(60 / STEP) && !climbed; i++) {
+      c.step(STEP, { throttle, steer: 0, handbrake: false }, steepSurf);
+      climbed = c.layer === 'upper';
+    }
+    check(
+      climbed,
+      `from rest at ${throttle * 100}% throttle the car cannot climb a 12 deg ramp (z ${c.z.toFixed(1)}, v ${c.v.toFixed(2)})`,
+    );
+  }
+
   // Stopping at the top: brake on the upper floor, the car stays put, level.
   car.reset(0, -10, 0, surf);
   drive(30, (c) => {
@@ -308,7 +327,7 @@ console.log('Floors and ramps');
   car.reset(0, 7.5, 0, surf);
   car.layer = 'ramp';
   const roll = drive(1.5, () => ({ throttle: 0, handbrake: false }));
-  check(car.v < -1 && car.z < 7.5, `car should roll back on the ramp (v ${car.v.toFixed(2)}, z ${car.z.toFixed(2)})`);
+  check(car.v < -0.5 && car.z < 7.5, `car should roll back on the ramp (v ${car.v.toFixed(2)}, z ${car.z.toFixed(2)})`);
   const rolled = drive(12, () => ({ throttle: 0, handbrake: false }));
   check(roll.impact === 0 && rolled.impact < 1, 'rolling back hit something hard');
   check(car.layer === 'ground' && car.y === 0, `rolled back to layer ${car.layer}, y ${car.y.toFixed(2)}`);
