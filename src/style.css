@@ -470,6 +470,80 @@ h2 {
   gap: clamp(6px, 2vmin, 10px);
 }
 
+#level-grid.worlds {
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+}
+
+.world-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: clamp(12px, 3vmin, 18px) 12px;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  border-top: 4px solid var(--world, var(--accent));
+  background: rgba(255, 255, 255, 0.08);
+  transition:
+    transform 0.12s,
+    border-color 0.12s;
+}
+
+.world-btn:hover:not(:disabled),
+.world-btn:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--world, var(--accent));
+  outline: none;
+}
+
+.world-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.world-icon {
+  font-size: clamp(26px, 8vmin, 34px);
+}
+
+.world-name {
+  font-size: clamp(16px, 4.4vmin, 19px);
+  font-weight: 800;
+}
+
+.world-blurb {
+  font-size: clamp(12px, 3.3vmin, 13px);
+  color: var(--muted);
+}
+
+.world-total {
+  margin-top: 4px;
+  font-size: clamp(12px, 3.3vmin, 13px);
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#world-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#world-bar.hidden {
+  display: none;
+}
+
+#world-title {
+  font-weight: 800;
+}
+
+#world-stars {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .level-btn {
   display: flex;
   flex-direction: column;

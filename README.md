@@ -5,6 +5,8 @@ Each lot has one glowing target bay. Drive in, line up with the bay and hold sti
 moment to park. Every level has a time limit, and touching anything (a car, wall, pillar or cone) fails the level at once. You earn up to three
 stars per level from your time: finishing in time is one star, and each level sets the times for two and three stars. Progress is saved in `localStorage`, keyed by each level's permanent `id` (see `LevelDef`), so levels can be added or reordered without losing stars.
 
+Levels are grouped into themed locations (worlds): Open-Air Lots, Multi-Storey, Industrial Yard and Twilight District. The menu shows the worlds with a star total each; finish a world (at least one star on every level) to open the next. Each level's `location` field (`LevelDef`) and the world order live in `src/layout.ts`, `src/levels.ts` and `src/worlds.ts`.
+
 The lots and the sound effects are generated in code. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
 
 ## Controls

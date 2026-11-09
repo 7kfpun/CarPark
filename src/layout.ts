@@ -77,10 +77,15 @@ export interface StarTimes {
   two: number;
 }
 
+/** The themed location (world) a level belongs to; see src/worlds.ts. */
+export type LocationId = 'open-air' | 'multi-storey' | 'industrial' | 'twilight';
+
 export interface LevelDef {
   /** Permanent id (kebab-case). Saved progress is keyed by it, so never change or reuse one. */
   id: string;
   name: string;
+  /** The world this level is listed under. Levels are kept in world order (see `LEVELS`). */
+  location: LocationId;
   hint: string;
   lot: { w: number; l: number };
   spawn: { x: number; z: number; rot: number };

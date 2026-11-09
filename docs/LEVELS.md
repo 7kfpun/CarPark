@@ -103,7 +103,71 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Rush Hour](maps/rush-hour.svg)
 
-## 7. Up One Floor
+## 7. Angle of Attack
+
+> The bays are slanted. Swing wide, then turn in and line up with the arrow.
+
+| | |
+| --- | --- |
+| Id | `angle-of-attack` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 3 × 5.6 m, facing 50° (nose must point that way) |
+| Start pose | x -9, z -14, heading 0° |
+
+![Angle of Attack](maps/angle-of-attack.svg)
+
+## 8. Curb Side
+
+> A long space between two cars. Reverse in at an angle, then straighten up.
+
+| | |
+| --- | --- |
+| Id | `curb-side` |
+| Vehicle | Hatchback |
+| Lot | 40 × 26 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 90° (either direction) |
+| Start pose | x -16, z 2, heading 90° |
+
+![Curb Side](maps/curb-side.svg)
+
+## 9. Backhand Angle
+
+> The bays slant the other way now. Follow the arrows, swing wide and turn in.
+
+| | |
+| --- | --- |
+| Id | `backhand-angle` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 3 × 5.6 m, facing 310° (nose must point that way) |
+| Start pose | x 9, z -14, heading 0° |
+
+![Backhand Angle](maps/backhand-angle.svg)
+
+## 10. One-Way Curb
+
+> Traffic only flows one way here. Reverse in at an angle, then straighten up.
+
+| | |
+| --- | --- |
+| Id | `one-way-curb` |
+| Vehicle | Hatchback |
+| Lot | 40 × 26 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 270° (either direction) |
+| Start pose | x 16, z 2, heading 270° |
+
+![One-Way Curb](maps/one-way-curb.svg)
+
+## 11. Up One Floor
 
 > Drive up the ramp to level 1, then pull forwards into the glowing bay and stop.
 
@@ -121,7 +185,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Up One Floor, floor upper](maps/up-one-floor-upper.svg)
 
-## 8. Basement
+## 12. Basement
 
 > Down the ramp into the dark. Reverse into the bay between the two cars.
 
@@ -139,7 +203,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Basement, floor basement](maps/basement-basement.svg)
 
-## 9. Spiral
+## 13. Spiral
 
 > Keep a steady curve all the way up the spiral. The free bay is on the top deck.
 
@@ -161,199 +225,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Spiral, floor top](maps/spiral-top.svg)
 
-## 10. Angle of Attack
-
-> The bays are slanted. Swing wide, then turn in and line up with the arrow.
-
-| | |
-| --- | --- |
-| Id | `angle-of-attack` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 3 × 5.6 m, facing 50° (nose must point that way) |
-| Start pose | x -9, z -14, heading 0° |
-
-![Angle of Attack](maps/angle-of-attack.svg)
-
-## 11. Reverse Gate
-
-> Pass the wall, then back through the narrow gate into the bay.
-
-| | |
-| --- | --- |
-| Id | `reverse-gate` |
-| Vehicle | Hatchback |
-| Lot | 28 × 40 m |
-| Time limit | 70 s |
-| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
-| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
-| Start pose | x 8, z 12, heading 180° |
-
-![Reverse Gate](maps/reverse-gate.svg)
-
-## 12. Tight Squeeze
-
-> Only a sliver of room either side. Line up early and creep in.
-
-| | |
-| --- | --- |
-| Id | `tight-squeeze` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
-| Start pose | x -10, z -12, heading 90° |
-
-![Tight Squeeze](maps/tight-squeeze.svg)
-
-## 13. Curb Side
-
-> A long space between two cars. Reverse in at an angle, then straighten up.
-
-| | |
-| --- | --- |
-| Id | `curb-side` |
-| Vehicle | Hatchback |
-| Lot | 40 × 26 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 90° (either direction) |
-| Start pose | x -16, z 2, heading 90° |
-
-![Curb Side](maps/curb-side.svg)
-
-## 14. Slalom Reverse
-
-> Weave through the cones, then reverse into the free bay on the right.
-
-| | |
-| --- | --- |
-| Id | `slalom-reverse` |
-| Vehicle | Hatchback |
-| Lot | 30 × 60 m |
-| Time limit | 90 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
-| Target bay | x 12, z 18, 2.8 × 5.6 m, facing 270° (nose must point that way) |
-| Start pose | x 0, z -26, heading 0° |
-
-![Slalom Reverse](maps/slalom-reverse.svg)
-
-## 15. The Finale
-
-> Pillars, a wall and a walled-in bay with almost no room. Take it slow.
-
-| | |
-| --- | --- |
-| Id | `the-finale` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 100 s |
-| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
-| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
-| Start pose | x -11, z -15, heading 90° |
-
-![The Finale](maps/the-finale.svg)
-
-## 16. Backhand Angle
-
-> The bays slant the other way now. Follow the arrows, swing wide and turn in.
-
-| | |
-| --- | --- |
-| Id | `backhand-angle` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 3 × 5.6 m, facing 310° (nose must point that way) |
-| Start pose | x 9, z -14, heading 0° |
-
-![Backhand Angle](maps/backhand-angle.svg)
-
-## 17. Dusk Gate
-
-> The light is fading. Pass the wall, then back through the narrow gate into the bay.
-
-| | |
-| --- | --- |
-| Id | `dusk-gate` |
-| Vehicle | Hatchback |
-| Lot | 28 × 40 m |
-| Time limit | 70 s |
-| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
-| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
-| Start pose | x -8, z 12, heading 180° |
-
-![Dusk Gate](maps/dusk-gate.svg)
-
-## 18. Twilight Squeeze
-
-> Dusk and a sliver of room either side. Follow the arrows, line up early and creep in.
-
-| | |
-| --- | --- |
-| Id | `twilight-squeeze` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
-| Start pose | x 10, z -12, heading 270° |
-
-![Twilight Squeeze](maps/twilight-squeeze.svg)
-
-## 19. One-Way Curb
-
-> Traffic only flows one way here. Reverse in at an angle, then straighten up.
-
-| | |
-| --- | --- |
-| Id | `one-way-curb` |
-| Vehicle | Hatchback |
-| Lot | 40 × 26 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 270° (either direction) |
-| Start pose | x 16, z 2, heading 270° |
-
-![One-Way Curb](maps/one-way-curb.svg)
-
-## 20. Dusk Slalom
-
-> Weave through the cones as the sun sets, then reverse into the free bay on the left.
-
-| | |
-| --- | --- |
-| Id | `dusk-slalom` |
-| Vehicle | Hatchback |
-| Lot | 30 × 60 m |
-| Time limit | 90 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
-| Target bay | x -12, z 18, 2.8 × 5.6 m, facing 90° (nose must point that way) |
-| Start pose | x 0, z -26, heading 0° |
-
-![Dusk Slalom](maps/dusk-slalom.svg)
-
-## 21. Night Finale
-
-> Dusk, pillars, a wall and a walled-in bay with almost no room. Take it slow.
-
-| | |
-| --- | --- |
-| Id | `night-finale` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 100 s |
-| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
-| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
-| Start pose | x 11, z -15, heading 270° |
-
-![Night Finale](maps/night-finale.svg)
-
-## 22. Van Garage
+## 14. Van Garage
 
 > A van is longer and wider than a car. Reverse into the garage bay with barely half a metre to spare each side.
 
@@ -369,7 +241,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Van Garage](maps/van-garage.svg)
 
-## 23. Bus Bay
+## 15. Bus Bay
 
 > A city bus swings wide and turns slowly. Pull in alongside the platform between the two parked buses.
 
@@ -385,7 +257,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Bus Bay](maps/bus-bay.svg)
 
-## 24. Loading Dock
+## 16. Loading Dock
 
 > Back the box truck square into the dock. Line up early: the cargo box swings wide.
 
@@ -401,7 +273,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Loading Dock](maps/loading-dock.svg)
 
-## 25. Minibus Parallel
+## 17. Minibus Parallel
 
 > Parallel park the minibus at the curb. The gap is only a metre longer than the bus.
 
@@ -416,3 +288,131 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x 2, z -18, heading 0° |
 
 ![Minibus Parallel](maps/minibus-parallel.svg)
+
+## 18. Reverse Gate
+
+> Pass the wall, then back through the narrow gate into the bay.
+
+| | |
+| --- | --- |
+| Id | `reverse-gate` |
+| Vehicle | Hatchback |
+| Lot | 28 × 40 m |
+| Time limit | 70 s |
+| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
+| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x 8, z 12, heading 180° |
+
+![Reverse Gate](maps/reverse-gate.svg)
+
+## 19. Tight Squeeze
+
+> Only a sliver of room either side. Line up early and creep in.
+
+| | |
+| --- | --- |
+| Id | `tight-squeeze` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
+| Start pose | x -10, z -12, heading 90° |
+
+![Tight Squeeze](maps/tight-squeeze.svg)
+
+## 20. Slalom Reverse
+
+> Weave through the cones, then reverse into the free bay on the right.
+
+| | |
+| --- | --- |
+| Id | `slalom-reverse` |
+| Vehicle | Hatchback |
+| Lot | 30 × 60 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
+| Target bay | x 12, z 18, 2.8 × 5.6 m, facing 270° (nose must point that way) |
+| Start pose | x 0, z -26, heading 0° |
+
+![Slalom Reverse](maps/slalom-reverse.svg)
+
+## 21. The Finale
+
+> Pillars, a wall and a walled-in bay with almost no room. Take it slow.
+
+| | |
+| --- | --- |
+| Id | `the-finale` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 100 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
+| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
+| Start pose | x -11, z -15, heading 90° |
+
+![The Finale](maps/the-finale.svg)
+
+## 22. Dusk Gate
+
+> The light is fading. Pass the wall, then back through the narrow gate into the bay.
+
+| | |
+| --- | --- |
+| Id | `dusk-gate` |
+| Vehicle | Hatchback |
+| Lot | 28 × 40 m |
+| Time limit | 70 s |
+| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
+| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x -8, z 12, heading 180° |
+
+![Dusk Gate](maps/dusk-gate.svg)
+
+## 23. Twilight Squeeze
+
+> Dusk and a sliver of room either side. Follow the arrows, line up early and creep in.
+
+| | |
+| --- | --- |
+| Id | `twilight-squeeze` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
+| Start pose | x 10, z -12, heading 270° |
+
+![Twilight Squeeze](maps/twilight-squeeze.svg)
+
+## 24. Dusk Slalom
+
+> Weave through the cones as the sun sets, then reverse into the free bay on the left.
+
+| | |
+| --- | --- |
+| Id | `dusk-slalom` |
+| Vehicle | Hatchback |
+| Lot | 30 × 60 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
+| Target bay | x -12, z 18, 2.8 × 5.6 m, facing 90° (nose must point that way) |
+| Start pose | x 0, z -26, heading 0° |
+
+![Dusk Slalom](maps/dusk-slalom.svg)
+
+## 25. Night Finale
+
+> Dusk, pillars, a wall and a walled-in bay with almost no room. Take it slow.
+
+| | |
+| --- | --- |
+| Id | `night-finale` |
+| Vehicle | Hatchback |
+| Lot | 30 × 40 m |
+| Time limit | 100 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
+| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
+| Start pose | x 11, z -15, heading 270° |
+
+![Night Finale](maps/night-finale.svg)

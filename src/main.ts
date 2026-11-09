@@ -32,7 +32,8 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
-import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
+import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
+import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, type Settings } from './settings';
 import { checkForUpdate, type UpdateKind } from './update';
@@ -250,9 +251,9 @@ function showMenu(): void {
   player.model.body.visible = true;
   cockpit.visible = false;
   syncAdminBar();
-  if (!level) loadLevel(resumeIndex(progress, LEVEL_IDS));
+  if (!level) loadLevel(resumeLevel(progress, LEVELS, ADMIN));
   player.model.root.visible = false;
-  hud.showMenu(LEVELS, progress, (i) => {
+  hud.showMenu(LEVELS, progress, ADMIN, (i) => {
     if (state !== 'menu') return;
     sfx.unlock();
     sfx.click();
@@ -314,15 +315,19 @@ function finish(win: boolean, reason: string): void {
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     if (mayPersist(ADMIN)) saveProgress(progress);
     const isLastLevel = levelIndex === LEVELS.length - 1;
+    const nextLevel = LEVELS[levelIndex + 1];
+    // The next level may sit in a world that is still locked (a world opens when the one before is finished).
+    const hasNext = !!nextLevel && levelPlayable(progress, LEVELS, nextLevel, ADMIN);
+    const worldDone = worldComplete(progress, LEVELS, def.location) && nextLevel?.location !== def.location;
     const buttons: ModalButton[] = [
-      ...(isLastLevel ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
+      ...(hasNext ? [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }] : []),
       { label: 'Retry', onClick: () => startLevel(levelIndex) },
-      { label: 'Menu', primary: isLastLevel, onClick: showMenu },
+      { label: 'Menu', primary: !hasNext, onClick: showMenu },
     ];
     const next = nextStarTime(stars, def.stars);
     const tip = next === null ? '' : ` · ${stars + 1}★ needs ${next}s or less`;
     hud.showModal(
-      isLastLevel ? 'All levels cleared!' : 'Parked!',
+      isLastLevel ? 'All levels cleared!' : worldDone ? `${WORLDS[def.location].name} cleared!` : 'Parked!',
       `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
@@ -409,7 +414,7 @@ input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? res
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
   if (!canRun()) return;
-  if (state === 'menu') startLevel(resumeIndex(progress, LEVEL_IDS));
+  if (state === 'menu') startLevel(resumeLevel(progress, LEVELS, ADMIN));
   else if (hud.modalOpen) hud.clickPrimary();
 });
 

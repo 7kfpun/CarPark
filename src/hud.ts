@@ -1,7 +1,9 @@
 import { nextFocusIndex } from './focus';
 import type { LevelDef } from './layout';
 import type { FloorHud } from './storey';
-import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
+import { bestFor, starsFor, type Progress } from './progress';
+import { levelPlayable, LOCATIONS, WORLDS, worldLevels, worldStars, worldUnlocked } from './worlds';
+import type { LocationId } from './layout';
 import { vehicleOf } from './vehicles';
 import { APP_VERSION } from './version';
 
@@ -56,25 +58,71 @@ export class Hud {
 
   readonly touchEnabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
-  showMenu(levels: LevelDef[], progress: Progress, onSelect: (i: number) => void): void {
-    $('tagline').textContent = `${levels.length} lots. One bay each. Don't scratch the paint.`;
+  /** World whose levels the menu is showing; null shows the world list. Kept when a level ends, so Menu returns to it. */
+  private menuWorld: LocationId | null = null;
+
+  showMenu(levels: LevelDef[], progress: Progress, openAll: boolean, onSelect: (i: number) => void): void {
+    $('tagline').textContent = `${levels.length} lots in ${LOCATIONS.length} locations. Don't scratch the paint.`;
     const grid = $('level-grid');
+    const worldBar = $('world-bar');
     grid.replaceChildren();
-    levels.forEach((lvl, i) => {
-      const b = document.createElement('button');
-      b.className = 'level-btn';
-      const locked = !isUnlocked(progress, lvl.id);
-      const stars = starsFor(progress, lvl.id);
-      b.disabled = locked;
-      const best = bestFor(progress, lvl.id);
-      b.setAttribute(
-        'aria-label',
-        `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(stars)}${best ? `, best time ${bestLabel(best)}` : ''}`,
-      );
-      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(stars)}</span>${best ? `<span class="best" aria-hidden="true">${bestLabel(best)}</span>` : ''}`;
-      b.addEventListener('click', () => onSelect(i));
-      grid.appendChild(b);
-    });
+    if (this.menuWorld && !worldUnlocked(progress, levels, this.menuWorld, openAll)) this.menuWorld = null;
+    const world = this.menuWorld;
+    worldBar.classList.toggle('hidden', !world);
+    grid.classList.toggle('worlds', !world);
+    grid.setAttribute('aria-label', world ? `${WORLDS[world].name} levels` : 'Worlds');
+    if (world) {
+      const info = WORLDS[world];
+      const s = worldStars(progress, levels, world);
+      $('world-title').textContent = `${info.icon} ${info.name}`;
+      $('world-stars').innerHTML =
+        `${s.got} / ${s.max} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+      $('world-back').onclick = () => {
+        this.menuWorld = null;
+        this.showMenu(levels, progress, openAll, onSelect);
+        $('level-grid').querySelector<HTMLButtonElement>('.world-btn:not(:disabled)')?.focus();
+      };
+      levels.forEach((lvl, i) => {
+        if (lvl.location !== world) return;
+        const b = document.createElement('button');
+        b.className = 'level-btn';
+        const locked = !levelPlayable(progress, levels, lvl, openAll);
+        const stars = starsFor(progress, lvl.id);
+        b.disabled = locked;
+        const best = bestFor(progress, lvl.id);
+        b.setAttribute(
+          'aria-label',
+          `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(stars)}${best ? `, best time ${bestLabel(best)}` : ''}`,
+        );
+        b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(stars)}</span>${best ? `<span class="best" aria-hidden="true">${bestLabel(best)}</span>` : ''}`;
+        b.addEventListener('click', () => onSelect(i));
+        grid.appendChild(b);
+      });
+    } else {
+      LOCATIONS.forEach((id, n) => {
+        const info = WORLDS[id];
+        const s = worldStars(progress, levels, id);
+        const locked = !worldUnlocked(progress, levels, id, openAll);
+        const b = document.createElement('button');
+        b.className = 'world-btn';
+        b.style.setProperty('--world', info.color);
+        b.disabled = locked;
+        const count = worldLevels(levels, id).length;
+        const prev = n > 0 ? WORLDS[LOCATIONS[n - 1]].name : '';
+        const sub = locked ? `Finish ${prev} to unlock` : info.blurb;
+        b.setAttribute(
+          'aria-label',
+          `${info.name}, ${locked ? `locked. ${sub}` : `${count} levels, ${s.got} of ${s.max} stars`}`,
+        );
+        b.innerHTML = `<span class="world-icon" aria-hidden="true">${locked ? '🔒' : info.icon}</span><span class="world-name">${info.name}</span><span class="world-blurb">${sub}</span><span class="world-total" aria-hidden="true">${count} levels · ${s.got} / ${s.max} ★</span>`;
+        b.addEventListener('click', () => {
+          this.menuWorld = id;
+          this.showMenu(levels, progress, openAll, onSelect);
+          $('level-grid').querySelector<HTMLButtonElement>('.level-btn:not(:disabled)')?.focus();
+        });
+        grid.appendChild(b);
+      });
+    }
     const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;

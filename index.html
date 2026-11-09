@@ -92,7 +92,12 @@
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
         <p class="tagline" id="tagline">One bay per lot. Don't scratch the paint.</p>
-        <div id="level-grid" role="group" aria-label="Levels"></div>
+        <div id="world-bar" class="hidden">
+          <button id="world-back" aria-label="Back to worlds">← Worlds</button>
+          <span id="world-title"></span>
+          <span id="world-stars"></span>
+        </div>
+        <div id="level-grid" role="group" aria-label="Worlds"></div>
         <div id="menu-total"></div>
         <button class="settings-open" id="btn-settings-menu">⚙ Settings</button>
         <div class="controls">
