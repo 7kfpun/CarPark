@@ -110,6 +110,8 @@ import {
   worldStars,
   worldUnlocked,
 } from '../src/worlds';
+import { FAST_MS, SLOW_MS, probeQuality } from '../src/qualityProbe';
+import { budgetProblems, chunkName, makeBudget, sizeTable, withHeadroom, type Chunk } from './sizeReport';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
 import {
@@ -1821,6 +1823,36 @@ console.log('Accessibility');
   check(parkChecklist(base, false) === '✓ Facing right  ✓ Stopped', 'checklist: all good uses ticks');
   const bad = parkChecklist({ ...base, aligned: false, stopped: false }, true);
   check(bad === '✗ Straight  ✗ Stopped', 'checklist: failures use crosses, not just colour');
+}
+
+console.log('Performance budget');
+{
+  check(probeQuality(FAST_MS, 60, 'low') === 'high', 'probe: fast frames pick High even when the heuristic said Low');
+  check(probeQuality(SLOW_MS + 1, 60, 'high') === 'low', 'probe: slow frames pick Low');
+  check(
+    probeQuality(22, 60, 'high') === 'high' && probeQuality(22, 60, 'low') === 'low',
+    'probe: in between keeps the heuristic',
+  );
+  check(
+    probeQuality(10, 3, 'low') === 'low' && probeQuality(0, 0, 'high') === 'high',
+    'probe: too few frames keeps the heuristic',
+  );
+  check(probeQuality(NaN, 60, 'high') === 'high', 'probe: a NaN average keeps the heuristic');
+  check(chunkName('assets/index-SmQQBtbV.js') === 'index.js', 'chunk name drops the content hash');
+  check(chunkName('assets/vendor-three-a_B-0xYz.js') === 'vendor-three.js', 'chunk name keeps dashes in the stem');
+  check(chunkName('index.css') === 'index.css', 'chunk name without a hash is unchanged');
+  check(withHeadroom(1000) === 1100 && withHeadroom(1001) === 1200, 'headroom is +10% rounded up to 100 B');
+  const built: Chunk[] = [
+    { file: 'assets/index-AAAAAAAA.js', raw: 1000, gzip: 400 },
+    { file: 'assets/index-BBBBBBBB.css', raw: 100, gzip: 50 },
+  ];
+  const budget = makeBudget(built);
+  check(budgetProblems(built, budget).length === 0, 'a build at the budget baseline passes');
+  const grown = [{ ...built[0], gzip: 600 }, built[1]];
+  check(budgetProblems(grown, budget).length === 2, 'a grown chunk fails its own limit and the total');
+  const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
+  check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
+  check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

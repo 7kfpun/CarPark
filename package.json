@@ -14,6 +14,7 @@
     "maps": "esbuild scripts/maps.ts --bundle --platform=node --format=esm --log-level=warning | node --input-type=module",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "size": "esbuild scripts/size.ts --bundle --platform=node --format=esm --log-level=warning | node --input-type=module -",
     "validate": "esbuild scripts/validate.ts --bundle --platform=node --format=esm --log-level=warning | node --input-type=module"
   },
   "dependencies": {

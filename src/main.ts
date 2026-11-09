@@ -347,6 +347,7 @@ function startLevel(i: number): void {
   rig.snap(camTarget());
   syncFov();
   hud.startLevel(i, def);
+  gfx.startProbe();
   state = 'playing';
   syncAdminBar();
   hud.hideUpdateBanner(); // never interrupt a level; it comes back at the next menu
