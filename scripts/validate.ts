@@ -17,7 +17,7 @@ import {
   REPLAY_HZ,
 } from '../src/replay';
 import { nextFocusIndex } from '../src/focus';
-import { Sfx } from '../src/audio';
+import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction } from '../src/guards';
 import {
   angleDelta,
@@ -43,13 +43,14 @@ import {
 } from '../src/storey';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
+import { mirrorRendersScene, mirrorScale } from '../src/mirror';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
-import { loadSettings } from '../src/settings';
+import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
 import { loadingLabel, withTimeout } from '../src/loading';
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
-import { evaluateParking } from '../src/parking';
+import { evaluateParking, parkChecklist } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { DEFAULT_VEHICLE, minTurnRadius, VEHICLES, vehicleOf, type VehicleDef } from '../src/vehicles';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
@@ -1024,6 +1025,18 @@ console.log('Collision response');
   check(r.maxFront <= WALL_Z + 0.01, `resting: car pushed into the wall (z=${r.maxFront.toFixed(3)})`);
 }
 
+console.log('Rear mirror cost');
+check(mirrorScale('high') === 1, 'high mirror is full resolution');
+check(mirrorScale('low') < 1, 'low mirror is reduced resolution');
+check(
+  [0, 1, 2, 3].every((f) => mirrorRendersScene('high', f)),
+  'high re-renders the mirror every frame',
+);
+check(
+  [0, 1, 2, 3].filter((f) => mirrorRendersScene('low', f)).length === 2,
+  'low re-renders the mirror every other frame',
+);
+
 console.log('Star rules');
 for (const lvl of LEVELS) {
   const { three, two } = lvl.stars;
@@ -1390,6 +1403,32 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   g.AudioContext = prev;
 }
 
+// --- Sound (FOX-246) ---
+{
+  check(engineParams(0, 3.5).gain === 0, 'engine is silent when stopped');
+  const slow = engineParams(1, 3.5);
+  const fast = engineParams(3.5, 3.5);
+  check(fast.freq > slow.freq && fast.gain > slow.gain, 'engine pitch and volume rise with speed');
+  check(engineParams(-2, 3.5).freq === engineParams(2, 3.5).freq, 'engine hum ignores direction');
+  check(engineParams(99, 3.5).freq === fast.freq, 'engine hum is capped at top speed');
+  check(
+    winNotes(1).length < winNotes(2).length && winNotes(2).length < winNotes(3).length,
+    'more stars, longer jingle',
+  );
+  check(
+    winNotes(0).length === winNotes(1).length && winNotes(9).length === winNotes(3).length,
+    'jingle stars are clamped',
+  );
+  check(VOLUME_STEPS.length === 3 && VOLUME_STEPS.every((v) => v > 0 && v <= 1), 'volume steps are valid gains');
+  const store: Record<string, string> = {
+    'car-parking-3d:settings:v1': JSON.stringify({ music: false, sfxVol: 0, musicVol: 7 }),
+  };
+  (globalThis as unknown as { localStorage: unknown }).localStorage = { getItem: (k: string) => store[k] ?? null };
+  const ls = loadSettings();
+  check(!ls.music && ls.sfxVol === 0 && ls.musicVol === 1, 'sound settings load, bad volume falls back');
+  delete (globalThis as unknown as { localStorage?: unknown }).localStorage;
+}
+
 // --- Materials (FOX-237) ---
 {
   const N = 64;
@@ -1620,6 +1659,22 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
     ['a', 'b', 'c'],
   );
   check(Object.keys(ghosts).join() === 'a', 'stored ghosts are validated per known level');
+}
+
+console.log('Accessibility');
+{
+  check(
+    parseTextSize('large') === 'large' && parseTextSize('huge') === 'normal',
+    'text size parses, bad values fall back',
+  );
+  check(
+    TEXT_SIZES.every((t, i) => i === 0 || TEXT_SCALE[t] > TEXT_SCALE[TEXT_SIZES[i - 1]]) && TEXT_SCALE.normal === 1,
+    'each text size is larger than the last',
+  );
+  const base = { inside: true, aligned: true, stopped: true, onFloor: true, ok: true };
+  check(parkChecklist(base, false) === '✓ Facing right  ✓ Stopped', 'checklist: all good uses ticks');
+  const bad = parkChecklist({ ...base, aligned: false, stopped: false }, true);
+  check(bad === '✗ Straight  ✗ Stopped', 'checklist: failures use crosses, not just colour');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

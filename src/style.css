@@ -9,6 +9,7 @@
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
+  --ui-scale: 1;
   font-family:
     system-ui,
     -apple-system,
@@ -184,6 +185,19 @@ button:focus-visible {
   padding: 2px 10px;
   border-radius: 999px;
   background: var(--panel);
+}
+
+#park-checks {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  white-space: pre;
+}
+
+#park-checks:empty {
+  display: none;
 }
 
 #park-fill {
@@ -850,4 +864,13 @@ kbd {
 
 #error-banner.hidden {
   display: none;
+}
+
+/* Settings > Text size: scale panels, pills and HUD text (--ui-scale is set from the setting). */
+.panel,
+.pill,
+#hud-hint,
+#park-meter,
+.icon-btn {
+  zoom: var(--ui-scale);
 }
