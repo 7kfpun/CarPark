@@ -32,11 +32,31 @@ import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
+import { loadSettings } from '../src/settings';
 import { loadingLabel, withTimeout } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
 import { replaySolution, staticProblems } from '../src/solution';
+import {
+  advanceBlend,
+  assistMode,
+  blendWeight,
+  bodyHidden,
+  CAM_MODES,
+  dragFreeLook,
+  EYE,
+  FREE_START,
+  freePose,
+  hidesCeilings,
+  isRigid,
+  nextCamMode,
+  parseCamMode,
+  reverseHold,
+  viewPose,
+  type CamMode,
+  type ViewTarget,
+} from '../src/views';
 import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
@@ -1192,6 +1212,132 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   sfx.beep();
   check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
   g.AudioContext = prev;
+}
+
+// Camera views (FOX-272): cycle order, saved-value parsing, blending, poses.
+{
+  check(CAM_MODES.join() === 'chase,cockpit,hood,top,corner', 'camera views cycle in a fixed order');
+  let m: CamMode = CAM_MODES[0];
+  const seen: string[] = [];
+  for (let i = 0; i < CAM_MODES.length; i++) {
+    seen.push(m);
+    m = nextCamMode(m);
+  }
+  check(
+    m === 'chase' && new Set(seen).size === CAM_MODES.length,
+    'one full cycle visits every view and wraps to chase',
+  );
+  check(
+    parseCamMode('top') === 'top' && parseCamMode('cockpit') === 'cockpit',
+    'saved views parse (incl. the old top value)',
+  );
+  check(
+    parseCamMode('orbit') === 'chase' && parseCamMode(undefined) === 'chase' && parseCamMode(3) === 'chase',
+    'unknown saved view clamps to chase',
+  );
+  check(parseCamMode('nope', 'top') === 'top', 'a fallback can be given');
+  check(nextCamMode('bogus' as never) === 'chase', 'cycling from an unknown view restarts at chase');
+
+  // Persistence: round-trip through localStorage, and unknown / old values.
+  const store = new Map<string, string>();
+  const gl = globalThis as unknown as { localStorage?: unknown };
+  const prevLs = gl.localStorage;
+  gl.localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  };
+  const KEY = 'car-parking-3d:settings:v1';
+  store.set(KEY, JSON.stringify({ camera: 'hood', autoRear: true }));
+  check(
+    loadSettings().camera === 'hood' && loadSettings().autoRear === true,
+    'saved camera and rear-assist choice load',
+  );
+  store.set(KEY, JSON.stringify({ camera: 'free-fly' }));
+  check(
+    loadSettings().camera === 'chase' && loadSettings().autoRear === false,
+    'unknown saved camera loads as chase, assist off by default',
+  );
+  store.set(KEY, JSON.stringify({ camera: 'top' }));
+  check(loadSettings().camera === 'top', 'a setting saved before the new views still loads');
+  store.set(KEY, 'not json');
+  check(loadSettings().camera === 'chase', 'corrupt settings load the default view');
+  gl.localStorage = prevLs;
+
+  check(
+    advanceBlend(0, 0.15, false) === 0.5 && advanceBlend(0.9, 1, false) === 1,
+    'a view blend takes 0.3 s and stops at 1',
+  );
+  check(advanceBlend(0, 0.01, true) === 1, 'reduced motion: the switch is instant');
+  check(
+    blendWeight(0) === 0 && blendWeight(1) === 1 && blendWeight(0.5) === 0.5 && blendWeight(2) === 1,
+    'blend easing is 0..1 and monotone at the ends',
+  );
+  check(
+    isRigid('cockpit') && isRigid('hood') && !isRigid('chase') && !isRigid('top'),
+    'only cockpit and hood are fixed to the car',
+  );
+  check(
+    hidesCeilings('top') && hidesCeilings('corner') && !hidesCeilings('chase') && !hidesCeilings('cockpit'),
+    'decks hide in the views from above',
+  );
+  check(hidesCeilings('chase', true), 'free look hides decks above the car');
+  check(
+    bodyHidden('cockpit', 1) && !bodyHidden('cockpit', 0.2) && !bodyHidden('hood', 1) && !bodyHidden('chase', 1),
+    'the body shell hides only in cockpit view',
+  );
+
+  check(
+    reverseHold(false, -1) && !reverseHold(true, 1) && reverseHold(true, 0) && !reverseHold(false, 0),
+    'reverse detection has hysteresis',
+  );
+  check(assistMode('chase', false, true) === 'chase', 'assist off: reversing never changes the view');
+  check(
+    assistMode('chase', true, true) === 'corner' && assistMode('cockpit', true, true) === 'corner',
+    'assist on: reversing shows the corner view',
+  );
+  check(
+    assistMode('chase', true, false) === 'chase' && assistMode('top', true, true) === 'top',
+    'assist leaves forward driving and top-down alone',
+  );
+
+  const car: ViewTarget = { x: 3, y: 0, z: -2, heading: 0, pitch: 0, steer: 0 };
+  const chase = viewPose('chase', car);
+  check(chase.pz < car.z && chase.py > 3, 'chase sits behind and above the car');
+  const top = viewPose('top', car);
+  check(top.py > 30 && top.lx === car.x && top.lz === car.z, 'top-down looks straight down at the car from high up');
+  const cock = viewPose('cockpit', car);
+  check(
+    Math.abs(cock.px - (car.x + EYE.x)) < 1e-9 && Math.abs(cock.py - EYE.y) < 1e-9 && cock.lz > cock.pz,
+    'cockpit is at the driver seat looking forward',
+  );
+  const turned = viewPose('cockpit', { ...car, steer: 0.5 });
+  check(turned.lx < cock.lx, 'cockpit looks into a right turn');
+  const hood = viewPose('hood', car);
+  check(hood.py < chase.py && hood.pz > car.z, 'hood is low and forward on the bonnet');
+  const rot = viewPose('cockpit', { ...car, heading: Math.PI / 2 });
+  check(
+    Math.abs(rot.px - (car.x + EYE.z)) < 1e-9 && Math.abs(rot.lz - rot.pz) < 1e-6 && rot.lx > rot.px,
+    'poses rotate with the heading',
+  );
+  const rear = viewPose('corner', car, true);
+  const front = viewPose('corner', car, false);
+  check(rear.pz < car.z && rear.lz < rear.pz, 'reversing: the corner view is a rear camera looking back');
+  check(front.py > 5 && front.lz > front.pz, 'forward: the corner view is a close view from above');
+  check(
+    viewPose('corner', { ...car, steer: 0.5 }).px < viewPose('corner', { ...car, steer: -0.5 }).px,
+    'the corner view favours the side the wheel is turned',
+  );
+
+  let f = dragFreeLook(FREE_START, 0, 10);
+  check(f.pitch <= 1.45, 'free-look pitch is clamped at the top');
+  f = dragFreeLook(f, 0, -10);
+  check(f.pitch >= 0.05, 'free-look pitch never goes under the ground');
+  check(
+    dragFreeLook(FREE_START, 0, 0, 1000).dist === 40 && dragFreeLook(FREE_START, 0, 0, -1000).dist === 4,
+    'free-look zoom is clamped',
+  );
+  const fp = freePose(FREE_START, car);
+  check(fp.py > car.y && fp.lx === car.x, 'free look orbits above, looking at the car');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
