@@ -9,7 +9,7 @@ import { createVehicleModel, PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
-import { PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
+import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
 import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
@@ -608,7 +608,7 @@ function step(dt: number): void {
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
-  if (isTouch(car.resolveCollisions(nearby), TOUCH_MIN_SPEED)) {
+  if (isTouch(car.resolveCollisions(nearby, level.surfaces), TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
     return finish(false, 'You hit something.');
@@ -632,7 +632,7 @@ function step(dt: number): void {
         : 'Hold still…';
     hud.setPark(parkHold / PARK_HOLD, label, parkChecklist(park, def.bothWays));
   } else hud.setPark(null, '', '');
-  if (parkHold >= PARK_HOLD) return finish(true, '');
+  if (holdComplete(parkHold)) return finish(true, '');
 
   // Parking sensor beeps when slow and close to something. The proximity test
   // only runs at SENSOR_CHECK_HZ; the beep timer still ticks every step.

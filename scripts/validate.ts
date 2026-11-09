@@ -3,7 +3,17 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
-import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
+import {
+  holdComplete,
+  PARK_HOLD,
+  CAR_L,
+  CAR_W,
+  MAX_FWD,
+  MAX_REV,
+  RAMP_MAX_SLOPE,
+  STEP,
+  TOUCH_MIN_SPEED,
+} from '../src/config';
 import {
   beatsGhost,
   decodeFrames,
@@ -150,7 +160,7 @@ function levelChecks(lvl: LevelDef): void {
 // A real upper-floor bay: floors, ramp and a pillar on the ground floor under the bay.
 const upperBayLevel: LevelDef = {
   ...LEVELS[0],
-  lot: { w: 20, l: 65 },
+  lot: { w: 20, l: 80 },
   spawn: { x: 0, z: -10, rot: 0 },
   obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
   floors: [
@@ -240,7 +250,7 @@ console.log('Multi-storey levels');
     let touched = 0;
     for (let k = 0; k < Math.round(100 / STEP) && car.layer !== 'top'; k++) {
       car.step(STEP, { throttle: 1, steer: k < Math.round(6 / STEP) ? 0 : steer, handbrake: false }, sf);
-      if (isTouch(car.resolveCollisions(car.reachable(sf, obs)), TOUCH_MIN_SPEED)) touched++;
+      if (isTouch(car.resolveCollisions(car.reachable(sf, obs), sf), TOUCH_MIN_SPEED)) touched++;
     }
     check(car.layer === 'top' && touched === 0, `Spiral: steer ${steer} should reach the top without a touch`);
   }
@@ -441,7 +451,7 @@ console.log('Multi-storey view helpers');
 {
   const two: LevelDef = {
     ...LEVELS[0],
-    lot: { w: 20, l: 65 },
+    lot: { w: 20, l: 80 },
     floors: [
       { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
       { id: 'upper', y: 3.5, area: [{ x: 0, z: 25, hw: 10, hl: 10, rot: 0 }] },
@@ -527,7 +537,7 @@ console.log('Floors and ramps');
   // Ground floor z -30..0, a 15 m ramp (11.3 deg) from z 0 to 15, upper floor (y = 3) z 15..35.
   const rampLevel = (rampLen: number): LevelDef => ({
     ...LEVELS[0],
-    lot: { w: 20, l: 65 },
+    lot: { w: 20, l: 80 },
     spawn: { x: 0, z: -10, rot: 0 },
     obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
     floors: [
@@ -554,7 +564,7 @@ console.log('Floors and ramps');
     for (let i = 0; i < Math.round(seconds / STEP); i++) {
       const c = ctl(car);
       car.step(STEP, { throttle: c.throttle, steer, handbrake: c.handbrake }, surf);
-      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs)));
+      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs), surf));
       layers.add(car.layer);
     }
     return { layers, impact };
@@ -639,7 +649,7 @@ console.log('Floors and ramps');
   car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
   check(!car.reachable(surf, obs).includes(pillar), 'a pillar on the floor below blocks the upper floor');
   check(
-    car.resolveCollisions(car.reachable(surf, obs)) === 0 && Math.abs(car.z - 25) < 1e-9,
+    car.resolveCollisions(car.reachable(surf, obs), surf) === 0 && Math.abs(car.z - 25) < 1e-9,
     'car pushed by a pillar below',
   );
   car.layer = 'ground';
@@ -708,6 +718,30 @@ console.log('Floors and ramps');
   ];
   const driven = replaySolution(lvl, climb);
   check(driven.parked && driven.hits === 0, `scripted climb should park upstairs (${JSON.stringify(driven)})`);
+  check(
+    floorProblems({
+      ...lvl,
+      floors: [lvl.floors![0], { ...lvl.floors![1], area: [{ x: 0, z: 0, hw: 500, hl: 5, rot: 0 }] }],
+    }).some((m) => m.includes('not inside the lot')),
+    'a floor poking out of the lot should be rejected',
+  );
+  check(
+    holdComplete(PARK_HOLD) && holdComplete(PARK_HOLD - 1e-12) && !holdComplete(PARK_HOLD - 1e-3),
+    'park hold: one shared completion check',
+  );
+  {
+    // After a push-out on the ramp the height and pitch must match the surface under the axles.
+    const c = new CarPhysics();
+    c.reset(0, 6, 0, surf);
+    c.z += 0.7;
+    c.resolveCollisions([{ x: 0, z: c.z + 2.3, hw: 3, hl: 1, rot: 0 }], surf);
+    const ref = new CarPhysics();
+    ref.reset(c.x, c.z, c.heading, surf);
+    check(
+      Math.abs(c.y - ref.y) < 1e-9 && Math.abs(c.pitch - ref.pitch) < 1e-9,
+      'collision push-out left y/pitch stale',
+    );
+  }
   check(!replaySolution(rampLevel(15), []).parked, 'standing on the ground floor counted as parked upstairs');
   const wrongFloor = replaySolution({ ...lvl, target: { ...lvl.target, z: 25, floor: 'ground' } }, climb);
   check(!wrongFloor.parked, 'parking on the wrong floor counted as parked');
@@ -731,7 +765,7 @@ console.log('Floors and ramps');
       const ctl = { throttle: k < 400 ? 1 : -1, steer: Math.sin(k / 50), handbrake: false };
       a.step(STEP, ctl, fs);
       b.step(STEP, ctl);
-      a.resolveCollisions(a.reachable(fs, lo));
+      a.resolveCollisions(a.reachable(fs, lo), fs);
       b.resolveCollisions(plain);
     }
     check(
