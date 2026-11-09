@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { reducedMotion } from './a11y';
+import { initAdmin, mayPersist, skipTarget, unlockAll } from './admin';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
@@ -87,7 +88,10 @@ const mirror = new RearMirror();
 scene.add(player.model.root);
 
 const LEVEL_IDS = LEVELS.map((l) => l.id);
-const progress = loadProgress(LEVEL_IDS);
+// Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.
+const ADMIN = initAdmin(location.search);
+if (ADMIN) document.getElementById('admin-badge')?.classList.remove('hidden');
+const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
 let level: BuiltLevel | null = null;
@@ -159,8 +163,18 @@ function pause(): void {
   hud.showModal('Paused', `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`, null, [
     { label: 'Resume', primary: true, onClick: resume },
     { label: 'Restart', onClick: () => startLevel(levelIndex) },
+    ...(ADMIN ? [{ label: 'Skip level', onClick: () => skipLevel(1) }] : []),
     { label: 'Menu', onClick: showMenu },
   ]);
+}
+
+/** Admin only: jump to the next/previous level without awarding stars or times. */
+function skipLevel(dir: 1 | -1): void {
+  if (!ADMIN || (state !== 'playing' && state !== 'paused')) return;
+  const t = skipTarget(levelIndex, dir, LEVELS.length);
+  if (t === null) return;
+  hud.hideModal();
+  startLevel(t);
 }
 
 function resume(): void {
@@ -181,7 +195,7 @@ function finish(win: boolean, reason: string): void {
     recordWin(progress, LEVEL_IDS, levelIndex, stars);
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
-    saveProgress(progress);
+    if (mayPersist(ADMIN)) saveProgress(progress);
     const last = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
       ...(last ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
@@ -262,6 +276,8 @@ input.on('KeyC', () => {
   if (state !== 'playing') return;
   hud.showHint(toggleCamera(), 1.2);
 });
+input.on('BracketRight', () => skipLevel(1));
+input.on('BracketLeft', () => skipLevel(-1));
 input.on('KeyM', () => {
   settingsPanel.set('sound', sfx.muted); // flips the setting; onChange updates sfx.muted
   if (state === 'playing') hud.showHint(sfx.muted ? 'Sound off' : 'Sound on', 1.2);

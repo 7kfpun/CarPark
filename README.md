@@ -20,6 +20,10 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 | Pause / resume         | `Esc` / `P`       | ⏸ button  |
 | Mute                   | `M`               |           |
 
+### Admin mode (testing)
+
+Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it off) to unlock every level, show an `ADMIN` badge, and skip levels with `]` (next) / `[` (back) or the pause menu's **Skip level** button. Saved progress is never written while it is on. Code: `src/admin.ts`.
+
 ### Gamepad
 
 | Action                       | Button                                     |

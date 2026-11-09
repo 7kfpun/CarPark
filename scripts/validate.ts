@@ -1,4 +1,5 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
+import { mayPersist, resolveAdmin, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
@@ -758,6 +759,24 @@ check(
   )) === 'none',
   'hung server times out without blocking',
 );
+
+console.log('Admin mode');
+{
+  check(resolveAdmin('1', null) && !resolveAdmin('0', '1'), '?admin=1 turns on, ?admin=0 turns off');
+  check(
+    resolveAdmin(null, '1') && !resolveAdmin(null, null) && !resolveAdmin('x', null),
+    'admin is remembered for the session only',
+  );
+  const saved = parseProgress({ v: 2, stars: { [ids[0]]: 2 }, unlocked: [ids[0]], best: { [ids[0]]: 20 } }, ids);
+  const before = JSON.stringify(saved);
+  const view = unlockAll(saved, ids);
+  check(view.unlocked.length === ids.length, 'admin unlocks every level');
+  recordWin(view, ids, 0, 3);
+  check(JSON.stringify(saved) === before, 'admin view never mutates the saved progress');
+  check(!mayPersist(true) && mayPersist(false), 'progress is not written in admin mode');
+  check(skipTarget(0, -1, 5) === null && skipTarget(4, 1, 5) === null, 'skip stops at the first and last level');
+  check(skipTarget(2, 1, 5) === 3 && skipTarget(2, -1, 5) === 1, 'skip moves to the next/previous level');
+}
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
