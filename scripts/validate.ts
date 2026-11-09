@@ -338,6 +338,54 @@ console.log('Floors and ramps');
     check(inside && box.length > 0, `${name}: car left the surface (x ${car.x.toFixed(2)}, z ${car.z.toFixed(2)})`);
   }
 
+  // Static checks reject broken multi-storey levels (CI must fail on these).
+  const probs = (l: LevelDef) => staticProblems(l).join('; ');
+  check(staticProblems(lvl).length === 0, `ramp level has static problems: ${probs(lvl)}`);
+  check(
+    probs({ ...lvl, ramps: [{ ...lvl.ramps![0], to: 'nowhere' }] }).includes('unknown floor'),
+    'ramp to a floor that does not exist not detected',
+  );
+  check(probs(rampLevel(12)).includes('over the limit'), 'too-steep ramp not detected by staticProblems');
+  check(
+    probs({ ...lvl, ramps: [{ ...lvl.ramps![0], w: CAR_W + 0.7 }] }).includes('too narrow'),
+    'ramp narrower than car + 0.8 m not detected',
+  );
+  check(
+    staticProblems({ ...lvl, ramps: [{ ...lvl.ramps![0], w: CAR_W + 0.8 }] }).length === 0,
+    'min-width ramp rejected',
+  );
+  check(
+    probs({ ...lvl, ramps: [{ ...lvl.ramps![0], z: lvl.ramps![0].z + 1 }] }).includes('does not meet floor'),
+    'ramp end floating past its floor not detected',
+  );
+  check(
+    probs({ ...lvl, ramps: [{ ...lvl.ramps![0], z: lvl.ramps![0].z - 0.04 }] }).length === 0,
+    'ramp end within 0.05 m of the floor outline rejected',
+  );
+  check(
+    probs({ ...lvl, target: { ...lvl.target, floor: 'ground' } }).includes('bay is not inside floor'),
+    'bay on the wrong floor not detected',
+  );
+  check(
+    probs({ ...lvl, target: { ...lvl.target, z: 40 } }).includes('bay is not inside floor'),
+    'bay off its floor area not detected',
+  );
+  check(
+    probs({ ...lvl, spawn: { ...lvl.spawn, z: 25 } }).includes('spawn is not on the first floor'),
+    'spawn off floor',
+  );
+
+  // Scripted solution across floors: park on the upper floor; the same drive fails a ground-floor bay.
+  const climb = [
+    { t: 11, throttle: 1, steer: 0, handbrake: false },
+    { t: 4, throttle: 0, steer: 0, handbrake: true },
+  ];
+  const driven = replaySolution(lvl, climb);
+  check(driven.parked && driven.hits === 0, `scripted climb should park upstairs (${JSON.stringify(driven)})`);
+  check(!replaySolution(rampLevel(15), []).parked, 'standing on the ground floor counted as parked upstairs');
+  const wrongFloor = replaySolution({ ...lvl, target: { ...lvl.target, z: 25, floor: 'ground' } }, climb);
+  check(!wrongFloor.parked, 'parking on the wrong floor counted as parked');
+
   // Flat levels: no floors declared, so physics, obstacles and parking are as before.
   for (const [i, flat] of LEVELS.entries()) {
     const fs = new Surfaces(flat);
