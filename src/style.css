@@ -403,25 +403,77 @@ body[data-input='pad'] .gear {
   background: linear-gradient(rgba(255, 110, 90, 0.9), rgba(190, 60, 50, 0.9));
 }
 
-#touch button.gear-toggle {
-  position: absolute;
-  right: 0;
-  top: -52px;
+/* Gear lever: a vertical gate with D at the top and R at the bottom, beside the pedals (wheel side inward). */
+#t-gear {
+  --gate-pos: 0;
+  position: relative;
+  order: -1;
+  flex: none;
   width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 18px;
+  height: var(--pedal-h);
+  border-radius: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(90deg, rgba(14, 18, 26, 0.85), rgba(40, 46, 60, 0.85));
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   font-weight: 800;
-  color: #fff;
+  font-size: 15px;
 }
 
-#touch.wheel-right button.gear-toggle {
-  right: auto;
+#touch.wheel-right #t-gear {
+  order: 1;
+}
+
+#t-gear:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+#t-gear .gate-slot {
+  position: absolute;
   left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
 }
 
-#touch button.gear-toggle.reverse {
-  background: rgba(255, 110, 90, 0.85);
+#t-gear .gate-d {
+  top: 10px;
+}
+
+#t-gear .gate-r {
+  bottom: 10px;
+}
+
+#t-gear:not(.reverse) .gate-d {
+  color: var(--good);
+  text-shadow: 0 0 8px var(--good);
+}
+
+#t-gear.reverse .gate-r {
+  color: #ff6e5a;
+  text-shadow: 0 0 8px #ff6e5a;
+}
+
+#t-gear .gate-knob {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 32px;
+  top: calc(4px + var(--gate-pos) * (100% - 40px));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f4f6fa, #7d8596);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+  transition: top 0.15s ease-out;
+  pointer-events: none;
+}
+
+#t-gear.reverse .gate-knob {
+  background: radial-gradient(circle at 35% 30%, #ffd2c9, #d4503f);
+}
+
+#t-gear.dragging .gate-knob {
+  transition: none;
 }
 
 #touch button {
@@ -749,6 +801,10 @@ kbd {
   #hud-hint,
   .level-btn {
     transition-duration: 0.01s;
+  }
+
+  #t-gear .gate-knob {
+    transition: none;
   }
 
   .level-btn:hover:not(:disabled),

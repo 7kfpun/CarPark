@@ -135,6 +135,33 @@ export function pedalControls(
   return { throttle: accel ? (reverse ? -1 : 1) : 0, handbrake: false };
 }
 
+/** Gear lever slots: D at the top of the gate (0), R at the bottom (1). */
+export type Gear = 'D' | 'R';
+
+/** Nearest gear for a lever position (0 = top slot D, 1 = bottom slot R); the midpoint goes to R. */
+export function gearFromGate(pos: number): Gear {
+  return pos >= 0.5 ? 'R' : 'D';
+}
+
+/** Resting lever position for a gear. */
+export function gateSlot(gear: Gear): number {
+  return gear === 'R' ? 1 : 0;
+}
+
+/** Lever position (clamped 0..1) for a pointer at `y` on a gate spanning `top`..`top + height` (knob travel only). */
+export function gatePos(y: number, top: number, height: number): number {
+  if (height <= 0) return 0;
+  return Math.min(1, Math.max(0, (y - top) / height));
+}
+
+/** Gear after an arrow / Home / End key on the lever (Up = D, Down = R); null for any other key. */
+export function gearFromKey(code: string, current: Gear): Gear | null {
+  if (code === 'ArrowUp' || code === 'Home') return 'D';
+  if (code === 'ArrowDown' || code === 'End') return 'R';
+  if (code === 'ArrowLeft' || code === 'ArrowRight') return current;
+  return null;
+}
+
 /** How long (ms) a touch that the browser cancelled (edge swipe, system gesture) is held before it counts as released. */
 export const GRIP_GRACE_MS = 250;
 
@@ -185,6 +212,8 @@ export class Input {
   private accelEl: HTMLElement | null = null;
   private brakeEl: HTMLElement | null = null;
   private gearEl: HTMLElement | null = null;
+  /** Pointer currently dragging the gear lever, else null. */
+  private gearPointer: number | null = null;
   private reverse = false;
   private source: InputSource = 'touch';
   private pad: PadState = { steer: 0, throttle: 0, handbrake: false };
@@ -253,7 +282,7 @@ export class Input {
   /**
    * Wire up the on-screen cockpit inside `root`: the steering wheel (#t-wheel with a .wheel-rot child,
    * dragged round its centre), the accelerator (#t-accel) and brake (#t-brake) pedals and the
-   * R / D gear toggle (#t-gear).
+   * R / D gear lever (#t-gear).
    */
   bindTouch(root: HTMLElement): void {
     document.body.dataset.input = this.source;
@@ -264,23 +293,76 @@ export class Input {
     if (this.accelEl) this.bindPedal(this.accelEl, this.accelPointers);
     if (this.brakeEl) this.bindPedal(this.brakeEl, this.brakePointers);
     this.gearEl = root.querySelector<HTMLElement>('#t-gear');
-    this.gearEl?.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      this.setReverse(!this.reverse);
-    });
+    if (this.gearEl) this.bindGear(this.gearEl);
     this.setReverse(false);
     root.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  /** Select reverse (true) or drive (false) for the accelerator pedal. */
+  /** Select reverse (true) or drive (false) for the accelerator pedal; the lever, pill and aria follow. */
   setReverse(on: boolean): void {
     this.reverse = on;
+    this.accelEl?.classList.toggle('reverse', on);
+    this.drawGear(on ? 'R' : 'D', null);
+  }
+
+  /** Paint the lever: knob at the slot (or at drag position `pos`), letter glow, aria state. */
+  private drawGear(gear: Gear, pos: number | null): void {
     const g = this.gearEl;
     if (!g) return;
-    g.textContent = on ? 'R' : 'D';
-    g.classList.toggle('reverse', on);
-    g.setAttribute('aria-pressed', String(on));
-    this.accelEl?.classList.toggle('reverse', on);
+    g.style.setProperty('--gate-pos', String(pos ?? gateSlot(gear)));
+    g.classList.toggle('reverse', gear === 'R');
+    g.classList.toggle('dragging', pos !== null);
+    g.setAttribute('aria-valuenow', String(gateSlot(gear)));
+    g.setAttribute('aria-valuetext', gear === 'R' ? 'Reverse' : 'Drive');
+  }
+
+  /**
+   * The gear lever (#t-gear, a vertical gate): drag the knob or tap a slot. The gear changes on release,
+   * so a cancelled touch (finger off the screen edge) springs the knob back instead of flipping it.
+   */
+  private bindGear(el: HTMLElement): void {
+    const travel = (): { top: number; height: number } => {
+      const r = el.getBoundingClientRect();
+      const pad = r.width / 2; // half a knob at each end
+      return { top: r.top + pad, height: r.height - 2 * pad };
+    };
+    const posAt = (e: PointerEvent): number => {
+      const t = travel();
+      return gatePos(e.clientY, t.top, t.height);
+    };
+    const current = (): Gear => (this.reverse ? 'R' : 'D');
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (this.gearPointer !== null) return;
+      this.gearPointer = e.pointerId;
+      capture(el, e.pointerId);
+      this.drawGear(current(), posAt(e));
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== this.gearPointer) return;
+      e.preventDefault();
+      this.drawGear(current(), posAt(e));
+    });
+    el.addEventListener('pointerup', (e) => {
+      if (e.pointerId !== this.gearPointer) return;
+      this.gearPointer = null;
+      this.setReverse(gearFromGate(posAt(e)) === 'R');
+    });
+    const cancel = (e: PointerEvent) => {
+      if (e.pointerId !== this.gearPointer) return;
+      this.gearPointer = null;
+      this.drawGear(current(), null);
+    };
+    el.addEventListener('pointercancel', cancel);
+    el.addEventListener('lostpointercapture', cancel);
+    el.addEventListener('keydown', (e) => {
+      const next = gearFromKey(e.code, current());
+      if (next === null) return;
+      // Keep the arrow from also steering / scrolling.
+      e.preventDefault();
+      e.stopPropagation();
+      this.setReverse(next === 'R');
+    });
   }
 
   private bindWheel(el: HTMLElement): void {

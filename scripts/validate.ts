@@ -34,6 +34,10 @@ import {
   deadzone,
   isMetaKey,
   isShortcut,
+  gateSlot,
+  gatePos,
+  gearFromGate,
+  gearFromKey,
   pedalControls,
   pickNeighbor,
   pointerAngle,
@@ -851,6 +855,21 @@ check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Me
   const both = pedalControls(true, true, true);
   check(both.throttle === 0 && both.handbrake, 'brake wins when both pedals are pressed');
   check(!pedalControls(false, true, true).throttle, 'brake never reverses the car');
+}
+{
+  // Gear lever: gate position <-> gear.
+  check(gearFromGate(0) === 'D' && gearFromGate(0.49) === 'D', 'top half of the gate is Drive');
+  check(gearFromGate(0.5) === 'R' && gearFromGate(1) === 'R', 'bottom half of the gate is Reverse');
+  check(gateSlot('D') === 0 && gateSlot('R') === 1, 'gate slots: D top, R bottom');
+  check(gearFromGate(gateSlot('D')) === 'D' && gearFromGate(gateSlot('R')) === 'R', 'slot round-trips to its gear');
+  check(gatePos(-50, 100, 80) === 0 && gatePos(500, 100, 80) === 1, 'lever position is clamped to the gate');
+  check(Math.abs(gatePos(140, 100, 80) - 0.5) < 1e-9 && gatePos(10, 0, 0) === 0, 'lever position is proportional');
+  check(
+    gearFromKey('ArrowUp', 'R') === 'D' && gearFromKey('ArrowDown', 'D') === 'R',
+    'arrow keys move the lever to D / R',
+  );
+  check(gearFromKey('Home', 'R') === 'D' && gearFromKey('End', 'D') === 'R', 'Home / End jump to D / R');
+  check(gearFromKey('ArrowLeft', 'R') === 'R' && gearFromKey('KeyA', 'D') === null, 'other keys leave the gear alone');
 }
 {
   // 3x2 grid of 10px boxes with 2px gaps, plus a lone row of two modal buttons.
