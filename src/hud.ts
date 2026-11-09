@@ -146,10 +146,11 @@ export class Hud {
     this.hideModal();
   }
 
-  update(timeLeft: number, speed: number): void {
-    const t = Math.max(0, Math.ceil(timeLeft));
+  /** `time` is the time left, or the time elapsed when `countUp` (time limit off). */
+  update(timeLeft: number, speed: number, countUp = false): void {
+    const t = Math.max(0, countUp ? Math.floor(timeLeft) : Math.ceil(timeLeft));
     this.timer.textContent = `⏱ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-    this.timer.classList.toggle('warn', timeLeft < 10);
+    this.timer.classList.toggle('warn', !countUp && timeLeft < 10);
     const kmh = Math.round(Math.abs(speed) * 3.6);
     this.gear.textContent = `${speed < -0.05 ? 'R' : 'D'} · ${kmh} km/h`;
     this.gear.classList.toggle('reverse', speed < -0.05);
