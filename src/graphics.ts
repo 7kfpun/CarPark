@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { setMaterialDetail } from './materials';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import {
+  HITCH_MS,
+  loadDetected,
+  MIN_PROBE_FRAMES,
+  PROBE_S,
+  PROBE_WARMUP_S,
+  probeQuality,
+  saveDetected,
+} from './qualityProbe';
 import type { QualitySetting } from './settings';
 
 export type Quality = 'low' | 'high';
@@ -81,6 +90,10 @@ export class Graphics {
   private sampleTime = 0;
   private sampleFrames = 0;
   private autoDropped = false;
+  /** Elapsed seconds of the first-run probe, or -1 when it is not running. */
+  private probeT = -1;
+  private probeFrames = 0;
+  private probeSum = 0;
   private envSource: THREE.DataTexture | null = null;
   private envTarget: THREE.WebGLRenderTarget | null = null;
   private readonly lostOverlay: HTMLElement;
@@ -181,7 +194,16 @@ export class Graphics {
   setQuality(setting: QualitySetting): void {
     this.setting = setting;
     this.slowTime = 0;
-    this.apply(setting === 'auto' ? (this.autoDropped ? 'low' : autoQuality()) : setting);
+    this.probeT = -1; // a manual choice ends any probe; going back to Auto lets the next level start re-probe
+    this.apply(setting === 'auto' ? (this.autoDropped ? 'low' : (loadDetected() ?? autoQuality())) : setting);
+  }
+
+  /** Call when a level starts: on Auto with no remembered result, times the next second of frames to pick High or Low. */
+  startProbe(): void {
+    if (this.setting !== 'auto' || this.autoDropped || loadDetected() || !this.renderer) return;
+    this.probeT = 0;
+    this.probeFrames = 0;
+    this.probeSum = 0;
   }
 
   private apply(q: Quality): void {
@@ -228,8 +250,10 @@ export class Graphics {
    * 25 ms for a few seconds, drop to Low. Returns true once when that happens.
    */
   monitor(frameMs: number): boolean {
-    if (this.setting !== 'auto' || this.quality === 'low' || this.lost) return false;
-    if (frameMs > 250) return false; // tab switch / hitch, not sustained load
+    if (this.setting !== 'auto' || this.lost) return false;
+    if (frameMs > HITCH_MS) return false; // tab switch / hitch, not sustained load
+    if (this.probeT >= 0) return this.probe(frameMs);
+    if (this.quality === 'low') return false;
     this.sampleTime += frameMs / 1000;
     this.sampleFrames++;
     if (this.sampleTime < 0.5) return false;
@@ -239,7 +263,23 @@ export class Graphics {
     this.sampleFrames = 0;
     if (this.slowTime < SLOW_WINDOW_S) return false;
     this.autoDropped = true;
+    saveDetected('low');
     this.apply('low');
     return true;
+  }
+
+  /** One probe frame. Returns true when the probe moved Auto down to Low. */
+  private probe(frameMs: number): boolean {
+    this.probeT += frameMs / 1000;
+    if (this.probeT < PROBE_WARMUP_S) return false;
+    this.probeFrames++;
+    this.probeSum += frameMs;
+    if (this.probeT < PROBE_WARMUP_S + PROBE_S) return false;
+    this.probeT = -1;
+    const q = probeQuality(this.probeSum / this.probeFrames, this.probeFrames, this.quality);
+    if (this.probeFrames >= MIN_PROBE_FRAMES) saveDetected(q);
+    if (q === this.quality) return false;
+    this.apply(q);
+    return q === 'low';
   }
 }
