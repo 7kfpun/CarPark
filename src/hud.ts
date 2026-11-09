@@ -50,6 +50,7 @@ export class Hud {
   private readonly meter = $('park-meter');
   private readonly meterFill = $('park-fill');
   private readonly meterLabel = $('park-label');
+  private readonly meterChecks = $('park-checks');
   private readonly flash = $('flash');
   private readonly live = $('sr-status');
   private hintTimer = 0;
@@ -140,7 +141,7 @@ export class Hud {
     this.level.textContent = `${index + 1}. ${def.name}`;
     this.floor.classList.toggle('hidden', !def.floors);
     this.floorText = '';
-    this.setPark(null, '');
+    this.setPark(null, '', '');
     this.showHint(`${vehicleOf(def.vehicle).name}: ${def.hint} ${starRequirement(def)}`, 6);
     this.hideModal();
   }
@@ -185,11 +186,12 @@ export class Hud {
   }
 
   /** fraction null hides the meter. */
-  setPark(fraction: number | null, label: string): void {
+  setPark(fraction: number | null, label: string, checks = ''): void {
     this.meter.classList.toggle('hidden', fraction === null);
     if (fraction !== null) {
       this.meterFill.style.width = `${Math.round(fraction * 100)}%`;
       this.meterLabel.textContent = label;
+      this.meterChecks.textContent = checks;
     }
     // Announce status changes only, never every frame.
     if (label !== this.parkLabel) {

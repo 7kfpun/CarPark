@@ -7,7 +7,7 @@ stars per level from your time: finishing in time is one star, and each level se
 
 Levels are grouped into themed locations (worlds): Open-Air Lots, Multi-Storey, Industrial Yard and Twilight District. The menu shows the worlds with a star total each; finish a world (at least one star on every level) to open the next. Each level's `location` field (`LevelDef`) and the world order live in `src/layout.ts`, `src/levels.ts` and `src/worlds.ts`.
 
-The lots and the sound effects are generated in code. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
+The lots, the sound effects (an engine hum that follows your speed, crash and fail stings, a win jingle that grows with stars) and the background music are generated in code. Settings has separate effects and music volumes and a music toggle. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
 
 ## Controls
 
@@ -26,6 +26,10 @@ The lots and the sound effects are generated in code. The only assets fetched at
 ### Admin mode (testing)
 
 Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it off) to unlock every level, show an `ADMIN` badge, and skip levels with `]` (next) / `[` (back) the pause menu's **Skip level** button, or the **Prev** / **Next** touch buttons beside the `ADMIN` badge (tap the badge to hide or show them). Saved progress is never written while it is on. Code: `src/admin.ts`.
+
+### Accessibility
+
+Every menu and modal is keyboard-operable with a focus trap, buttons carry labels, and status changes are announced through a live region. Settings > **Text size** (Normal / Large / Extra large) scales panels, pills and HUD text. While parking, a ✓/✗ checklist (facing, stopped) sits under the meter, so the bay colour is never the only signal. Reduced motion stops the bay marker's spin and bob, makes camera switches instant and replaces the hit flash with a static one.
 
 ### Gamepad
 

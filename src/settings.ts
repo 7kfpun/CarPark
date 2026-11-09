@@ -1,16 +1,32 @@
 import { nextFocusIndex } from './focus';
 import { CAM_MODES, parseCamMode, type CamMode } from './views';
 
+export const TEXT_SIZES = ['normal', 'large', 'xlarge'] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+/** UI zoom factor for each text size. */
+export const TEXT_SCALE: Record<TextSize, number> = { normal: 1, large: 1.25, xlarge: 1.5 };
+
+export function parseTextSize(v: unknown, fallback: TextSize = 'normal'): TextSize {
+  return TEXT_SIZES.find((t) => t === v) ?? fallback;
+}
+
 export type QualitySetting = 'auto' | 'low' | 'high';
 
 export interface Settings {
   sound: boolean;
+  /** Background music on/off (needs sound on). */
+  music: boolean;
+  /** Index into VOLUME_STEPS for effects/engine and for music. */
+  sfxVol: number;
+  musicVol: number;
   quality: QualitySetting;
   camera: CamMode;
   /** Switch to the corner (rear) view while reversing. */
   autoRear: boolean;
   mirror: boolean;
   wheel: 'left' | 'right';
+  /** Scale of the menus, HUD text and panels. */
+  textSize: TextSize;
 }
 
 const KEY = 'car-parking-3d:settings:v1';
@@ -18,11 +34,15 @@ const KEY = 'car-parking-3d:settings:v1';
 export function loadSettings(): Settings {
   const fresh: Settings = {
     sound: true,
+    music: true,
+    sfxVol: 1,
+    musicVol: 1,
     quality: 'auto',
     camera: 'chase',
     autoRear: false,
     mirror: true,
     wheel: 'left',
+    textSize: 'normal',
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -31,11 +51,15 @@ export function loadSettings(): Settings {
     if (!s || typeof s !== 'object') return fresh;
     return {
       sound: typeof s.sound === 'boolean' ? s.sound : fresh.sound,
+      music: typeof s.music === 'boolean' ? s.music : fresh.music,
+      sfxVol: s.sfxVol === 0 || s.sfxVol === 1 || s.sfxVol === 2 ? s.sfxVol : fresh.sfxVol,
+      musicVol: s.musicVol === 0 || s.musicVol === 1 || s.musicVol === 2 ? s.musicVol : fresh.musicVol,
       quality: s.quality === 'low' || s.quality === 'high' || s.quality === 'auto' ? s.quality : fresh.quality,
       camera: parseCamMode(s.camera, fresh.camera),
       autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
       wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
+      textSize: parseTextSize(s.textSize, fresh.textSize),
     };
   } catch {
     return fresh;
@@ -57,11 +81,15 @@ export class SettingsPanel {
   private readonly root = document.getElementById('settings')!;
   private readonly rows: Choice<keyof Settings>[] = [
     { key: 'sound', values: [true, false] },
+    { key: 'sfxVol', values: [0, 1, 2] },
+    { key: 'music', values: [true, false] },
+    { key: 'musicVol', values: [0, 1, 2] },
     { key: 'quality', values: ['low', 'high', 'auto'] },
     { key: 'camera', values: [...CAM_MODES] },
     { key: 'autoRear', values: [true, false] },
     { key: 'mirror', values: [true, false] },
     { key: 'wheel', values: ['left', 'right'] },
+    { key: 'textSize', values: [...TEXT_SIZES] },
   ];
   private onClose: (() => void) | null = null;
   private opener: HTMLElement | null = null;

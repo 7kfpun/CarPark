@@ -65,6 +65,7 @@
       <div id="park-meter" class="hidden">
         <div class="bar" aria-hidden="true"><div id="park-fill"></div></div>
         <span id="park-label"></span>
+        <div id="park-checks" aria-hidden="true"></div>
       </div>
     </div>
 
@@ -146,6 +147,29 @@
           </div>
         </div>
         <div class="setting-row">
+          <span class="setting-label" id="lbl-sfxvol">Effects volume</span>
+          <div class="seg" role="group" aria-labelledby="lbl-sfxvol">
+            <button data-setting="sfxVol" data-value="0">Low</button>
+            <button data-setting="sfxVol" data-value="1">Med</button>
+            <button data-setting="sfxVol" data-value="2">High</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-music">Music</span>
+          <div class="seg" role="group" aria-labelledby="lbl-music">
+            <button data-setting="music" data-value="true">On</button>
+            <button data-setting="music" data-value="false">Off</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-musicvol">Music volume</span>
+          <div class="seg" role="group" aria-labelledby="lbl-musicvol">
+            <button data-setting="musicVol" data-value="0">Low</button>
+            <button data-setting="musicVol" data-value="1">Med</button>
+            <button data-setting="musicVol" data-value="2">High</button>
+          </div>
+        </div>
+        <div class="setting-row">
           <span class="setting-label" id="lbl-quality">Graphics</span>
           <div class="seg" role="group" aria-labelledby="lbl-quality">
             <button data-setting="quality" data-value="low">Low</button>
@@ -182,6 +206,14 @@
           <div class="seg" role="group" aria-labelledby="lbl-wheel">
             <button data-setting="wheel" data-value="left">Left</button>
             <button data-setting="wheel" data-value="right">Right</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-textsize">Text size</span>
+          <div class="seg" role="group" aria-labelledby="lbl-textsize">
+            <button data-setting="textSize" data-value="normal">Normal</button>
+            <button data-setting="textSize" data-value="large">Large</button>
+            <button data-setting="textSize" data-value="xlarge">Extra large</button>
           </div>
         </div>
         <button class="settings-done" id="settings-done">Done</button>
