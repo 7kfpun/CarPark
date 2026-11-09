@@ -416,3 +416,131 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x 11, z -15, heading 270° |
 
 ![Night Finale](maps/night-finale.svg)
+
+## 26. Drive-Through
+
+> Follow the kerbed lane and stop in the bay before the barrier. Keep clear of both kerbs.
+
+| | |
+| --- | --- |
+| Id | `drive-through` |
+| Vehicle | Hatchback |
+| Lot | 24 × 50 m |
+| Time limit | 55 s |
+| Star times | 3 stars ≤ 19 s, 2 stars ≤ 26 s, 1 star within 55 s |
+| Target bay | x 0, z 14, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x 0, z -20, heading 0° |
+
+![Drive-Through](maps/drive-through.svg)
+
+## 27. Chevron Bays
+
+> The bays are slanted. Drive past the free one, then reverse in at the same angle.
+
+| | |
+| --- | --- |
+| Id | `chevron-bays` |
+| Vehicle | Hatchback |
+| Lot | 38 × 30 m |
+| Time limit | 70 s |
+| Star times | 3 stars ≤ 25 s, 2 stars ≤ 34 s, 1 star within 70 s |
+| Target bay | x 0, z 10.4, 3 × 5.6 m, facing 130° (nose must point that way) |
+| Start pose | x -16, z 3, heading 90° |
+
+![Chevron Bays](maps/chevron-bays.svg)
+
+## 28. Dead-End Turn
+
+> The alley is too narrow for a U-turn. Back out of the dead end, then swing nose-first into the side bay.
+
+| | |
+| --- | --- |
+| Id | `dead-end-turn` |
+| Vehicle | SUV |
+| Lot | 30 × 44 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 32 s, 2 stars ≤ 44 s, 1 star within 90 s |
+| Target bay | x 7.6, z -11, 3.4 × 5.6 m, facing 90° (nose must point that way) |
+| Start pose | x 0, z 10, heading 0° |
+
+![Dead-End Turn](maps/dead-end-turn.svg)
+
+## 29. S-Bend Reverse
+
+> Back the sedan all the way down the winding lane into the bay at the far end. Small steering, patience.
+
+| | |
+| --- | --- |
+| Id | `s-bend-reverse` |
+| Vehicle | Sedan |
+| Lot | 30 × 46 m |
+| Time limit | 100 s |
+| Star times | 3 stars ≤ 35 s, 2 stars ≤ 48 s, 1 star within 100 s |
+| Target bay | x -6, z -17, 3.2 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x 6, z 18, heading 0° |
+
+![S-Bend Reverse](maps/s-bend-reverse.svg)
+
+## 30. Double Parallel
+
+> Two lorries, a kerb and a row of cars across the road. Parallel park the SUV in the gap between the lorries.
+
+| | |
+| --- | --- |
+| Id | `double-parallel` |
+| Vehicle | SUV |
+| Lot | 24 × 50 m |
+| Time limit | 80 s |
+| Star times | 3 stars ≤ 27 s, 2 stars ≤ 38 s, 1 star within 80 s |
+| Target bay | x 8.2, z 0, 2.6 × 6 m, facing 0° (either direction) |
+| Start pose | x 3, z -20, heading 0° |
+
+![Double Parallel](maps/double-parallel.svg)
+
+## 31. Pillar Hall
+
+> Weave through the pillars, then reverse into the bay between a pillar and a parked car.
+
+| | |
+| --- | --- |
+| Id | `pillar-hall` |
+| Vehicle | Hatchback |
+| Lot | 36 × 36 m |
+| Time limit | 110 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 53 s, 1 star within 110 s |
+| Target bay | x 0, z 13, 2.6 × 5.6 m, facing 180° (nose must point that way) |
+| Start pose | x -14, z -14, heading 90° |
+
+![Pillar Hall](maps/pillar-hall.svg)
+
+## 32. Delivery Alley
+
+> Take the van round the tight corner, past the loading bay, then back into it.
+
+| | |
+| --- | --- |
+| Id | `delivery-alley` |
+| Vehicle | Van |
+| Lot | 48 × 44 m |
+| Time limit | 110 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 53 s, 1 star within 110 s |
+| Target bay | x 8, z -6.2, 3.8 × 6 m, facing 0° (nose must point that way) |
+| Start pose | x -14, z -18, heading 0° |
+
+![Delivery Alley](maps/delivery-alley.svg)
+
+## 33. Needle Alley
+
+> A dead end and a bay barely wider than the sedan. Back out, line up and drive nose-first into the bay on the right.
+
+| | |
+| --- | --- |
+| Id | `needle-alley` |
+| Vehicle | Sedan |
+| Lot | 30 × 44 m |
+| Time limit | 95 s |
+| Star times | 3 stars ≤ 34 s, 2 stars ≤ 47 s, 1 star within 95 s |
+| Target bay | x 7.3, z -11, 2.6 × 5.6 m, facing 90° (nose must point that way) |
+| Start pose | x 0, z 10, heading 0° |
+
+![Needle Alley](maps/needle-alley.svg)

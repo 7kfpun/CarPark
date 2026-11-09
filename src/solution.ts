@@ -1,4 +1,4 @@
-import { corners, pointInOBB, sat, type OBB } from './collision';
+import { corners, expand, pointInOBB, sat, type OBB } from './collision';
 import { holdComplete, TOUCH_MIN_SPEED, STEP } from './config';
 import { floorProblems, levelObstacles, Surfaces } from './floors';
 import { bayOBB, type LevelDef } from './layout';
@@ -21,6 +21,8 @@ export interface SolutionResult {
   maxImpact: number;
   /** Number of impacts the game would count as a hit. */
   hits: number;
+  /** Steps where the car, grown by the `margin` given to `replaySolution`, overlapped an obstacle: 0 means it never came closer. */
+  tight: number;
 }
 
 const carBox = (v: VehicleDef, x: number, z: number, rot: number): OBB => ({
@@ -66,8 +68,9 @@ export function staticProblems(def: LevelDef): string[] {
  * Replay a scripted solution through the same physics and collision code the
  * game uses. Stops once the park has been held for PARK_HOLD (as the game does).
  * After the last segment the controls are released and the car coasts.
+ * `margin` (m) is a clearance the route must keep from every obstacle; see `SolutionResult.tight`.
  */
-export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResult {
+export function replaySolution(def: LevelDef, segments: Segment[], margin = 0): SolutionResult {
   const surfaces = new Surfaces(def);
   const obstacles = levelObstacles(def, surfaces);
   const car = new CarPhysics(vehicleOf(def.vehicle));
@@ -75,6 +78,7 @@ export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResu
   let hold = 0;
   let maxImpact = 0;
   let hits = 0;
+  let tight = 0;
   let steps = 0;
   const release: Segment = { t: 3, throttle: 0, steer: 0, handbrake: false };
   for (const seg of [...segments, release]) {
@@ -85,12 +89,16 @@ export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResu
       const impact = car.resolveCollisions(car.reachable(surfaces, obstacles), surfaces);
       maxImpact = Math.max(maxImpact, impact);
       if (isTouch(impact, TOUCH_MIN_SPEED)) hits++;
+      if (margin > 0) {
+        const grown = expand(car.obb, margin);
+        if (car.reachable(surfaces, obstacles).some((o) => sat(grown, o))) tight++;
+      }
       // Same bookkeeping as the game loop: the hold drains 3x as fast as it fills.
       hold = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer).ok
         ? hold + STEP
         : Math.max(0, hold - STEP * 3);
-      if (holdComplete(hold)) return { parked: true, finishTime: steps * STEP, maxImpact, hits };
+      if (holdComplete(hold)) return { parked: true, finishTime: steps * STEP, maxImpact, hits, tight };
     }
   }
-  return { parked: false, finishTime: null, maxImpact, hits };
+  return { parked: false, finishTime: null, maxImpact, hits, tight };
 }

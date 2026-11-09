@@ -578,6 +578,211 @@ const VEHICLE_LEVELS: RawLevel[] = [
   },
 ];
 
+/** A thin wall along the segment from (x0, z0) to (x1, z1). */
+function wallSeg(x0: number, z0: number, x1: number, z1: number, h = 1.2, w = 0.4): ObstacleDef {
+  const dx = x1 - x0;
+  const dz = z1 - z0;
+  return { kind: 'wall', x: (x0 + x1) / 2, z: (z0 + z1) / 2, rot: Math.atan2(dx, dz), w, l: Math.hypot(dx, dz), h };
+}
+
+/** Both kerbs of a lane along a polyline, `half` metres either side of its centre line. Corners overlap so they stay closed. */
+function laneWalls(path: [number, number][], half: number, h = 1.2): ObstacleDef[] {
+  const out: ObstacleDef[] = [];
+  for (let i = 0; i + 1 < path.length; i++) {
+    const [x0, z0] = path[i];
+    const [x1, z1] = path[i + 1];
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const [dx, dz] = [(x1 - x0) / len, (z1 - z0) / len];
+    const e0 = i > 0 ? 1 : 0;
+    const e1 = i + 2 < path.length ? 1 : 0;
+    for (const side of [-1, 1]) {
+      const [ox, oz] = [dz * half * side, -dx * half * side];
+      out.push(wallSeg(x0 + ox - dx * e0, z0 + oz - dz * e0, x1 + ox + dx * e1, z1 + oz + dz * e1, h));
+    }
+  }
+  return out;
+}
+
+const CHEVRON = PI - (50 * PI) / 180;
+const CHEVRON_XS = [-10.8, -7.2, -3.6, 0, 3.6, 7.2, 10.8];
+
+const PROVING_LEVELS: RawLevel[] = [
+  {
+    id: 'drive-through',
+    name: 'Drive-Through',
+    hint: 'Follow the kerbed lane and stop in the bay before the barrier. Keep clear of both kerbs.',
+    lot: { w: 24, l: 50 },
+    spawn: { x: 0, z: -20, rot: 0 },
+    target: { x: 0, z: 14, rot: 0, w: 3, l: 5.6 },
+    bothWays: false,
+    time: 55,
+    stars: { three: 19, two: 26 },
+    obstacles: [
+      wallSeg(-2.4, -12, -2.4, 19, 0.6),
+      wallSeg(2.4, -12, 2.4, 19, 0.6),
+      { kind: 'wall', x: 0, z: 18.8, w: 4.8, l: 0.4, h: 0.9 },
+    ],
+  },
+  {
+    id: 'chevron-bays',
+    name: 'Chevron Bays',
+    hint: 'The bays are slanted. Drive past the free one, then reverse in at the same angle.',
+    lot: { w: 38, l: 30 },
+    spawn: { x: -16, z: 3, rot: PI / 2 },
+    target: { x: 0, z: 10.4, rot: CHEVRON, w: 3, l: 5.6 },
+    bothWays: false,
+    time: 70,
+    stars: { three: 25, two: 34 },
+    bays: angledRow(CHEVRON_XS, 10.4, CHEVRON),
+    obstacles: [
+      ...CHEVRON_XS.filter((x) => x !== 0).map((x) => car(x, 10.4, CHEVRON)),
+      car(-6, -2, PI / 2),
+      car(0, -2, PI / 2),
+      car(6, -2, PI / 2),
+      car(12, -2, PI / 2),
+    ],
+  },
+  {
+    id: 'dead-end-turn',
+    name: 'Dead-End Turn',
+    vehicle: 'suv',
+    hint: 'The alley is too narrow for a U-turn. Back out of the dead end, then swing nose-first into the side bay.',
+    lot: { w: 30, l: 44 },
+    spawn: { x: 0, z: 10, rot: 0 },
+    target: { x: 7.6, z: -11, rot: PI / 2, w: 3.4, l: 5.6 },
+    bothWays: false,
+    time: 90,
+    stars: { three: 32, two: 44 },
+    obstacles: [
+      { kind: 'wall', x: -4.8, z: -3.5, w: 0.4, l: 37, h: 1.2 },
+      { kind: 'wall', x: 4.8, z: -18.6, w: 0.4, l: 6.8, h: 1.2 },
+      { kind: 'wall', x: 4.8, z: 4.1, w: 0.4, l: 21.8, h: 1.2 },
+      { kind: 'wall', x: 0, z: 15.2, w: 10, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: 10.8, z: -11, w: 0.4, l: 8.4, h: 1.2 },
+      car(7.6, -13.9, PI / 2),
+      car(7.6, -8.1, PI / 2),
+    ],
+  },
+  {
+    id: 's-bend-reverse',
+    name: 'S-Bend Reverse',
+    vehicle: 'sedan',
+    hint: 'Back the sedan all the way down the winding lane into the bay at the far end. Small steering, patience.',
+    lot: { w: 30, l: 46 },
+    spawn: { x: 6, z: 18, rot: 0 },
+    target: { x: -6, z: -17, rot: 0, w: 3.2, l: 5.6 },
+    bothWays: false,
+    time: 100,
+    stars: { three: 35, two: 48 },
+    obstacles: [
+      ...laneWalls(
+        [
+          [-6, -20.4],
+          [-6, -8],
+          [6, 6],
+          [6, 20.4],
+        ],
+        2.6,
+      ),
+      { kind: 'wall', x: -6, z: -20.8, w: 5.6, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: 6, z: 20.8, w: 5.6, l: 0.4, h: 1.2 },
+    ],
+  },
+  {
+    id: 'double-parallel',
+    name: 'Double Parallel',
+    vehicle: 'suv',
+    hint: 'Two lorries, a kerb and a row of cars across the road. Parallel park the SUV in the gap between the lorries.',
+    lot: { w: 24, l: 50 },
+    spawn: { x: 3, z: -20, rot: 0 },
+    target: { x: 8.2, z: 0, rot: 0, w: 2.6, l: 6 },
+    bothWays: true,
+    time: 80,
+    stars: { three: 27, two: 38 },
+    obstacles: [
+      { kind: 'wall', x: 9.8, z: 0, w: 0.4, l: 46, h: 0.25 },
+      { kind: 'wall', x: 8.2, z: -9.1, w: 2.55, l: 10.5, h: 3 },
+      { kind: 'wall', x: 8.2, z: 9.1, w: 2.55, l: 10.5, h: 3 },
+      car(-2.4, -12, PI),
+      car(-2.4, -2, PI),
+      car(-2.4, 8, PI),
+      car(-2.4, 18, PI),
+    ],
+  },
+  {
+    id: 'pillar-hall',
+    name: 'Pillar Hall',
+    hint: 'Weave through the pillars, then reverse into the bay between a pillar and a parked car.',
+    lot: { w: 36, l: 36 },
+    spawn: { x: -14, z: -14, rot: PI / 2 },
+    target: { x: 0, z: 13, rot: PI, w: 2.6, l: 5.6 },
+    bothWays: false,
+    time: 110,
+    stars: { three: 39, two: 53 },
+    bays: bayRow([-9.6, -6.4, -3.2, 0, 3.2, 6.4, 9.6], 13, PI, 2.6),
+    obstacles: [
+      { kind: 'pillar', x: -9, z: -9 },
+      { kind: 'pillar', x: -3, z: -9 },
+      { kind: 'pillar', x: 3, z: -9 },
+      { kind: 'pillar', x: 9, z: -9 },
+      { kind: 'pillar', x: -6, z: 0 },
+      { kind: 'pillar', x: 0, z: 0 },
+      { kind: 'pillar', x: 6, z: 0 },
+      { kind: 'pillar', x: 2, z: 13 },
+      car(-3.2, 13, PI),
+      car(-6.4, 13, 0),
+      car(-9.6, 13, PI),
+      car(4, 13, 0),
+      car(7.2, 13, PI),
+      car(10.4, 13, 0),
+    ],
+  },
+  {
+    id: 'delivery-alley',
+    name: 'Delivery Alley',
+    vehicle: 'van',
+    hint: 'Take the van round the tight corner, past the loading bay, then back into it.',
+    lot: { w: 48, l: 44 },
+    spawn: { x: -14, z: -18, rot: 0 },
+    target: { x: 8, z: -6.2, rot: 0, w: 3.8, l: 6 },
+    bothWays: false,
+    time: 110,
+    stars: { three: 39, two: 53 },
+    obstacles: [
+      wallSeg(-17.2, -21, -17.2, 3.2),
+      wallSeg(-10.8, -21, -10.8, -3.4),
+      wallSeg(-17.2, 3.2, 17.2, 3.2),
+      wallSeg(-10.8, -3.4, 5.9, -3.4),
+      wallSeg(10.1, -3.4, 17.2, -3.4),
+      wallSeg(5.9, -3.4, 5.9, -9.4),
+      wallSeg(10.1, -3.4, 10.1, -9.4),
+      wallSeg(5.9, -9.4, 10.1, -9.4),
+      wallSeg(17.2, 3.2, 17.2, -3.4),
+    ],
+  },
+  {
+    id: 'needle-alley',
+    name: 'Needle Alley',
+    vehicle: 'sedan',
+    hint: 'A dead end and a bay barely wider than the sedan. Back out, line up and drive nose-first into the bay on the right.',
+    lot: { w: 30, l: 44 },
+    spawn: { x: 0, z: 10, rot: 0 },
+    target: { x: 7.3, z: -11, rot: PI / 2, w: 2.6, l: 5.6 },
+    bothWays: false,
+    time: 95,
+    stars: { three: 34, two: 47 },
+    obstacles: [
+      { kind: 'wall', x: -4.6, z: -3.5, w: 0.4, l: 37, h: 1.2 },
+      { kind: 'wall', x: 4.6, z: -18.3, w: 0.4, l: 7.4, h: 1.2 },
+      { kind: 'wall', x: 4.6, z: 3.8, w: 0.4, l: 22.4, h: 1.2 },
+      { kind: 'wall', x: 0, z: 15.2, w: 9.6, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: 10.6, z: -11, w: 0.4, l: 7.2, h: 1.2 },
+      car(7.3, -13.2, PI / 2),
+      car(7.3, -8.8, PI / 2),
+    ],
+  },
+];
+
 const RAW_LEVELS: RawLevel[] = [
   ...LEVELS_1_12,
   mirrored('angle-of-attack', {
@@ -620,6 +825,7 @@ const RAW_LEVELS: RawLevel[] = [
     arrows: arrowLine(8, -15, 1, -15, -PI / 2, 3.5),
   }),
   ...VEHICLE_LEVELS,
+  ...PROVING_LEVELS,
 ];
 
 /** Location of every level. Ids are permanent; this is the only place a level is assigned to a world. */
@@ -649,6 +855,14 @@ const LOCATION_OF: Record<string, LocationId> = {
   'twilight-squeeze': 'twilight',
   'dusk-slalom': 'twilight',
   'night-finale': 'twilight',
+  'drive-through': 'proving',
+  'chevron-bays': 'proving',
+  'dead-end-turn': 'proving',
+  's-bend-reverse': 'proving',
+  'double-parallel': 'proving',
+  'pillar-hall': 'proving',
+  'delivery-alley': 'proving',
+  'needle-alley': 'proving',
 };
 
 /** Every level with its location, grouped by world in world order (play order) and otherwise in the order written above. */
