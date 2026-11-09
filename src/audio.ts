@@ -2,6 +2,7 @@
 export class Sfx {
   private ctx: AudioContext | null = null;
   muted = false;
+  private crashBuf: AudioBuffer | null = null;
 
   unlock(): void {
     try {
@@ -9,6 +10,7 @@ export class Sfx {
       if (this.ctx.state === 'suspended') void this.ctx.resume();
     } catch {
       this.ctx = null;
+      this.crashBuf = null;
     }
   }
 
@@ -58,12 +60,15 @@ export class Sfx {
   crash(): void {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;
-    const len = Math.floor(ctx.sampleRate * 0.25);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    if (!this.crashBuf || this.crashBuf.sampleRate !== ctx.sampleRate) {
+      const len = Math.floor(ctx.sampleRate * 0.25);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      this.crashBuf = buf;
+    }
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.crashBuf;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 900;

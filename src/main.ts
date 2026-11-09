@@ -225,16 +225,16 @@ function finish(win: boolean, reason: string): void {
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     if (mayPersist(ADMIN)) saveProgress(progress);
-    const last = levelIndex === LEVELS.length - 1;
+    const isLastLevel = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
-      ...(last ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
+      ...(isLastLevel ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
       { label: 'Retry', onClick: () => startLevel(levelIndex) },
-      { label: 'Menu', primary: last, onClick: showMenu },
+      { label: 'Menu', primary: isLastLevel, onClick: showMenu },
     ];
     const next = nextStarTime(stars, def.stars);
     const tip = next === null ? '' : ` · ${stars + 1}★ needs ${next}s or less`;
     hud.showModal(
-      last ? 'All levels cleared!' : 'Parked!',
+      isLastLevel ? 'All levels cleared!' : 'Parked!',
       `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
