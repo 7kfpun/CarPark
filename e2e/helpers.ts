@@ -28,7 +28,15 @@ export async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`/${query}`);
   // Loading is network-bound, not timer-bound: the menu or the HUD appears on its own.
   await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
-  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+  // Real time keeps flowing until the pause lands; retry with a wider margin if a slow runner overshot.
+  for (let margin = 500; ; margin *= 4) {
+    try {
+      await page.clock.pauseAt((await page.evaluate(() => Date.now())) + margin);
+      return;
+    } catch (e) {
+      if (margin > 20_000) throw e;
+    }
+  }
 }
 
 /** Advance the game by `seconds` of simulated time (one frame per 1/60 s). */

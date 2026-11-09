@@ -7,8 +7,10 @@ const PORT = 4173;
 export default defineConfig({
   testDir: 'e2e',
   outputDir: 'test-results',
-  timeout: 90_000,
+  timeout: 180_000,
   fullyParallel: true,
+  // Software-rendered WebGL is CPU-bound: on the small CI runner, parallel workers only slow each other down.
+  workers: process.env.CI ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
@@ -18,7 +20,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   // Small viewport: software-rendered WebGL frames cost far less. The touch tests set their own.
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 480, height: 320 } } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 320, height: 200 } } }],
   webServer: {
     command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,

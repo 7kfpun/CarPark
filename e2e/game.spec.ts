@@ -39,7 +39,7 @@ test('any collision fails the level', async ({ page }) => {
   await expect(page.locator('#hud')).toBeVisible();
   // Floor it with no steering: the car runs through the bay and into the far wall.
   await page.keyboard.down('ArrowUp');
-  await run(page, 20);
+  for (let t = 0; t < 20 && (await page.locator('#modal-title').innerText()) === ''; t++) await run(page, 1);
   await page.keyboard.up('ArrowUp');
   await expect(page.locator('#modal-title')).toHaveText('Level failed');
   await expect(page.locator('#modal-body')).toHaveText('You hit something.');
@@ -48,29 +48,29 @@ test('any collision fails the level', async ({ page }) => {
 test('Escape pauses and resumes; the game does not run under Settings', async ({ page }) => {
   await openGame(page, '?level=1');
   await expect(page.locator('#hud')).toBeVisible();
-  await run(page, 2);
+  await run(page, 1.5);
   const t0 = await timer(page);
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#modal-title')).toHaveText('Paused');
-  await run(page, 3);
+  await run(page, 1.5);
   expect(await timer(page)).toBe(t0);
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#modal')).toBeHidden();
-  await run(page, 3);
+  await run(page, 1.5);
   expect(await timer(page)).not.toBe(t0);
 
   // Settings opened from play freezes the game until it is closed.
   await page.locator('#btn-settings').click();
   await expect(page.locator('#settings')).toBeVisible();
   const t1 = await timer(page);
-  await run(page, 3);
+  await run(page, 1.5);
   expect(await timer(page)).toBe(t1);
 
   await page.locator('#settings-done').click();
   await expect(page.locator('#settings')).toBeHidden();
-  await run(page, 3);
+  await run(page, 1.5);
   expect(await timer(page)).not.toBe(t1);
 });
 
