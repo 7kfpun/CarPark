@@ -4,10 +4,13 @@ import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { nextFocusIndex } from '../src/focus';
+import { Sfx } from '../src/audio';
 import { canRunGame, padConfirmAction } from '../src/guards';
 import {
   angleDelta,
   deadzone,
+  isMetaKey,
+  isShortcut,
   pedalControls,
   pickNeighbor,
   pointerAngle,
@@ -484,6 +487,14 @@ check(
   'wheel does not wind past the lock and follows the finger across the ±180° seam',
 );
 check(steerFromWheel(turnWheel(80, 20, 20 - 80)) === 0, 'letting go springs the wheel back to straight ahead');
+check(
+  isShortcut({ ctrlKey: false, metaKey: true, altKey: false }) &&
+    isShortcut({ ctrlKey: true, metaKey: false, altKey: false }) &&
+    isShortcut({ ctrlKey: false, metaKey: false, altKey: true }) &&
+    !isShortcut({ ctrlKey: false, metaKey: false, altKey: false }),
+  'Cmd/Ctrl/Alt combos are shortcuts, not drive keys',
+);
+check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Meta keyup is recognised');
 {
   const none = pedalControls(false, false, false);
   const go = pedalControls(true, false, false);
@@ -1040,6 +1051,70 @@ check(
 check(padConfirmAction(true, false) === 'click', 'pad A clicks a focused nav button even with actions off');
 check(padConfirmAction(false, true) === 'enter', 'pad A runs Enter when actions are on');
 check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Settings');
+
+{
+  // Fake AudioContext: tones must not queue while locked; 'interrupted' must resume.
+  let state = 'suspended';
+  let resumes = 0;
+  let oscillators = 0;
+  const node = (): Record<string, unknown> => {
+    const n: Record<string, unknown> = {
+      connect: () => n,
+      start: () => {},
+      stop: () => {},
+      frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
+      gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
+    };
+    return n;
+  };
+  class FakeCtx {
+    currentTime = 0;
+    sampleRate = 44100;
+    destination = {};
+    get state(): string {
+      return state;
+    }
+    resume(): Promise<void> {
+      resumes++;
+      return Promise.resolve();
+    }
+    suspend(): Promise<void> {
+      return Promise.resolve();
+    }
+    createOscillator(): unknown {
+      oscillators++;
+      return node();
+    }
+    createGain = node;
+    createBiquadFilter = node;
+    createBufferSource = node;
+    createBuffer(): unknown {
+      return { sampleRate: 44100, getChannelData: () => new Float32Array(11025) };
+    }
+  }
+  const g = globalThis as unknown as { AudioContext?: unknown };
+  const prev = g.AudioContext;
+  g.AudioContext = FakeCtx;
+  const sfx = new Sfx();
+  sfx.unlock();
+  check(resumes === 1, 'unlock resumes a suspended context');
+  sfx.beep();
+  sfx.crash();
+  sfx.win();
+  check(oscillators === 0, 'no tones are queued while the context is not running');
+  state = 'interrupted';
+  sfx.unlock();
+  sfx.resume();
+  check(resumes === 3, "an 'interrupted' context is resumed");
+  state = 'closed';
+  sfx.unlock();
+  check(resumes === 3, 'a closed context is not resumed');
+  state = 'running';
+  sfx.unlock();
+  sfx.beep();
+  check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
+  g.AudioContext = prev;
+}
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
