@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CAR_SHARED, createCarModel } from './car';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
@@ -67,10 +68,22 @@ const railGeo = new THREE.BoxGeometry(0.03, 0.04, 1).translate(0, 1.15, 0);
 const bollardGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.9, 10).translate(0, 0.45, 0);
 const drainGeo = new THREE.BoxGeometry(0.6, 0.02, 0.35).translate(0, 0.012, 0);
 const wearGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.024, 0);
+// A cone is its body plus a flat square base (one geometry, coneMat) and a white stripe.
+const coneBodyGeo = (() => {
+  const body = new THREE.ConeGeometry(0.22, 0.7, 16).translate(0, 0.4, 0);
+  const base = new THREE.BoxGeometry(0.5, 0.05, 0.5).translate(0, 0.025, 0);
+  const merged = mergeGeometries([body, base])!;
+  body.dispose();
+  base.dispose();
+  return merged;
+})();
+const coneStripeGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.1, 16).translate(0, 0.45, 0);
 const sharedGeo = new Set<THREE.BufferGeometry>([
   trunkGeo,
   leafGeo,
   stripGeo,
+  coneBodyGeo,
+  coneStripeGeo,
   poleGeo,
   armGeo,
   lampGeo,
@@ -182,18 +195,8 @@ function obstacleMesh(o: ObstacleDef, y: number): THREE.Object3D {
     case 'car':
       obj = createCarModel(o.color ?? 0x888888, parkedModel(o.variant ?? 0)).root;
       break;
-    case 'cone': {
-      const g = new THREE.Group();
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 16), coneMat);
-      cone.position.y = 0.4;
-      const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.1, 16), coneStripe);
-      stripe.position.y = 0.45;
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.5), coneMat);
-      base.position.y = 0.025;
-      g.add(cone, stripe, base);
-      obj = g;
-      break;
-    }
+    case 'cone':
+      throw new Error('cones are drawn as instances in buildLevel');
     case 'pillar': {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(d.w, d.h, d.l), pillarMat);
@@ -364,13 +367,35 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
     if (solid) solids.push(o);
   };
   if (multi) buildStoreys(def, surfaces, add);
+  const cones = new Map<number, ObstacleDef[]>(); // by floor height
   for (const o of levelObstacleDefs(def, surfaces)) {
     const layer = o.floor ?? surfaces.startLayer;
     if (multi && surfaces.floorHeight(layer) === null && o.kind === 'wall') continue; // ramp kerbs are part of the ramp mesh
     const y = surfaces.heightAt(layer, o.x, o.z);
+    if (o.kind === 'cone') {
+      const at = cones.get(y) ?? [];
+      at.push(o);
+      cones.set(y, at);
+      continue;
+    }
     const mesh = obstacleMesh(o, y);
     if (multi) add(mesh, y, o.kind === 'pillar' || (o.kind === 'wall' && (o.h ?? 1.2) >= 1.5));
     else group.add(mesh);
+  }
+  // Cones on a floor share two instanced meshes (body+base, stripe): 2 draw calls instead of 3 per cone.
+  for (const [y, list] of cones) {
+    const body = new THREE.InstancedMesh(coneBodyGeo, coneMat, list.length);
+    const stripe = new THREE.InstancedMesh(coneStripeGeo, coneStripe, list.length);
+    const m = new THREE.Matrix4();
+    list.forEach((o, i) => {
+      m.makeRotationY(o.rot ?? 0).setPosition(o.x, y, o.z);
+      body.setMatrixAt(i, m);
+      stripe.setMatrixAt(i, m);
+    });
+    for (const mesh of [shadowed(body), shadowed(stripe)]) {
+      if (multi) add(mesh, y, false);
+      else group.add(mesh);
+    }
   }
 
   // Target bay: translucent fill, glowing edges, direction arrow, floating marker.
@@ -495,6 +520,7 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
       group.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
+        if ((m as THREE.InstancedMesh).isInstancedMesh) (m as THREE.InstancedMesh).dispose();
         if (!CAR_SHARED.has(m.geometry) && !sharedGeo.has(m.geometry)) m.geometry.dispose();
         const mats = Array.isArray(m.material) ? m.material : [m.material];
         for (const mat of mats) if (!shared.has(mat) && !CAR_SHARED.has(mat)) mat.dispose();
