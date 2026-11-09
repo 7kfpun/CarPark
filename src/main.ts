@@ -5,7 +5,7 @@ import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, ski
 import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
-import { PlayerCar } from './car';
+import { createVehicleModel, PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
@@ -35,6 +35,19 @@ import { evaluateParking, parkChecklist } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
+import {
+  beatsGhost,
+  decodeFrames,
+  duration,
+  encodeFrames,
+  fitsCap,
+  loadGhosts,
+  poseAt,
+  Recorder,
+  REPLAY_HZ,
+  saveGhosts,
+  type Pose,
+} from './replay';
 import { checkForUpdate, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
@@ -186,6 +199,79 @@ let sensorBeep = 0;
 const SENSOR_CHECK_HZ = 20;
 let accumulator = 0;
 
+// --- Replay and ghost ---------------------------------------------------------
+const GHOST_EVERY = Math.round(1 / STEP / REPLAY_HZ);
+const ghosts = loadGhosts(LEVEL_IDS);
+let recorder = new Recorder(GHOST_EVERY);
+let lastRun: Pose[] = [];
+let ghostFrames: Pose[] | null = null;
+let replay: { frames: Pose[]; t: number; show: () => void } | null = null;
+const ghostMats = new Map<string, THREE.MeshBasicMaterial>();
+const ghostModels = new Map<string, ReturnType<typeof createVehicleModel>>();
+/** A translucent copy of the vehicle that replays the best run. */
+function ghostFor(v: VehicleDef): ReturnType<typeof createVehicleModel> {
+  let g = ghostModels.get(v.id);
+  if (!g) {
+    g = createVehicleModel(v);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x9ad0ff, transparent: true, opacity: 0.35, depthWrite: false });
+    ghostMats.set(v.id, mat);
+    g.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.material = mat;
+        m.castShadow = false;
+        m.receiveShadow = false;
+      }
+    });
+    g.root.visible = false;
+    scene.add(g.root);
+    ghostModels.set(v.id, g);
+  }
+  return g;
+}
+let ghostCar: ReturnType<typeof createVehicleModel> | null = null;
+function hideGhost(): void {
+  for (const g of ghostModels.values()) g.root.visible = false;
+}
+/** Place the ghost at time `t`; it waits at the bay after its run ends, then fades out of the scene. */
+function updateGhost(t: number): void {
+  if (!ghostCar || !ghostFrames) return;
+  const end = duration(ghostFrames);
+  const pose = poseAt(ghostFrames, t);
+  ghostCar.root.visible = !!pose && t < end + 1.5;
+  if (!pose) return;
+  ghostCar.root.position.set(pose.x, pose.y, pose.z);
+  ghostCar.root.rotation.order = 'YXZ';
+  ghostCar.root.rotation.y = pose.heading;
+  ghostCar.root.rotation.x = -pose.pitch;
+}
+function stopReplay(): void {
+  if (!replay) return;
+  const { show } = replay;
+  replay = null;
+  hud.showHint('', 0);
+  show();
+}
+function startReplay(show: () => void): void {
+  if (!lastRun.length || state !== 'done') return;
+  hud.hideModal();
+  rig.setFreeLook(false);
+  replay = { frames: lastRun, t: 0, show };
+  hud.showHint('Replay: press any key or tap to stop', 600);
+}
+addEventListener(
+  'keydown',
+  (e) => {
+    if (replay && !e.repeat) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      stopReplay();
+    }
+  },
+  true,
+);
+addEventListener('pointerdown', () => stopReplay(), true);
+
 function loadLevel(i: number): void {
   if (level) {
     scene.remove(level.group);
@@ -238,6 +324,13 @@ function startLevel(i: number): void {
     scene.add(player.model.root);
     gfx.applyDecor(player.model.root);
   }
+  replay = null;
+  hideGhost();
+  const stored = ghosts[LEVEL_IDS[i]];
+  ghostFrames = stored ? decodeFrames(stored.data) : null;
+  ghostCar = ghostFrames ? ghostFor(vehicle) : null;
+  recorder = new Recorder(GHOST_EVERY);
+  updateGhost(0);
   rig.vehicle = vehicle;
   mirror.vehicle = vehicle;
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
@@ -260,6 +353,8 @@ function startLevel(i: number): void {
 
 function showMenu(): void {
   state = 'menu';
+  replay = null;
+  hideGhost();
   rig.setFreeLook(false);
   player.model.body.visible = true;
   cockpit.visible = false;
@@ -321,34 +416,48 @@ function finish(win: boolean, reason: string): void {
   input.clear();
   hud.setPark(null, '');
   const def = LEVELS[levelIndex];
+  lastRun = recorder.frames;
+  const replayButton: ModalButton[] = lastRun.length > 1 ? [{ label: 'Replay', onClick: () => startReplay(show) }] : [];
+  let show: () => void = () => undefined;
   if (win) {
     const stars = starsForTime(elapsed, def.stars);
     sfx.win(stars);
     recordWin(progress, LEVEL_IDS, levelIndex, stars);
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
+    const id = LEVEL_IDS[levelIndex];
+    const data = encodeFrames(lastRun);
+    if (beatsGhost(ghosts[id], elapsed) && fitsCap(data)) {
+      ghosts[id] = { time: elapsed, data };
+      if (mayPersist(ADMIN)) saveGhosts(ghosts);
+    }
     if (mayPersist(ADMIN)) saveProgress(progress);
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
       ...(isLastLevel ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
+      ...replayButton,
       { label: 'Retry', onClick: () => startLevel(levelIndex) },
       { label: 'Menu', primary: isLastLevel, onClick: showMenu },
     ];
     const next = nextStarTime(stars, def.stars);
     const tip = next === null ? '' : ` · ${stars + 1}★ needs ${next}s or less`;
-    hud.showModal(
-      isLastLevel ? 'All levels cleared!' : 'Parked!',
-      `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
-      stars,
-      buttons,
-    );
+    show = () =>
+      hud.showModal(
+        isLastLevel ? 'All levels cleared!' : 'Parked!',
+        `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
+        stars,
+        buttons,
+      );
   } else {
     sfx.fail();
-    hud.showModal('Level failed', reason, null, [
-      { label: 'Try again', primary: true, onClick: () => startLevel(levelIndex) },
-      { label: 'Menu', onClick: showMenu },
-    ]);
+    show = () =>
+      hud.showModal('Level failed', reason, null, [
+        { label: 'Try again', primary: true, onClick: () => startLevel(levelIndex) },
+        ...replayButton,
+        { label: 'Menu', onClick: showMenu },
+      ]);
   }
+  show();
   applyUpdate();
 }
 
@@ -489,6 +598,7 @@ function step(dt: number): void {
   if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controls, level.surfaces);
+  recorder.step(car);
   sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
@@ -641,13 +751,31 @@ function frameBody(now: number): void {
       step(STEP);
       accumulator -= STEP;
     }
+    updateGhost(elapsed);
     hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
     syncAdminBar();
   }
 
-  player.sync(state === 'playing' ? dt : 0);
+  if (replay) {
+    // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
+    const p = player.physics;
+    const before = { x: p.x, z: p.z };
+    replay.t += dt;
+    const pose = poseAt(replay.frames, replay.t);
+    if (pose) {
+      p.x = pose.x;
+      p.y = pose.y;
+      p.z = pose.z;
+      p.heading = pose.heading;
+      p.pitch = pose.pitch;
+      const fwd = (p.x - before.x) * Math.sin(p.heading) + (p.z - before.z) * Math.cos(p.heading);
+      p.v = dt > 0 ? fwd / dt : 0;
+    }
+    if (replay.t >= duration(replay.frames) + 1) stopReplay();
+  }
+  player.sync(state === 'playing' || replay ? dt : 0);
   if (level && !reducedMotion.matches) {
     level.marker.rotation.y += dt * 1.5;
     level.marker.position.y = level.markerY + Math.sin(now / 400) * 0.25;
