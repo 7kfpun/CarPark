@@ -153,7 +153,9 @@ function showMenu(): void {
 }
 
 function pause(): void {
-  if (state !== 'playing') return;
+  // Also covers 'paused' with no modal (Settings opened from play, then a graphics reset):
+  // show the modal so touch players can resume.
+  if (state === 'paused' ? hud.modalOpen : state !== 'playing') return;
   state = 'paused';
   input.clear();
   hud.showModal('Paused', `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`, null, [
