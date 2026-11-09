@@ -43,6 +43,7 @@ import {
   recordBest,
   recordWin,
   resumeIndex,
+  saveProgress,
   V1_LEVEL_IDS,
 } from '../src/progress';
 
@@ -832,6 +833,9 @@ const store: { value: string | null; throws: boolean } = { value: null, throws: 
     if (store.throws) throw new Error('unavailable');
     return store.value;
   },
+  setItem: (_k: string, v: string) => {
+    store.value = v;
+  },
 };
 const four = ids.slice(0, 4);
 const load = (raw: string | null, list = four) => {
@@ -860,6 +864,24 @@ check(
   same(load('{"stars":[99,-5,2.7,"3",null,"NaN",1]}', ids).stars, { [ids[0]]: 3, [ids[2]]: 2 }),
   'out-of-range, fractional and non-number stars are clamped to integers 0-3',
 );
+// A save from a newer version is read best-effort as v2 and never wiped.
+const fut = '{"v":3,"stars":{"' + ids[0] + '":2},"unlocked":["' + ids[0] + '","' + ids[1] + '"],"future":true}';
+check(
+  same(load(fut), { v: 2, stars: { [ids[0]]: 2 }, unlocked: ids.slice(0, 2), best: {} }),
+  'v3 object save is parsed as v2, not wiped',
+);
+saveProgress(load(fut));
+check(store.value === fut, 'unchanged v3 save is not overwritten');
+const futP = load(fut);
+recordWin(futP, four, 2, 1);
+saveProgress(futP);
+check(
+  store.value !== fut && JSON.parse(store.value as string).v === 2,
+  'v3 save is written once the player earns something',
+);
+check(same(load('{"v":2,"stars":"3"}'), fresh4), 'string stars give fresh progress');
+check(same(load('{"v":2,"stars":[3,3],"unlocked":"x","best":7}'), fresh4), 'junk v2 fields give fresh progress');
+check(same(load('{"v":3,"stars":"x"}'), fresh4), 'junk v3 save gives fresh progress');
 check(load('{"unlocked":99}').unlocked.length === 4, 'unlocked above level count is clamped');
 check(load('{"unlocked":-3}').unlocked.length === 1, 'negative unlocked is clamped to 1');
 check(load('{"unlocked":0}').unlocked.length === 1, 'zero unlocked is clamped to 1');

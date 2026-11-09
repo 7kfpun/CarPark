@@ -27,19 +27,28 @@ function starCount(n: unknown): number {
   return toInt(n, 0, MAX_STARS, 0);
 }
 
+/** True when a stored save claims a version newer than this build understands. */
+function isFutureSave(raw: unknown): boolean {
+  const v = raw && typeof raw === 'object' ? (raw as { v?: unknown }).v : undefined;
+  return typeof v === 'number' && v > 2;
+}
+
 /** Turn whatever was stored (v1, v2 or junk) into progress for the current level list. */
 export function parseProgress(raw: unknown, ids: string[]): Progress {
   const out = freshProgress(ids);
   if (!raw || typeof raw !== 'object') return out;
   const p = raw as { v?: unknown; stars?: unknown; unlocked?: unknown; best?: unknown };
-  const known0 = new Set(ids);
-  if (p.best && typeof p.best === 'object' && !Array.isArray(p.best)) {
-    for (const [id, t] of Object.entries(p.best)) if (known0.has(id) && cleanTime(t)) out.best[id] = cleanTime(t);
-  }
   const known = new Set(ids);
+  if (p.best && typeof p.best === 'object' && !Array.isArray(p.best)) {
+    for (const [id, t] of Object.entries(p.best)) {
+      const time = cleanTime(t);
+      if (known.has(id) && time) out.best[id] = time;
+    }
+  }
   const unlocked = new Set(out.unlocked);
 
-  if (p.v === 2) {
+  // Only a missing (or 1) version is the positional v1 format; v2 and any newer save is read as v2.
+  if (p.v !== undefined && p.v !== 1) {
     if (p.stars && typeof p.stars === 'object') {
       for (const [id, n] of Object.entries(p.stars)) if (known.has(id) && starCount(n)) out.stars[id] = starCount(n);
     }
@@ -106,16 +115,29 @@ export function recordWin(p: Progress, ids: string[], index: number, stars: numb
   if (next && !isUnlocked(p, next)) p.unlocked = ids.filter((x) => isUnlocked(p, x) || x === next);
 }
 
+/** Set when the stored save is from a newer version: the best-effort parse of it, so we never overwrite it unchanged. */
+let futureSnapshot: string | null = null;
+
 export function loadProgress(ids: string[]): Progress {
+  futureSnapshot = null;
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? parseProgress(JSON.parse(raw), ids) : freshProgress(ids);
+    if (!raw) return freshProgress(ids);
+    const data: unknown = JSON.parse(raw);
+    const p = parseProgress(data, ids);
+    if (isFutureSave(data)) futureSnapshot = JSON.stringify(p);
+    return p;
   } catch {
     return freshProgress(ids);
   }
 }
 
+/** Writes progress. A newer-version save is left untouched until the player earns something new. */
 export function saveProgress(p: Progress): void {
+  if (futureSnapshot !== null) {
+    if (JSON.stringify(p) === futureSnapshot) return;
+    futureSnapshot = null;
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch {
