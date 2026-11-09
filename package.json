@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "maps": "esbuild scripts/maps.ts --bundle --platform=node --format=esm --log-level=warning | node --input-type=module",
     "validate": "esbuild scripts/validate.ts --bundle --platform=node --format=esm --log-level=warning | node --input-type=module"
   },
   "dependencies": {

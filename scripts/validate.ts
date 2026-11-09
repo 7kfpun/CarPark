@@ -1,4 +1,5 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mayPersist, resolveAdmin, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
@@ -23,6 +24,7 @@ import { CarPhysics } from '../src/physics';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
 import { replaySolution, staticProblems } from '../src/solution';
 import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
+import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
 import {
   bestFor,
@@ -834,6 +836,37 @@ console.log('Admin mode');
   check(!mayPersist(true) && mayPersist(false), 'progress is not written in admin mode');
   check(skipTarget(0, -1, 5) === null && skipTarget(4, 1, 5) === null, 'skip stops at the first and last level');
   check(skipTarget(2, 1, 5) === 3 && skipTarget(2, -1, 5) === 1, 'skip moves to the next/previous level');
+}
+
+console.log('Level maps (docs/LEVELS.md, docs/maps)');
+{
+  const expected = renderMaps(LEVELS);
+  const stale = (what: string): void => check(false, `${what} is out of date with the levels: run \`npm run maps\``);
+  for (const [path, content] of expected) {
+    if (!existsSync(path)) stale(`${path} (missing)`);
+    else if (readFileSync(path, 'utf8') !== content) stale(path);
+  }
+  const onDisk = existsSync('docs/maps') ? readdirSync('docs/maps').filter((f) => f.endsWith('.svg')) : [];
+  for (const f of onDisk) if (!expected.has(`docs/maps/${f}`)) stale(`docs/maps/${f} (no such level)`);
+  const storey: LevelDef = {
+    ...LEVELS[0],
+    id: 'tmp',
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: 0, hw: 10, hl: 10, rot: 0 }] },
+      { id: 'upper', y: 3, area: [{ x: 0, z: 0, hw: 10, hl: 10, rot: 0 }] },
+    ],
+    ramps: [{ id: 'r1', from: 'ground', to: 'upper', x: 0, z: 0, rot: 0, w: 3, l: 12 }],
+    obstacles: [],
+    bays: [],
+    spawn: { x: -6, z: -6, rot: 0 },
+    target: { x: 6, z: 6, rot: 0, w: 3, l: 5.6, floor: 'upper' },
+  };
+  const multi = renderMaps([storey]);
+  check(
+    multi.has('docs/maps/tmp-ground.svg') && multi.has('docs/maps/tmp-upper.svg'),
+    'multi-storey level gets one map per floor',
+  );
+  check(renderMaps(LEVELS).get('docs/LEVELS.md') === expected.get('docs/LEVELS.md'), 'map output is not deterministic');
 }
 
 check(nextFocusIndex(3, 0, 1) === 1 && nextFocusIndex(3, 2, 1) === 0, 'focus cycle wraps forward');

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -740 680 1480" width="680" height="1480" role="img" aria-label="Cone Gates">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-740" width="680" height="1480"/>
+<polygon class="floor" points="300,700 300,-700 -300,-700 -300,700"/>
+<polyline class="bay" points="-150,504 -150,616 -90,616 -90,504"/>
+<polyline class="bay" points="-90,504 -90,616 -30,616 -30,504"/>
+<polyline class="bay" points="-30,504 -30,616 30,616 30,504"/>
+<polyline class="bay" points="30,504 30,616 90,616 90,504"/>
+<polyline class="bay" points="90,504 90,616 150,616 150,504"/>
+<polygon class="target" points="90,616 90,504 30,504 30,616"/>
+<polyline class="targetarrow" points="60,525 60,595"/><polygon class="targetarrowf" points="60,595 47.4,575.4 72.6,575.4"/>
+<circle class="cone" cx="-288" cy="-360" r="5"/>
+<circle class="cone" cx="-264" cy="-360" r="5"/>
+<circle class="cone" cx="-240" cy="-360" r="5"/>
+<circle class="cone" cx="-216" cy="-360" r="5"/>
+<circle class="cone" cx="-192" cy="-360" r="5"/>
+<circle class="cone" cx="-168" cy="-360" r="5"/>
+<circle class="cone" cx="-72" cy="-360" r="5"/>
+<circle class="cone" cx="-48" cy="-360" r="5"/>
+<circle class="cone" cx="-24" cy="-360" r="5"/>
+<circle class="cone" cx="0" cy="-360" r="5"/>
+<circle class="cone" cx="24" cy="-360" r="5"/>
+<circle class="cone" cx="48" cy="-360" r="5"/>
+<circle class="cone" cx="72" cy="-360" r="5"/>
+<circle class="cone" cx="96" cy="-360" r="5"/>
+<circle class="cone" cx="120" cy="-360" r="5"/>
+<circle class="cone" cx="144" cy="-360" r="5"/>
+<circle class="cone" cx="168" cy="-360" r="5"/>
+<circle class="cone" cx="192" cy="-360" r="5"/>
+<circle class="cone" cx="216" cy="-360" r="5"/>
+<circle class="cone" cx="240" cy="-360" r="5"/>
+<circle class="cone" cx="264" cy="-360" r="5"/>
+<circle class="cone" cx="288" cy="-360" r="5"/>
+<circle class="cone" cx="-288" cy="-120" r="5"/>
+<circle class="cone" cx="-264" cy="-120" r="5"/>
+<circle class="cone" cx="-240" cy="-120" r="5"/>
+<circle class="cone" cx="-216" cy="-120" r="5"/>
+<circle class="cone" cx="-192" cy="-120" r="5"/>
+<circle class="cone" cx="-168" cy="-120" r="5"/>
+<circle class="cone" cx="-144" cy="-120" r="5"/>
+<circle class="cone" cx="-120" cy="-120" r="5"/>
+<circle class="cone" cx="-96" cy="-120" r="5"/>
+<circle class="cone" cx="-72" cy="-120" r="5"/>
+<circle class="cone" cx="-48" cy="-120" r="5"/>
+<circle class="cone" cx="-24" cy="-120" r="5"/>
+<circle class="cone" cx="0" cy="-120" r="5"/>
+<circle class="cone" cx="24" cy="-120" r="5"/>
+<circle class="cone" cx="48" cy="-120" r="5"/>
+<circle class="cone" cx="72" cy="-120" r="5"/>
+<circle class="cone" cx="168" cy="-120" r="5"/>
+<circle class="cone" cx="192" cy="-120" r="5"/>
+<circle class="cone" cx="216" cy="-120" r="5"/>
+<circle class="cone" cx="240" cy="-120" r="5"/>
+<circle class="cone" cx="264" cy="-120" r="5"/>
+<circle class="cone" cx="288" cy="-120" r="5"/>
+<circle class="cone" cx="-288" cy="120" r="5"/>
+<circle class="cone" cx="-264" cy="120" r="5"/>
+<circle class="cone" cx="-240" cy="120" r="5"/>
+<circle class="cone" cx="-216" cy="120" r="5"/>
+<circle class="cone" cx="-192" cy="120" r="5"/>
+<circle class="cone" cx="-168" cy="120" r="5"/>
+<circle class="cone" cx="-144" cy="120" r="5"/>
+<circle class="cone" cx="-24" cy="120" r="5"/>
+<circle class="cone" cx="0" cy="120" r="5"/>
+<circle class="cone" cx="24" cy="120" r="5"/>
+<circle class="cone" cx="48" cy="120" r="5"/>
+<circle class="cone" cx="72" cy="120" r="5"/>
+<circle class="cone" cx="96" cy="120" r="5"/>
+<circle class="cone" cx="120" cy="120" r="5"/>
+<circle class="cone" cx="144" cy="120" r="5"/>
+<circle class="cone" cx="168" cy="120" r="5"/>
+<circle class="cone" cx="192" cy="120" r="5"/>
+<circle class="cone" cx="216" cy="120" r="5"/>
+<circle class="cone" cx="240" cy="120" r="5"/>
+<circle class="cone" cx="264" cy="120" r="5"/>
+<circle class="cone" cx="288" cy="120" r="5"/>
+<circle class="cone" cx="30" cy="488" r="5"/>
+<circle class="cone" cx="90" cy="488" r="5"/>
+<polygon class="wall" points="312,712 312,700 -312,700 -312,712"/>
+<polygon class="wall" points="312,-700 312,-712 -312,-712 -312,-700"/>
+<polygon class="wall" points="312,700 312,-700 300,-700 300,700"/>
+<polygon class="wall" points="-300,700 -300,-700 -312,-700 -312,700"/>
+<polygon class="car" fill="#e8e8e8" points="19,602 19,518 -19,518 -19,602"/><polyline class="glass" points="-16,584 16,584"/>
+<polygon class="car" fill="#8a8f98" points="101,518 101,602 139,602 139,518"/><polyline class="glass" points="136,536 104,536"/>
+<polygon class="car" fill="#c8322b" points="-41,602 -41,518 -79,518 -79,602"/><polyline class="glass" points="-76,584 -44,584"/>
+<polygon class="start" points="19,-558 19,-642 -19,-642 -19,-558"/>
+<polyline class="startarrow" points="0,-633.6 0,-566.4"/><polygon class="startarrowf" points="0,-566.4 -12.1,-585.22 12.1,-585.22"/>
+</svg>

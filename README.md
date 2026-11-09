@@ -50,9 +50,12 @@ npm run lint         # ESLint (typescript-eslint)
 npm run format       # Prettier, rewrite files
 npm run format:check # Prettier, check only
 npm run validate     # level geometry and car physics checks (scripts/validate.ts)
+npm run maps         # regenerate docs/LEVELS.md and docs/maps/*.svg from src/levels.ts
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate and build on every push to `main` and on pull requests.
+
+Every level's layout is documented, with a top-down map, in [docs/LEVELS.md](docs/LEVELS.md). It is generated: after changing `src/levels.ts` run `npm run maps` and commit the result (`npm run validate` fails when it is out of date).
 
 The build uses `base: './'`, so `dist/` can be served from any sub-path.
 
