@@ -96,3 +96,58 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x -12, z -15, heading 90° |
 
 ![Rush Hour](maps/rush-hour.svg)
+
+## 7. Up One Floor
+
+> Drive up the ramp to level 1, then pull forwards into the glowing bay and stop.
+
+| | |
+| --- | --- |
+| Id | `up-one-floor` |
+| Lot | 20 × 66 m |
+| Time limit | 75 s |
+| Star times | 3 stars ≤ 36 s, 2 stars ≤ 55 s, 1 star within 75 s |
+| Target bay | x 3, z 26, 3 × 5.6 m, facing 0°, floor `upper` (nose must point that way) |
+| Start pose | x 0, z -28, heading 0° |
+
+![Up One Floor, floor ground](maps/up-one-floor-ground.svg)
+
+![Up One Floor, floor upper](maps/up-one-floor-upper.svg)
+
+## 8. Basement
+
+> Down the ramp into the dark. Reverse into the bay between the two cars.
+
+| | |
+| --- | --- |
+| Id | `basement` |
+| Lot | 20 × 66 m |
+| Time limit | 105 s |
+| Star times | 3 stars ≤ 52 s, 2 stars ≤ 80 s, 1 star within 105 s |
+| Target bay | x 1, z 29, 3 × 5.6 m, facing 180°, floor `basement` (nose must point that way) |
+| Start pose | x 0, z -28, heading 0° |
+
+![Basement, floor ground](maps/basement-ground.svg)
+
+![Basement, floor basement](maps/basement-basement.svg)
+
+## 9. Spiral
+
+> Keep a steady curve all the way up the spiral. The free bay is on the top deck.
+
+| | |
+| --- | --- |
+| Id | `spiral` |
+| Lot | 44 × 44 m |
+| Time limit | 320 s |
+| Star times | 3 stars ≤ 160 s, 2 stars ≤ 240 s, 1 star within 320 s |
+| Target bay | x 13, z 12.2, 3 × 5.6 m, facing 0°, floor `top` (nose must point that way) |
+| Start pose | x 15.62, z -10.58, heading 337.5° |
+
+![Spiral, floor ground](maps/spiral-ground.svg)
+
+![Spiral, floor level-1](maps/spiral-level-1.svg)
+
+![Spiral, floor level-2](maps/spiral-level-2.svg)
+
+![Spiral, floor top](maps/spiral-top.svg)

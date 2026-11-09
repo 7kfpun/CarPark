@@ -129,6 +129,65 @@ for (const [i, lvl] of LEVELS.entries()) {
 const levelNames = new Set(LEVELS.map((l) => l.id));
 for (const name of Object.keys(SOLUTIONS)) check(levelNames.has(name), `solution for unknown level "${name}"`);
 
+console.log('Multi-storey levels');
+{
+  const byId = (id: string): LevelDef => LEVELS.find((l) => l.id === id)!;
+  const up = byId('up-one-floor');
+  const down = byId('basement');
+  const spiral = byId('spiral');
+  check(
+    up.target.floor === 'upper' && up.floors!.find((f) => f.id === 'upper')!.y > 0,
+    'Up One Floor: the bay is on a higher floor',
+  );
+  check(
+    !up.bothWays && !down.bothWays,
+    'Up One Floor parks forwards and Basement reverses in, so the nose direction counts',
+  );
+  check(
+    down.floors!.some((f) => f.id === down.target.floor && f.y < 0),
+    'Basement: the bay is below ground',
+  );
+  check(
+    down.obstacles.filter((o) => o.kind === 'car' && o.floor === 'basement' && Math.abs(o.z - down.target.z) < 1)
+      .length >= 2,
+    'Basement: the bay sits among parked cars',
+  );
+  check(
+    down.obstacles.some((o) => o.kind === 'pillar' && o.floor === 'basement'),
+    'Basement has pillars',
+  );
+
+  // Spiral: 8 straight segments a turn, three storeys up, the bay on the top deck near the ramp exit.
+  const sf = new Surfaces(spiral);
+  const storeys = spiral.floors!.filter((f) => !f.landing);
+  check(spiral.ramps!.length === 24, `Spiral: 8 ramp segments a turn for 3 turns (got ${spiral.ramps!.length})`);
+  check(storeys.length === 4 && sf.floorHeight('top') === 9, 'Spiral: ground plus three storeys above it');
+  check(spiral.target.floor === 'top', 'Spiral: the free bay is on the top deck');
+  const exit = spiral.ramps![23];
+  const exitEnd = { x: exit.x + (Math.sin(exit.rot) * exit.l) / 2, z: exit.z + (Math.cos(exit.rot) * exit.l) / 2 };
+  check(
+    Math.hypot(spiral.target.x - exitEnd.x, spiral.target.z - exitEnd.z) < 14,
+    'Spiral: the bay is near the ramp exit',
+  );
+  check(
+    spiral.ramps!.every((r) => sf.rampSlope(r) < RAMP_MAX_SLOPE / 2),
+    'Spiral: a gentle slope all the way round',
+  );
+
+  // The curve has to be forgiving: a steady steer a few percent either side of the scripted 0.5 still reaches the top.
+  for (const steer of [0.48, 0.52]) {
+    const obs = levelObstacles(spiral, sf);
+    const car = new CarPhysics();
+    car.reset(spiral.spawn.x, spiral.spawn.z, spiral.spawn.rot, sf);
+    let touched = 0;
+    for (let k = 0; k < Math.round(100 / STEP) && car.layer !== 'top'; k++) {
+      car.step(STEP, { throttle: 1, steer: k < Math.round(6 / STEP) ? 0 : steer, handbrake: false }, sf);
+      if (isTouch(car.resolveCollisions(car.reachable(sf, obs)), TOUCH_MIN_SPEED)) touched++;
+    }
+    check(car.layer === 'top' && touched === 0, `Spiral: steer ${steer} should reach the top without a touch`);
+  }
+}
+
 console.log('Solution checker');
 {
   // The checker itself must reject bad inputs, or CI would pass vacuously.
@@ -209,6 +268,24 @@ console.log('Multi-storey view helpers');
   check(floorHud(two, 'ramp', 2.9).pill === '🅿 Floor 1', 'a ramp near the top counts as the upper floor');
   check(floorHud(two, 'deep', -3.5).dir === 'up', 'target above a basement car: up');
 
+  // A landing between ramp segments is a surface, not a storey: it gets no number and never counts as 'the floor you are on'.
+  const withLanding: LevelDef = {
+    ...two,
+    floors: [
+      two.floors![0],
+      { id: 'step', y: 1.5, area: [{ x: 0, z: 0, hw: 3, hl: 3, rot: 0 }], landing: true },
+      two.floors![1],
+    ],
+  };
+  check(floorLabel(withLanding, 'upper') === '1', 'a landing does not take a floor number');
+  check(
+    floorHud(withLanding, 'step', 1.5).pill === '🅿 Ground',
+    'standing on a landing counts as the nearest storey (nearer ground)',
+  );
+  check(
+    floorHud(withLanding, 'step', 2.2).pill === '🅿 Floor 1',
+    'standing on a landing counts as the nearest storey (nearer top)',
+  );
   check(ceilingAbove(two, 0, 25, 3.5) === null, 'nothing above the upper deck');
   check(Math.abs((ceilingAbove(two, 0, 25, 0) ?? 99) - 3.2) < 1e-9, 'under the upper deck: ceiling at its underside');
   check(ceilingAbove(two, 0, -15, 0) === null, 'ground at z -15 is open (the upper deck is at z 15..35)');
@@ -426,6 +503,7 @@ console.log('Floors and ramps');
 
   // Flat levels: no floors declared, so physics, obstacles and parking are as before.
   for (const [i, flat] of LEVELS.entries()) {
+    if (flat.floors) continue; // multi-storey levels have their own checks above and in levelChecks
     const fs = new Surfaces(flat);
     const lo = levelObstacles(flat, fs);
     const plain = allObstacles(flat).map(obstacleOBB);

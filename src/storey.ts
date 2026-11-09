@@ -12,9 +12,9 @@ export const CAM_MARGIN = 0.35;
 /** Closest the chase camera may get to the car before it gives up pulling in (m). */
 export const CAM_MIN_DIST = 1.6;
 
-/** Floors sorted from the lowest. */
+/** Storeys sorted from the lowest (landings between ramp segments are not storeys). */
 function sorted(floors: FloorDef[]): FloorDef[] {
-  return [...floors].sort((a, b) => a.y - b.y);
+  return floors.filter((f) => !f.landing).sort((a, b) => a.y - b.y);
 }
 
 /** Short floor name: 'G' for the ground floor, '1', '2' above it, 'B1', 'B2' below. */
@@ -36,7 +36,7 @@ export function rampSignText(def: LevelDef, toId: string, up: boolean): string {
 
 /** The floor the car is on; a ramp counts as the floor it is nearer to. */
 export function floorOfLayer(def: LevelDef, layer: string, y: number): string {
-  const floors = def.floors ?? [];
+  const floors = (def.floors ?? []).filter((f) => !f.landing);
   if (floors.some((f) => f.id === layer)) return layer;
   let best = floors[0]?.id ?? DEFAULT_FLOOR;
   let bestD = Infinity;
