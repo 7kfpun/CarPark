@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -640 680 1280" width="680" height="1280" role="img" aria-label="Bus Bay">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-640" width="680" height="1280"/>
+<polygon class="floor" points="300,600 300,-600 -300,-600 -300,600"/>
+<polygon class="target" points="202,124 202,-124 118,-124 118,124"/>
+<polyline class="targetarrow" points="160,-35 160,35"/><polygon class="targetarrowf" points="160,35 147.4,15.4 172.6,15.4"/>
+<polygon class="wall" points="211,580 211,-580 201,-580 201,580"/>
+<polygon class="wall" points="185.5,-180 185.5,-390 134.5,-390 134.5,-180"/>
+<polygon class="wall" points="185.5,370 185.5,160 134.5,160 134.5,370"/>
+<polygon class="wall" points="312,612 312,600 -312,600 -312,612"/>
+<polygon class="wall" points="312,-600 312,-612 -312,-612 -312,-600"/>
+<polygon class="wall" points="312,600 312,-600 300,-600 300,600"/>
+<polygon class="wall" points="-300,600 -300,-600 -312,-600 -312,600"/>
+<polygon class="start" points="65.5,-375 65.5,-585 14.5,-585 14.5,-375"/>
+<polyline class="startarrow" points="40,-564 40,-396"/><polygon class="startarrowf" points="40,-396 9.76,-443.04 70.24,-443.04"/>
+</svg>

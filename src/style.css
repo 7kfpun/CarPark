@@ -100,13 +100,9 @@ button:focus-visible {
   backdrop-filter: blur(6px);
 }
 
-#hud-timer.warn {
+#hud-timer.warn,
+#hud-floor.warn {
   color: var(--bad);
-}
-
-.hearts {
-  color: #ff6b6b;
-  letter-spacing: 2px;
 }
 
 .gear {
@@ -130,8 +126,8 @@ button:focus-visible {
 }
 
 .icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: var(--panel);
@@ -253,7 +249,7 @@ button:focus-visible {
 }
 
 body:has(#touch:not(.hidden)) .gear {
-  bottom: calc(116px + env(safe-area-inset-bottom));
+  bottom: calc(var(--wheel) + 28px + env(safe-area-inset-bottom));
 }
 
 .touch-group {
@@ -263,89 +259,158 @@ body:has(#touch:not(.hidden)) .gear {
   pointer-events: auto;
 }
 
-/* Analog steering pad: drag left / right from where the thumb lands. */
-#t-steer {
+/* Cockpit: a drawn wheel to drag round and two pedals, sized from the viewport. */
+/* Cockpit sizes, shared with the gear pill that sits above it. */
+:root {
+  --wheel: clamp(112px, min(36vw, 38vh), 220px);
+  --pedal-h: clamp(96px, min(26vw, 34vh), 170px);
+}
+
+#touch.wheel-right {
+  flex-direction: row-reverse;
+}
+
+body[data-input='keys'] #touch,
+body[data-input='pad'] #touch {
+  display: none;
+}
+
+body[data-input='keys'] .gear,
+body[data-input='pad'] .gear {
+  bottom: 12px;
+}
+
+#t-wheel {
   position: relative;
-  width: clamp(176px, 46vw, 280px);
-  height: 92px;
-  border-radius: 46px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 30, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: var(--wheel);
+  height: var(--wheel);
+  border-radius: 50%;
   cursor: grab;
 }
 
-#t-steer .track {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 6px;
-  word-spacing: 34px;
+#t-wheel .wheel-rot {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1);
   pointer-events: none;
 }
 
-#t-steer .knob {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 64px;
-  height: 64px;
-  margin: -32px 0 0 -32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-  transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1);
+#t-wheel .rim {
+  stroke-width: 9;
+  stroke: rgba(30, 36, 48, 0.78);
 }
 
-#t-steer.active {
-  border-color: rgba(255, 184, 28, 0.85);
-  cursor: grabbing;
+#t-wheel .spokes {
+  stroke-width: 7;
+  stroke: rgba(30, 36, 48, 0.78);
 }
 
-#t-steer.active .knob {
-  background: rgba(255, 184, 28, 0.95);
+#t-wheel .hub {
+  fill: rgba(30, 36, 48, 0.9);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 2;
+}
+
+#t-wheel .mark {
+  stroke-width: 7;
+  stroke: #ffb81c;
+}
+
+#t-wheel.active .wheel-rot {
   transition: none;
 }
 
-.pedals {
-  display: flex;
-  flex-direction: column;
+#t-wheel.active .rim {
+  stroke: rgba(70, 60, 30, 0.85);
+}
+
+#t-wheel .wheel-lock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+.pedal-group {
+  align-items: flex-end;
   gap: 12px;
+  position: relative;
+}
+
+#t-brake,
+#t-accel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(rgba(70, 76, 90, 0.8), rgba(24, 28, 38, 0.8));
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.7);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+
+#t-brake {
+  width: clamp(72px, 20vw, 120px);
+  height: calc(var(--pedal-h) * 0.55);
+}
+
+#t-accel {
+  width: clamp(48px, 14vw, 80px);
+  height: var(--pedal-h);
+}
+
+#t-brake.active,
+#t-accel.active {
+  transform: translateY(5px) scaleY(0.95);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  background: linear-gradient(rgba(255, 184, 28, 0.85), rgba(200, 130, 10, 0.85));
+  color: #1a1a1a;
+}
+
+#t-accel.reverse.active {
+  background: linear-gradient(rgba(255, 110, 90, 0.9), rgba(190, 60, 50, 0.9));
+}
+
+#touch button.gear-toggle {
+  position: absolute;
+  right: 0;
+  top: -52px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+#touch.wheel-right button.gear-toggle {
+  right: auto;
+  left: 0;
+}
+
+#touch button.gear-toggle.reverse {
+  background: rgba(255, 110, 90, 0.85);
 }
 
 #touch button {
-  width: 76px;
-  height: 76px;
-  border-radius: 20px;
   border: 2px solid rgba(255, 255, 255, 0.25);
   background: rgba(18, 22, 30, 0.55);
-  font-size: 28px;
-}
-
-#touch button.small {
-  width: 64px;
-  height: 64px;
-  font-size: 20px;
-  font-weight: 800;
-}
-
-#touch button.active {
-  background: rgba(255, 184, 28, 0.75);
-}
-
-/* Narrow portrait phones: trim a little so steer pad + pedals fit side by side. */
-@media (max-width: 380px) {
-  #touch button {
-    width: 70px;
-    height: 70px;
-  }
-
-  #t-steer {
-    width: calc(100vw - 190px - env(safe-area-inset-left) - env(safe-area-inset-right));
-    min-width: 150px;
-  }
 }
 
 /* ---------- Screens ---------- */
@@ -447,6 +512,12 @@ h2 {
   letter-spacing: 2px;
 }
 
+.level-btn .best {
+  font-size: clamp(12px, 3.2vmin, 13px);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .stars {
   font-size: clamp(28px, 9vmin, 38px);
 }
@@ -455,6 +526,13 @@ h2 {
   margin-top: 14px;
   color: var(--accent);
   font-weight: 700;
+}
+
+#menu-version {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .controls {
@@ -503,6 +581,41 @@ kbd {
 }
 
 #modal-buttons button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+#update-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px 8px 16px;
+  border-radius: 14px;
+  background: rgba(20, 24, 30, 0.92);
+  color: var(--text);
+  font-weight: 600;
+}
+
+#update-banner button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+#update-banner button.primary {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
+#update-banner button:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
@@ -568,6 +681,15 @@ kbd {
   padding: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.setting-row.wrap {
+  flex-wrap: wrap;
+}
+
+.seg.wrap {
+  flex-wrap: wrap;
+  border-radius: 24px;
 }
 
 .seg button {
@@ -644,4 +766,88 @@ kbd {
   :root {
     --mirror-top: calc(100px + var(--safe-t));
   }
+}
+
+/* ---------- Loading screen ---------- */
+#loading {
+  z-index: 10;
+}
+
+#loading .panel {
+  text-align: center;
+  min-width: min(260px, 100%);
+}
+
+#loading-text {
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+
+#loading .bar {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+#loading-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ffe14d, var(--good));
+  transition: width 0.15s;
+}
+
+#admin-bar {
+  position: fixed;
+  top: calc(60px + var(--safe-t));
+  left: calc(16px + var(--safe-l));
+  z-index: 50;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#admin-bar.hidden,
+#admin-bar .hidden {
+  display: none;
+}
+#admin-bar button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #d92b2b;
+  color: #fff;
+  font:
+    700 14px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.06em;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+#admin-bar button:disabled {
+  opacity: 0.4;
+}
+#admin-bar button#admin-badge[aria-pressed='false'] {
+  background: #7a2a2a;
+}
+
+#error-banner {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(120, 20, 20, 0.95);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+#error-banner.hidden {
+  display: none;
 }

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-240 -700 480 1400" width="480" height="1400" role="img" aria-label="Basement ground floor">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-240" y="-700" width="480" height="1400"/>
+<polygon class="floor" points="200,-60 200,-660 -200,-660 -200,-60"/>
+<polygon class="floor" points="-56,280 -56,-60 -200,-60 -200,280"/>
+<polygon class="floor" points="200,280 200,-60 56,-60 56,280"/>
+<polygon class="floor" points="200,660 200,280 -200,280 -200,660"/>
+<polygon class="ramp" points="50,280 50,-60 -50,-60 -50,280"/>
+<polyline class="ramparrow" points="0,229 0,-9"/><polygon class="ramparrowf" points="0,-9 42.84,57.64 -42.84,57.64"/>
+<text class="label" x="0" y="110" text-anchor="middle">ramp down</text>
+<polygon class="wall" points="206,-60 206,-660 200,-660 200,-60"/>
+<polygon class="wall" points="-200,-60 -200,-660 -206,-660 -206,-60"/>
+<polygon class="wall" points="-50,-54 -50,-60 -55,-60 -55,-54"/>
+<polygon class="wall" points="55,-54 55,-60 50,-60 50,-54"/>
+<polygon class="wall" points="200,-660 200,-666 -200,-666 -200,-660"/>
+<polygon class="wall" points="-50,280 -50,-60 -56,-60 -56,280"/>
+<polygon class="wall" points="-200,280 -200,-60 -206,-60 -206,280"/>
+<polygon class="wall" points="206,280 206,-60 200,-60 200,280"/>
+<polygon class="wall" points="56,280 56,-60 50,-60 50,280"/>
+<polygon class="wall" points="206,660 206,280 200,280 200,660"/>
+<polygon class="wall" points="-200,660 -200,280 -206,280 -206,660"/>
+<polygon class="wall" points="200,666 200,660 -200,660 -200,666"/>
+<polygon class="wall" points="-50,280 -50,274 -55,274 -55,280"/>
+<polygon class="wall" points="55,280 55,274 50,274 50,280"/>
+<polygon class="wall" points="-50,280 -50,-60 -56,-60 -56,280"/>
+<polygon class="wall" points="56,280 56,-60 50,-60 50,280"/>
+<polygon class="start" points="19,-518 19,-602 -19,-602 -19,-518"/>
+<polyline class="startarrow" points="0,-593.6 0,-526.4"/><polygon class="startarrowf" points="0,-526.4 -12.1,-545.22 12.1,-545.22"/>
+</svg>

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 import type { Quality } from './graphics';
 
@@ -13,6 +14,7 @@ export function mirrorRendersScene(q: Quality, frame: number): boolean {
 }
 
 interface Target {
+  y: number;
   x: number;
   z: number;
   heading: number;
@@ -24,6 +26,8 @@ interface Target {
  * covered by the #mirror frame element.
  */
 export class RearMirror {
+  /** Where the mirror's eye sits on the vehicle. */
+  vehicle: VehicleDef = vehicleOf();
   readonly el = document.getElementById('mirror')!;
   private readonly camera = new THREE.PerspectiveCamera(24, 3.6, 0.1, 160);
   private readonly target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -59,11 +63,12 @@ export class RearMirror {
     const rect = this.el.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
 
-    // Camera above the rear of the roof, looking back and slightly down.
+    // Camera above the rear of the roof (the vehicle's own eye point), looking back and slightly down.
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    this.camera.position.set(car.x - fx * 0.7, 1.75, car.z - fz * 0.7);
-    this.camera.lookAt(car.x - fx * 20, 0.9, car.z - fz * 20);
+    const { eyeBack, eyeHeight } = this.vehicle;
+    this.camera.position.set(car.x - fx * eyeBack, car.y + eyeHeight, car.z - fz * eyeBack);
+    this.camera.lookAt(car.x - fx * 20, car.y + eyeHeight - 0.85, car.z - fz * 20);
     this.camera.aspect = rect.width / rect.height;
     this.camera.updateProjectionMatrix();
 

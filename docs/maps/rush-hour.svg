@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-380 -480 760 960" width="760" height="960" role="img" aria-label="Rush Hour">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-380" y="-480" width="760" height="960"/>
+<polygon class="floor" points="340,440 340,-440 -340,-440 -340,440"/>
+<polyline class="bay" points="-268,304 -268,416 -212,416 -212,304"/>
+<polyline class="bay" points="-208,304 -208,416 -152,416 -152,304"/>
+<polyline class="bay" points="-148,304 -148,416 -92,416 -92,304"/>
+<polyline class="bay" points="-88,304 -88,416 -32,416 -32,304"/>
+<polyline class="bay" points="-28,304 -28,416 28,416 28,304"/>
+<polyline class="bay" points="32,304 32,416 88,416 88,304"/>
+<polyline class="bay" points="92,304 92,416 148,416 148,304"/>
+<polyline class="bay" points="152,304 152,416 208,416 208,304"/>
+<polyline class="bay" points="212,304 212,416 268,416 268,304"/>
+<polygon class="target" points="-88,304 -88,416 -32,416 -32,304"/>
+<polyline class="targetarrow" points="-60,395 -60,325"/><polygon class="targetarrowf" points="-60,325 -47.4,344.6 -72.6,344.6"/>
+<polygon class="wall" points="140,-116 140,-124 -340,-124 -340,-116"/>
+<polygon class="wall" points="340,124 340,116 -140,116 -140,124"/>
+<polygon class="pillar" points="48,-22 48,-38 32,-38 32,-22"/>
+<polygon class="pillar" points="-52,38 -52,22 -68,22 -68,38"/>
+<circle class="cone" cx="240" cy="-200" r="5"/>
+<circle class="cone" cx="-240" cy="40" r="5"/>
+<polygon class="wall" points="352,452 352,440 -352,440 -352,452"/>
+<polygon class="wall" points="352,-440 352,-452 -352,-452 -352,-440"/>
+<polygon class="wall" points="352,440 352,-440 340,-440 340,440"/>
+<polygon class="wall" points="-340,440 -340,-440 -352,-440 -352,440"/>
+<polygon class="car" fill="#2f6fde" points="-221,402 -221,318 -259,318 -259,402"/><polyline class="glass" points="-256,384 -224,384"/>
+<polygon class="car" fill="#e8e8e8" points="-199,318 -199,402 -161,402 -161,318"/><polyline class="glass" points="-164,336 -196,336"/>
+<polygon class="car" fill="#8a8f98" points="-101,402 -101,318 -139,318 -139,402"/><polyline class="glass" points="-136,384 -104,384"/>
+<polygon class="car" fill="#c8322b" points="-19,318 -19,402 19,402 19,318"/><polyline class="glass" points="16,336 -16,336"/>
+<polygon class="car" fill="#2e8b57" points="79,402 79,318 41,318 41,402"/><polyline class="glass" points="44,384 76,384"/>
+<polygon class="car" fill="#222428" points="101,318 101,402 139,402 139,318"/><polyline class="glass" points="136,336 104,336"/>
+<polygon class="car" fill="#7a4fd0" points="199,402 199,318 161,318 161,402"/><polyline class="glass" points="164,384 196,384"/>
+<polygon class="car" fill="#1fa3b5" points="221,318 221,402 259,402 259,318"/><polyline class="glass" points="256,336 224,336"/>
+<polygon class="car" fill="#2f6fde" points="-118,-259 -202,-259 -202,-221 -118,-221"/><polyline class="glass" points="-136,-224 -136,-256"/>
+<polygon class="car" fill="#e8e8e8" points="38,-341 122,-341 122,-379 38,-379"/><polyline class="glass" points="56,-376 56,-344"/>
+<polygon class="start" points="-198,-319 -282,-319 -282,-281 -198,-281"/>
+<polyline class="startarrow" points="-273.6,-300 -206.4,-300"/><polygon class="startarrowf" points="-206.4,-300 -225.22,-287.9 -225.22,-312.1"/>
+</svg>

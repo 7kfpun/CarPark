@@ -14,6 +14,50 @@ export interface ObstacleDef {
   color?: number;
   /** Parked cars: which car model to show (index into the model list). */
   variant?: number;
+  /** Floor or ramp id this obstacle stands on. Defaults to the first floor. */
+  floor?: string;
+}
+
+/** An obstacle's footprint plus the floor or ramp it is on. */
+export interface LayeredOBB extends OBB {
+  layer: string;
+}
+
+/** Id of the implicit floor of a level that declares no floors. */
+export const DEFAULT_FLOOR = 'ground';
+
+/** A storey: its height and outline (a union of boxes). */
+export interface FloorDef {
+  id: string;
+  y: number;
+  area: OBB[];
+  /**
+   * A landing joins two ramp segments of a curved ramp (a spiral): a surface to
+   * stand on, but not a storey the player counts, so it gets no floor number.
+   */
+  landing?: boolean;
+}
+
+/**
+ * A ramp joining two floors. Its local +z axis runs from the `from` floor
+ * (at -l/2, height of that floor) to the `to` floor (at +l/2).
+ */
+export interface RampDef {
+  id: string;
+  from: string;
+  to: string;
+  x: number;
+  z: number;
+  rot: number;
+  w: number;
+  l: number;
+}
+
+/** A painted road arrow pointing along `rot` (the same heading convention as a car). */
+export interface ArrowDef {
+  x: number;
+  z: number;
+  rot: number;
 }
 
 /** A parking bay. rot is the heading the car must face when parked. */
@@ -23,9 +67,19 @@ export interface BayDef {
   rot: number;
   w: number;
   l: number;
+  /** Floor the car must be on to park here. Defaults to the first floor. */
+  floor?: string;
+}
+
+/** Seconds to finish in for 3 stars and for 2 stars (0 < three < two < time). */
+export interface StarTimes {
+  three: number;
+  two: number;
 }
 
 export interface LevelDef {
+  /** Permanent id (kebab-case). Saved progress is keyed by it, so never change or reuse one. */
+  id: string;
   name: string;
   hint: string;
   lot: { w: number; l: number };
@@ -33,11 +87,23 @@ export interface LevelDef {
   target: BayDef;
   /** If true the car may face either way inside the bay. */
   bothWays: boolean;
+  /** Time limit in seconds. Finishing within it earns at least 1 star. */
   time: number;
-  par: number;
+  /** Star thresholds in seconds; see `starsForTime`. */
+  stars: StarTimes;
   obstacles: ObstacleDef[];
   /** Decorative painted bays (lines on three sides, closed at local +z). */
   bays?: BayDef[];
+  /** Storeys. Omitted for a flat level: one floor at y = 0 covering the lot. */
+  floors?: FloorDef[];
+  /** Lighting: `dusk` is a low orange sun, a dim sky and long shadows. Defaults to `day`. */
+  theme?: 'day' | 'dusk';
+  /** Id of the vehicle the player drives (src/vehicles.ts). Defaults to the hatchback. */
+  vehicle?: string;
+  /** Painted one-way arrows on the asphalt (decorative: they show the way to drive, they do not block you). */
+  arrows?: ArrowDef[];
+  /** Ramps joining floors. Their side kerbs and the floor-edge kerbs are generated. */
+  ramps?: RampDef[];
 }
 
 export function obstacleDims(o: ObstacleDef): { w: number; l: number; h: number } {

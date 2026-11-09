@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -440 680 880" width="680" height="880" role="img" aria-label="Loading Dock">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-440" width="680" height="880"/>
+<polygon class="floor" points="300,400 300,-400 -300,-400 -300,400"/>
+<polygon class="target" points="-34,232 -34,400 34,400 34,232"/>
+<polyline class="targetarrow" points="0,351 0,281"/><polygon class="targetarrowf" points="0,281 12.6,300.6 -12.6,300.6"/>
+<polygon class="wall" points="-36,400 -36,232 -42,232 -42,400"/>
+<polygon class="wall" points="42,400 42,232 36,232 36,400"/>
+<polygon class="wall" points="-100,400 -100,232 -260,232 -260,400"/>
+<polygon class="wall" points="260,400 260,232 100,232 100,400"/>
+<circle class="cone" cx="-90" cy="120" r="5"/>
+<circle class="cone" cx="90" cy="120" r="5"/>
+<polygon class="wall" points="312,412 312,400 -312,400 -312,412"/>
+<polygon class="wall" points="312,-400 312,-412 -312,-412 -312,-400"/>
+<polygon class="wall" points="312,400 312,-400 300,-400 300,400"/>
+<polygon class="wall" points="-300,400 -300,-400 -312,-400 -312,400"/>
+<polygon class="start" points="-104,-304 -256,-304 -256,-256 -104,-256"/>
+<polyline class="startarrow" points="-240.8,-280 -119.2,-280"/><polygon class="startarrowf" points="-119.2,-280 -153.25,-258.11 -153.25,-301.89"/>
+</svg>

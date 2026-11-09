@@ -1,10 +1,13 @@
+import { VEHICLES } from './vehicles';
+import { MODEL_TIMEOUT_MS, withTimeout } from './loading';
+import { upgradeCarMaterial } from './materials';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // CC0 car models from Kenney's Car Kit (www.kenney.nl), see public/models/cars/License.txt.
-export const PLAYER_MODEL = 'sedan-sports';
 export const PARKED_MODELS = ['sedan', 'suv', 'hatchback-sports', 'van', 'taxi', 'suv-luxury'] as const;
-const ALL = [PLAYER_MODEL, ...PARKED_MODELS];
+/** Every model file to load: the parked-car set plus those the vehicle table drives. */
+const ALL = [...new Set([...VEHICLES.flatMap((v) => (v.model ? [v.model] : [])), ...PARKED_MODELS])];
 
 export interface WheelTemplate {
   mesh: THREE.Object3D;
@@ -50,10 +53,18 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     MODEL_SHARED.add(mesh.geometry);
-    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-      MODEL_SHARED.add(mat);
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      MODEL_SHARED.add(mat); // the original palette material (Low graphics) ...
       const map = (mat as THREE.MeshStandardMaterial).map;
       if (map) MODEL_SHARED.add(map);
+    }
+    const up = mats.map(upgradeCarMaterial);
+    mesh.material = Array.isArray(mesh.material) ? up : up[0];
+    for (const mat of up) {
+      MODEL_SHARED.add(mat); // ... and the clear-coated one (High), with its control map
+      const m = mat as THREE.MeshPhysicalMaterial;
+      for (const t of [m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t) MODEL_SHARED.add(t);
     }
   });
   return { body, wheels, box };
@@ -63,12 +74,18 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
  * Load every car model. Resolves even if some fail: missing models fall back to
  * the built-in box car, so the game always starts.
  */
-export async function loadCarModels(baseUrl = `${import.meta.env.BASE_URL}models/cars/`): Promise<void> {
-  const loader = new GLTFLoader();
+export async function loadCarModels(
+  baseUrl = `${import.meta.env.BASE_URL}models/cars/`,
+  onProgress?: (loaded: number, total: number) => void,
+  timeoutMs = MODEL_TIMEOUT_MS,
+): Promise<void> {
+  const manager = new THREE.LoadingManager();
+  if (onProgress) manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
+  const loader = new GLTFLoader(manager);
   await Promise.all(
     ALL.map(async (name) => {
       try {
-        const gltf = await loader.loadAsync(`${baseUrl}${name}.glb`);
+        const gltf = await withTimeout(loader.loadAsync(`${baseUrl}${name}.glb`), timeoutMs, `Car model "${name}"`);
         templates.set(name, toTemplate(gltf.scene));
       } catch (err) {
         console.warn(`Car model "${name}" failed to load; using the box car.`, err);

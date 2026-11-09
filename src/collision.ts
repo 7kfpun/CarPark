@@ -37,30 +37,66 @@ function radius(o: OBB, ax: Vec): number {
  * the centres (nearly) coincide along that axis the orientation is ambiguous;
  * then (hx, hz), a preferred push direction for a (e.g. against its motion),
  * decides, falling back to +axis.
+ *
+ * Runs every physics step against every obstacle, so it allocates nothing
+ * unless there is a contact, and boxes whose bounding circles are apart are
+ * rejected before any trigonometry.
  */
 export function sat(a: OBB, b: OBB, hx = 0, hz = 0): Contact | null {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
-  let best: Contact | null = null;
+  // Broad phase: disjoint bounding circles cannot overlap.
+  const reach = Math.hypot(a.hw, a.hl) + Math.hypot(b.hw, b.hl);
+  if (dx * dx + dz * dz > reach * reach) return null;
+
+  const ca = Math.cos(a.rot);
+  const sa = Math.sin(a.rot);
+  const cb = Math.cos(b.rot);
+  const sb = Math.sin(b.rot);
+  let depth = 0;
+  let nx = 0;
+  let nz = 0;
   let bestDist = 0;
-  for (const ax of [...axes(a), ...axes(b)]) {
-    const dist = dx * ax[0] + dz * ax[1];
-    const overlap = radius(a, ax) + radius(b, ax) - Math.abs(dist);
+  let found = false;
+  // Axes in the original order: a.x, a.z, b.x, b.z.
+  for (let i = 0; i < 4; i++) {
+    const ax = i === 0 ? ca : i === 1 ? sa : i === 2 ? cb : sb;
+    const az = i === 0 ? -sa : i === 1 ? ca : i === 2 ? -sb : cb;
+    const dist = dx * ax + dz * az;
+    const ra = a.hw * Math.abs(ca * ax - sa * az) + a.hl * Math.abs(sa * ax + ca * az);
+    const rb = b.hw * Math.abs(cb * ax - sb * az) + b.hl * Math.abs(sb * ax + cb * az);
+    const overlap = ra + rb - Math.abs(dist);
     if (overlap <= 0) return null;
-    if (!best || overlap < best.depth - 1e-9) {
-      best = { depth: overlap, nx: ax[0], nz: ax[1] };
+    if (!found || overlap < depth - 1e-9) {
+      found = true;
+      depth = overlap;
+      nx = ax;
+      nz = az;
       bestDist = dist;
     }
   }
-  if (!best) return null;
   let sign = bestDist >= 0 ? 1 : -1;
   if (Math.abs(bestDist) < 1e-4) {
-    const h = hx * best.nx + hz * best.nz;
+    const h = hx * nx + hz * nz;
     sign = h < 0 ? -1 : 1;
   }
-  best.nx *= sign;
-  best.nz *= sign;
-  return best;
+  return { depth, nx: nx * sign, nz: nz * sign };
+}
+
+/** Parking-sensor bands: [margin around the car (m), beep interval (s)], nearest first. */
+export const SENSOR_BANDS = [
+  [0.25, 0.09],
+  [0.6, 0.22],
+  [1.1, 0.45],
+] as const;
+
+/** Beep interval of the closest sensor band that touches an obstacle, or 0. */
+export function sensorInterval(car: OBB, obstacles: readonly OBB[]): number {
+  for (const [margin, interval] of SENSOR_BANDS) {
+    const e: OBB = { x: car.x, z: car.z, hw: car.hw + margin, hl: car.hl + margin, rot: car.rot };
+    for (const o of obstacles) if (sat(e, o)) return interval;
+  }
+  return 0;
 }
 
 export function corners(o: OBB): Vec[] {

@@ -1,5 +1,9 @@
+import { nextFocusIndex } from './focus';
 import type { LevelDef } from './layout';
-import type { Progress } from './progress';
+import type { FloorHud } from './storey';
+import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
+import { vehicleOf } from './vehicles';
+import { APP_VERSION } from './version';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -21,6 +25,15 @@ function starLabel(n: number, total = 3): string {
   return `${n} of ${total} star${total === 1 ? '' : 's'}`;
 }
 
+/** The star requirement of a level, shown in the intro and pause menu. */
+export function starRequirement(def: LevelDef): string {
+  return `3★ in ${def.stars.three}s or less, 2★ in ${def.stars.two}s or less.`;
+}
+
+export function bestLabel(t: number): string {
+  return `${t.toFixed(1)}s`;
+}
+
 export class Hud {
   private readonly hud = $('hud');
   private readonly menu = $('menu');
@@ -28,7 +41,8 @@ export class Hud {
   private readonly touch = $('touch');
   private readonly level = $('hud-level');
   private readonly timer = $('hud-timer');
-  private readonly hits = $('hud-hits');
+  private readonly floor = $('hud-floor');
+  private floorText = '';
   private readonly gear = $('hud-gear');
   private readonly hint = $('hud-hint');
   private readonly meter = $('park-meter');
@@ -37,28 +51,34 @@ export class Hud {
   private readonly flash = $('flash');
   private readonly live = $('sr-status');
   private hintTimer = 0;
-  private livesLabel = '';
   private parkLabel = '';
   private liveTimer = 0;
 
   readonly touchEnabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
   showMenu(levels: LevelDef[], progress: Progress, onSelect: (i: number) => void): void {
+    $('tagline').textContent = `${levels.length} lots. One bay each. Don't scratch the paint.`;
     const grid = $('level-grid');
     grid.replaceChildren();
     levels.forEach((lvl, i) => {
       const b = document.createElement('button');
       b.className = 'level-btn';
-      const locked = i >= progress.unlocked;
+      const locked = !isUnlocked(progress, lvl.id);
+      const stars = starsFor(progress, lvl.id);
       b.disabled = locked;
-      b.setAttribute('aria-label', `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(progress.stars[i])}`);
-      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(progress.stars[i])}</span>`;
+      const best = bestFor(progress, lvl.id);
+      b.setAttribute(
+        'aria-label',
+        `Level ${i + 1}, ${lvl.name}, ${locked ? 'locked' : starLabel(stars)}${best ? `, best time ${bestLabel(best)}` : ''}`,
+      );
+      b.innerHTML = `<span class="num" aria-hidden="true">${locked ? '🔒' : i + 1}</span><span class="name">${lvl.name}</span><span class="stars" aria-hidden="true">${starString(stars)}</span>${best ? `<span class="best" aria-hidden="true">${bestLabel(best)}</span>` : ''}`;
       b.addEventListener('click', () => onSelect(i));
       grid.appendChild(b);
     });
-    const total = progress.stars.reduce((a, b) => a + b, 0);
+    const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+    $('menu-version').textContent = `v${APP_VERSION}`;
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');
@@ -70,24 +90,29 @@ export class Hud {
     this.hud.classList.remove('hidden');
     this.touch.classList.toggle('hidden', !this.touchEnabled);
     this.level.textContent = `${index + 1}. ${def.name}`;
+    this.floor.classList.toggle('hidden', !def.floors);
+    this.floorText = '';
     this.setPark(null, '');
-    this.showHint(def.hint, 5);
+    this.showHint(`${vehicleOf(def.vehicle).name}: ${def.hint} ${starRequirement(def)}`, 6);
     this.hideModal();
   }
 
-  update(timeLeft: number, hits: number, maxHits: number, speed: number): void {
+  update(timeLeft: number, speed: number): void {
     const t = Math.max(0, Math.ceil(timeLeft));
     this.timer.textContent = `⏱ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     this.timer.classList.toggle('warn', timeLeft < 10);
-    this.hits.textContent = '♥'.repeat(Math.max(0, maxHits - hits)) + '♡'.repeat(Math.min(maxHits, hits));
-    const lives = `${Math.max(0, maxHits - hits)} of ${maxHits} lives left`;
-    if (lives !== this.livesLabel) {
-      this.livesLabel = lives;
-      this.hits.setAttribute('aria-label', lives);
-    }
     const kmh = Math.round(Math.abs(speed) * 3.6);
     this.gear.textContent = `${speed < -0.05 ? 'R' : 'D'} · ${kmh} km/h`;
     this.gear.classList.toggle('reverse', speed < -0.05);
+  }
+
+  /** The floor pill: current floor and, when the bay is on another floor, the way to go. */
+  setFloor(f: FloorHud): void {
+    const text = f.pill ? (f.hint ? `${f.pill} · ${f.hint}` : f.pill) : '';
+    if (text === this.floorText) return;
+    this.floorText = text;
+    this.floor.textContent = text;
+    this.floor.classList.toggle('warn', f.dir !== null);
   }
 
   tick(dt: number): void {
@@ -131,7 +156,7 @@ export class Hud {
     this.flash.classList.add('on');
   }
 
-  showModal(title: string, body: string, stars: number | null, buttons: ModalButton[]): void {
+  showModal(title: string, body: string, stars: number | null, buttons: ModalButton[], focusPrimary = true): void {
     $('modal-title').textContent = title;
     $('modal-body').textContent = body;
     const s = $('modal-stars');
@@ -156,7 +181,23 @@ export class Hud {
     }
     this.modal.classList.remove('hidden');
     this.announce(stars === null ? `${title}. ${body}` : `${title} ${starLabel(stars)}. ${body}`);
-    (row.querySelector('.primary') as HTMLButtonElement | null)?.focus();
+    if (focusPrimary) (row.querySelector('.primary') as HTMLButtonElement | null)?.focus();
+  }
+
+  /** Dismissible "new version" banner. */
+  showUpdateBanner(onUpdate: () => void, onDismiss: () => void): void {
+    const banner = $('update-banner');
+    $('update-go').onclick = onUpdate;
+    $('update-dismiss').onclick = () => {
+      this.hideUpdateBanner();
+      onDismiss();
+    };
+    if (banner.classList.contains('hidden')) this.announce('New version available');
+    banner.classList.remove('hidden');
+  }
+
+  hideUpdateBanner(): void {
+    $('update-banner').classList.add('hidden');
   }
 
   hideModal(): void {
@@ -175,14 +216,13 @@ export class Hud {
   /** Keep keyboard focus inside the open modal; arrows move between its buttons. */
   private trapFocus = (e: KeyboardEvent): void => {
     if (!this.modalOpen) return;
-    const dir = e.key === 'Tab' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    const dir: 0 | 1 | -1 =
+      e.key === 'Tab' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!dir) return;
     const btns = this.modalButtons();
     if (!btns.length) return;
     e.preventDefault();
-    const i = btns.indexOf(document.activeElement as HTMLButtonElement);
-    const next = i < 0 ? (dir > 0 ? 0 : btns.length - 1) : (i + dir + btns.length) % btns.length;
-    btns[next].focus();
+    btns[nextFocusIndex(btns.length, btns.indexOf(document.activeElement as HTMLButtonElement), dir)].focus();
   };
 
   constructor() {

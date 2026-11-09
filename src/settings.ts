@@ -1,4 +1,5 @@
-import type { CamMode } from './camera';
+import { nextFocusIndex } from './focus';
+import { CAM_MODES, parseCamMode, type CamMode } from './views';
 
 export type QualitySetting = 'auto' | 'low' | 'high';
 
@@ -6,13 +7,23 @@ export interface Settings {
   sound: boolean;
   quality: QualitySetting;
   camera: CamMode;
+  /** Switch to the corner (rear) view while reversing. */
+  autoRear: boolean;
   mirror: boolean;
+  wheel: 'left' | 'right';
 }
 
 const KEY = 'car-parking-3d:settings:v1';
 
 export function loadSettings(): Settings {
-  const fresh: Settings = { sound: true, quality: 'auto', camera: 'chase', mirror: true };
+  const fresh: Settings = {
+    sound: true,
+    quality: 'auto',
+    camera: 'chase',
+    autoRear: false,
+    mirror: true,
+    wheel: 'left',
+  };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
@@ -21,8 +32,10 @@ export function loadSettings(): Settings {
     return {
       sound: typeof s.sound === 'boolean' ? s.sound : fresh.sound,
       quality: s.quality === 'low' || s.quality === 'high' || s.quality === 'auto' ? s.quality : fresh.quality,
-      camera: s.camera === 'top' || s.camera === 'chase' ? s.camera : fresh.camera,
+      camera: parseCamMode(s.camera, fresh.camera),
+      autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
+      wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
     };
   } catch {
     return fresh;
@@ -45,10 +58,13 @@ export class SettingsPanel {
   private readonly rows: Choice<keyof Settings>[] = [
     { key: 'sound', values: [true, false] },
     { key: 'quality', values: ['low', 'high', 'auto'] },
-    { key: 'camera', values: ['chase', 'top'] },
+    { key: 'camera', values: [...CAM_MODES] },
+    { key: 'autoRear', values: [true, false] },
     { key: 'mirror', values: [true, false] },
+    { key: 'wheel', values: ['left', 'right'] },
   ];
   private onClose: (() => void) | null = null;
+  private opener: HTMLElement | null = null;
 
   constructor(
     readonly settings: Settings,
@@ -67,6 +83,7 @@ export class SettingsPanel {
         if (!this.isOpen) return;
         e.stopImmediatePropagation();
         if (e.code === 'Escape') this.close();
+        else if (e.key === 'Tab') this.trapTab(e);
       },
       true,
     );
@@ -75,6 +92,16 @@ export class SettingsPanel {
 
   get isOpen(): boolean {
     return !this.root.classList.contains('hidden');
+  }
+
+  /** Keep Tab / Shift+Tab inside the dialog's buttons. */
+  private trapTab(e: KeyboardEvent): void {
+    const btns = [...this.root.querySelectorAll<HTMLButtonElement>('button')];
+    if (!btns.length) return;
+    e.preventDefault();
+    btns[
+      nextFocusIndex(btns.length, btns.indexOf(document.activeElement as HTMLButtonElement), e.shiftKey ? -1 : 1)
+    ].focus();
   }
 
   private button(key: keyof Settings, v: Settings[keyof Settings]): HTMLButtonElement | null {
@@ -101,8 +128,9 @@ export class SettingsPanel {
   }
 
   /** Show the panel; onClose runs once when it is dismissed. */
-  open(onClose: () => void): void {
+  open(onClose: () => void, opener: HTMLElement | null = null): void {
     this.onClose = onClose;
+    this.opener = opener;
     this.refresh();
     this.root.classList.remove('hidden');
     this.root.querySelector<HTMLButtonElement>('button.on')?.focus();
@@ -113,6 +141,9 @@ export class SettingsPanel {
     this.root.classList.add('hidden');
     const cb = this.onClose;
     this.onClose = null;
+    const opener = this.opener;
+    this.opener = null;
+    if (opener?.isConnected) opener.focus();
     cb?.();
   }
 }

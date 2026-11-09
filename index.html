@@ -7,7 +7,7 @@
     <title>Park It 3D</title>
     <meta
       name="description"
-      content="Park It 3D: a browser car-parking game. Six lots, one bay each. Steer, reverse and park without scratching the paint."
+      content="Park It 3D: a browser car-parking game. One bay per lot. Steer, reverse and park without scratching the paint."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -17,32 +17,45 @@
     <meta name="apple-mobile-web-app-title" content="Park It" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Park It 3D" />
-    <meta
-      property="og:description"
-      content="A browser car-parking game. Six lots, one bay each. Don't scratch the paint."
-    />
-    <meta property="og:image" content="/apple-touch-icon.png" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
+    <meta property="og:url" content="https://carpark.wahthefox.com/" />
+    <meta property="og:image" content="https://carpark.wahthefox.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Park It 3D: a white P on a blue parking sign" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Park It 3D" />
-    <meta
-      name="twitter:description"
-      content="A browser car-parking game. Six lots, one bay each. Don't scratch the paint."
-    />
-    <meta name="twitter:image" content="/apple-touch-icon.png" />
+    <meta name="twitter:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
+    <meta name="twitter:image" content="https://carpark.wahthefox.com/og-image.png" />
   </head>
   <body>
     <canvas id="game" role="img" aria-label="Parking lot, 3D view"></canvas>
     <div id="flash" aria-hidden="true"></div>
     <div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
+    <div id="loading" class="screen" role="status" aria-live="polite">
+      <div class="panel small">
+        <p id="loading-text">Loading…</p>
+        <div class="bar" aria-hidden="true"><div id="loading-fill"></div></div>
+      </div>
+    </div>
+
+    <div id="admin-bar" class="hidden">
+      <button id="admin-badge" aria-label="Admin mode: show or hide level skip buttons" aria-pressed="true">
+        ADMIN
+      </button>
+      <button class="admin-skip" id="admin-prev" aria-label="Previous level">◀ Prev</button>
+      <button class="admin-skip" id="admin-next" aria-label="Next level">Next ▶</button>
+    </div>
+
     <div id="hud" class="hidden">
       <div class="hud-top">
         <div class="pill" id="hud-level"></div>
         <div class="pill" id="hud-timer"></div>
-        <div class="pill hearts" id="hud-hits" role="img"></div>
+        <div class="pill hidden" id="hud-floor"></div>
       </div>
       <div class="hud-corner">
-        <button class="icon-btn" id="btn-cam" aria-label="Toggle camera">🎥</button>
+        <button class="icon-btn" id="btn-cam" aria-label="Change camera view">🎥</button>
         <button class="icon-btn" id="btn-pause" aria-label="Pause">⏸</button>
         <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
       </div>
@@ -56,34 +69,50 @@
     </div>
 
     <div id="touch" class="hidden">
-      <div class="touch-group left">
-        <div id="t-steer" aria-label="Steering: drag left or right">
-          <span class="track" aria-hidden="true">◀ &nbsp; ▶</span>
-          <div class="knob" aria-hidden="true"></div>
+      <div class="touch-group wheel-group">
+        <div id="t-wheel" role="img" aria-label="Steering wheel: drag round to steer">
+          <svg class="wheel-rot" viewBox="-50 -50 100 100" aria-hidden="true">
+            <circle r="44" class="rim" />
+            <path d="M-42 4 L-12 4 L0 14 L12 4 L42 4" class="spokes" />
+            <path d="M0 14 L0 42" class="spokes" />
+            <circle r="11" class="hub" />
+            <path d="M-5 -44 H5" class="mark" />
+          </svg>
+          <span class="wheel-lock" aria-hidden="true">0°</span>
         </div>
       </div>
-      <div class="touch-group right">
-        <button id="t-brake" class="small" aria-label="Handbrake">P</button>
-        <div class="pedals">
-          <button id="t-up" aria-label="Accelerate">▲</button>
-          <button id="t-down" aria-label="Brake / reverse">▼</button>
-        </div>
+      <div class="touch-group pedal-group">
+        <button id="t-gear" class="gear-toggle" aria-label="Reverse gear" aria-pressed="false">D</button>
+        <div id="t-brake" role="button" aria-label="Brake"><span aria-hidden="true">BRAKE</span></div>
+        <div id="t-accel" role="button" aria-label="Accelerator"><span aria-hidden="true">GO</span></div>
       </div>
     </div>
 
     <div id="menu" class="screen hidden">
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
-        <p class="tagline">Six lots. One bay each. Don't scratch the paint.</p>
+        <p class="tagline" id="tagline">One bay per lot. Don't scratch the paint.</p>
         <div id="level-grid" role="group" aria-label="Levels"></div>
         <div id="menu-total"></div>
         <button class="settings-open" id="btn-settings-menu">⚙ Settings</button>
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
           <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
-          <div><kbd>C</kbd> camera · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
+          <div><kbd>C</kbd> camera view · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
         </div>
+        <div id="menu-version"></div>
       </div>
+    </div>
+
+    <div id="update-banner" class="hidden" role="status">
+      <span>New version available</span>
+      <button id="update-go" class="primary">Update</button>
+      <button id="update-dismiss" aria-label="Dismiss">✕</button>
+    </div>
+
+    <div id="error-banner" class="hidden" role="alert">
+      <span>Something went wrong.</span>
+      <button id="error-reload" class="primary">Reload</button>
     </div>
 
     <div id="modal" class="screen hidden">
@@ -119,11 +148,21 @@
             <button data-setting="quality" data-value="auto">Auto</button>
           </div>
         </div>
-        <div class="setting-row">
+        <div class="setting-row wrap">
           <span class="setting-label" id="lbl-camera">Camera</span>
-          <div class="seg" role="group" aria-labelledby="lbl-camera">
+          <div class="seg wrap" role="group" aria-labelledby="lbl-camera">
             <button data-setting="camera" data-value="chase">Chase</button>
+            <button data-setting="camera" data-value="cockpit">Cockpit</button>
+            <button data-setting="camera" data-value="hood">Hood</button>
             <button data-setting="camera" data-value="top">Top</button>
+            <button data-setting="camera" data-value="corner">Corner</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-autorear">Rear view when reversing</span>
+          <div class="seg" role="group" aria-labelledby="lbl-autorear">
+            <button data-setting="autoRear" data-value="true">On</button>
+            <button data-setting="autoRear" data-value="false">Off</button>
           </div>
         </div>
         <div class="setting-row">
@@ -131,6 +170,13 @@
           <div class="seg" role="group" aria-labelledby="lbl-mirror">
             <button data-setting="mirror" data-value="true">On</button>
             <button data-setting="mirror" data-value="false">Off</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-wheel">Wheel side</span>
+          <div class="seg" role="group" aria-labelledby="lbl-wheel">
+            <button data-setting="wheel" data-value="left">Left</button>
+            <button data-setting="wheel" data-value="right">Right</button>
           </div>
         </div>
         <button class="settings-done" id="settings-done">Done</button>

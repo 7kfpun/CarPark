@@ -2,19 +2,45 @@
 export class Sfx {
   private ctx: AudioContext | null = null;
   muted = false;
+  private crashBuf: AudioBuffer | null = null;
 
   unlock(): void {
     try {
       this.ctx ??= new AudioContext();
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      this.recover();
     } catch {
       this.ctx = null;
+      this.crashBuf = null;
+    }
+  }
+
+  /** iOS reports 'interrupted' after a call or lock screen; anything not running or closed is resumable. */
+  private recover(): void {
+    const ctx = this.ctx;
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') void ctx.resume();
+  }
+
+  /** Silence everything while the app is in the background. */
+  suspend(): void {
+    try {
+      if (this.ctx?.state === 'running') void this.ctx.suspend();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Undo suspend() when the app returns to the foreground. */
+  resume(): void {
+    try {
+      this.recover();
+    } catch {
+      /* ignore */
     }
   }
 
   private tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, endFreq?: number): void {
     const ctx = this.ctx;
-    if (!ctx || this.muted) return;
+    if (!ctx || this.muted || ctx.state !== 'running') return;
     const t = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -39,13 +65,16 @@ export class Sfx {
 
   crash(): void {
     const ctx = this.ctx;
-    if (!ctx || this.muted) return;
-    const len = Math.floor(ctx.sampleRate * 0.25);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    if (!ctx || this.muted || ctx.state !== 'running') return;
+    if (!this.crashBuf || this.crashBuf.sampleRate !== ctx.sampleRate) {
+      const len = Math.floor(ctx.sampleRate * 0.25);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      this.crashBuf = buf;
+    }
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.crashBuf;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 900;
