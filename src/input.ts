@@ -3,6 +3,16 @@ import type { Controls } from './physics';
 
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
 
+/** True when a Cmd/Ctrl/Alt modifier is held: a browser or OS shortcut, never a drive key. */
+export function isShortcut(e: { ctrlKey: boolean; metaKey: boolean; altKey: boolean }): boolean {
+  return e.ctrlKey || e.metaKey || e.altKey;
+}
+
+/** Meta keyup: macOS swallows the keyup of any key pressed while Cmd is held, so held keys must be dropped. */
+export function isMetaKey(code: string): boolean {
+  return code === 'MetaLeft' || code === 'MetaRight';
+}
+
 /** Keys a focused control activates natively (button click, link follow...). */
 const ACTIVATE_KEYS = new Set(['Enter', 'NumpadEnter', 'Space']);
 
@@ -174,6 +184,8 @@ export class Input {
 
   constructor() {
     addEventListener('keydown', (e) => {
+      // Cmd/Ctrl/Alt combos belong to the browser: don't track them (their keyup may never arrive) or swallow them.
+      if (isShortcut(e)) return;
       const driving = this.driving();
       const focused = isInteractive(e.target);
       if (GAME_KEYS.has(e.code)) this.setSource('keys');
@@ -184,12 +196,15 @@ export class Input {
       } else if (e.code === 'Space' && !focused) {
         e.preventDefault(); // no page scroll; arrows stay free for menu navigation
       }
-      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.repeat) return;
       // A focused button gets its native Enter/Space activation instead of the global action.
       if (!driving && focused && ACTIVATE_KEYS.has(e.code)) return;
       this.actions.get(e.code)?.();
     });
-    addEventListener('keyup', (e) => this.keys.delete(e.code));
+    addEventListener('keyup', (e) => {
+      if (isMetaKey(e.code)) this.keys.clear();
+      else this.keys.delete(e.code);
+    });
     addEventListener('blur', () => this.clear());
     addEventListener('gamepadconnected', () => {
       this.setSource('pad');
@@ -270,6 +285,12 @@ export class Input {
       el.classList.add('active');
     });
     el.addEventListener('pointermove', (e) => {
+      // clear() (pause / finish / restart) drops the grab while the finger still holds capture: re-adopt it.
+      if (this.wheelPointer === null && el.hasPointerCapture(e.pointerId)) {
+        this.wheelPointer = e.pointerId;
+        this.wheelPrev = angleAt(e) ?? 0;
+        el.classList.add('active');
+      }
       if (e.pointerId !== this.wheelPointer) return;
       e.preventDefault();
       const a = angleAt(e);
@@ -306,6 +327,13 @@ export class Input {
       capture(el, e.pointerId);
       pointers.add(e.pointerId);
       el.classList.add('active');
+    });
+    // clear() empties the set while the finger still holds capture: re-adopt it on the next move.
+    el.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId) && el.hasPointerCapture(e.pointerId)) {
+        pointers.add(e.pointerId);
+        el.classList.add('active');
+      }
     });
     const end = (e: PointerEvent) => {
       if (pointers.delete(e.pointerId) && !pointers.size) el.classList.remove('active');

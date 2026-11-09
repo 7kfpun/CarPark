@@ -4,7 +4,8 @@ import type { Segment } from './solution';
  * One scripted solution per level, keyed by LevelDef.id. Each is a list of
  * control segments replayed through CarPhysics at the fixed STEP by
  * `npm run validate`, which fails when a solution no longer parks the car
- * within the level's par time without a bump. A new level needs an entry here,
+ * within the level's 3-star time (`stars.three`), or touches anything (any touch
+ * fails the level). A new level needs an entry here,
  * and a change to car physics or level geometry may need the solutions redone.
  */
 const S = (t: number, throttle: number, steer: number, handbrake = false): Segment => ({
