@@ -3,7 +3,17 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
-import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
+import {
+  holdComplete,
+  PARK_HOLD,
+  CAR_L,
+  CAR_W,
+  MAX_FWD,
+  MAX_REV,
+  RAMP_MAX_SLOPE,
+  STEP,
+  TOUCH_MIN_SPEED,
+} from '../src/config';
 import {
   beatsGhost,
   decodeFrames,
@@ -44,7 +54,8 @@ import {
 import { detailLayout, detailProblems } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { mirrorRendersScene, mirrorScale } from '../src/mirror';
+import { MODEL_SHARED, toTemplate } from '../src/carModels';
+import { mirrorAllowed } from '../src/mirror';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
@@ -75,7 +86,17 @@ import {
   type CamMode,
   type ViewTarget,
 } from '../src/views';
-import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
+import {
+  checkForUpdate,
+  compareVersions,
+  fetchUpdate,
+  mergeUpdate,
+  reloadUrl,
+  shouldPrompt,
+  decideUpdate,
+  parseRemote,
+  parseVersion,
+} from '../src/update';
 import {
   LOCATIONS,
   levelPlayable,
@@ -150,7 +171,7 @@ function levelChecks(lvl: LevelDef): void {
 // A real upper-floor bay: floors, ramp and a pillar on the ground floor under the bay.
 const upperBayLevel: LevelDef = {
   ...LEVELS[0],
-  lot: { w: 20, l: 65 },
+  lot: { w: 20, l: 80 },
   spawn: { x: 0, z: -10, rot: 0 },
   obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
   floors: [
@@ -240,7 +261,7 @@ console.log('Multi-storey levels');
     let touched = 0;
     for (let k = 0; k < Math.round(100 / STEP) && car.layer !== 'top'; k++) {
       car.step(STEP, { throttle: 1, steer: k < Math.round(6 / STEP) ? 0 : steer, handbrake: false }, sf);
-      if (isTouch(car.resolveCollisions(car.reachable(sf, obs)), TOUCH_MIN_SPEED)) touched++;
+      if (isTouch(car.resolveCollisions(car.reachable(sf, obs), sf), TOUCH_MIN_SPEED)) touched++;
     }
     check(car.layer === 'top' && touched === 0, `Spiral: steer ${steer} should reach the top without a touch`);
   }
@@ -441,7 +462,7 @@ console.log('Multi-storey view helpers');
 {
   const two: LevelDef = {
     ...LEVELS[0],
-    lot: { w: 20, l: 65 },
+    lot: { w: 20, l: 80 },
     floors: [
       { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
       { id: 'upper', y: 3.5, area: [{ x: 0, z: 25, hw: 10, hl: 10, rot: 0 }] },
@@ -527,7 +548,7 @@ console.log('Floors and ramps');
   // Ground floor z -30..0, a 15 m ramp (11.3 deg) from z 0 to 15, upper floor (y = 3) z 15..35.
   const rampLevel = (rampLen: number): LevelDef => ({
     ...LEVELS[0],
-    lot: { w: 20, l: 65 },
+    lot: { w: 20, l: 80 },
     spawn: { x: 0, z: -10, rot: 0 },
     obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
     floors: [
@@ -554,7 +575,7 @@ console.log('Floors and ramps');
     for (let i = 0; i < Math.round(seconds / STEP); i++) {
       const c = ctl(car);
       car.step(STEP, { throttle: c.throttle, steer, handbrake: c.handbrake }, surf);
-      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs)));
+      impact = Math.max(impact, car.resolveCollisions(car.reachable(surf, obs), surf));
       layers.add(car.layer);
     }
     return { layers, impact };
@@ -639,7 +660,7 @@ console.log('Floors and ramps');
   car.step(STEP, { throttle: 0, steer: 0, handbrake: false }, surf);
   check(!car.reachable(surf, obs).includes(pillar), 'a pillar on the floor below blocks the upper floor');
   check(
-    car.resolveCollisions(car.reachable(surf, obs)) === 0 && Math.abs(car.z - 25) < 1e-9,
+    car.resolveCollisions(car.reachable(surf, obs), surf) === 0 && Math.abs(car.z - 25) < 1e-9,
     'car pushed by a pillar below',
   );
   car.layer = 'ground';
@@ -708,6 +729,30 @@ console.log('Floors and ramps');
   ];
   const driven = replaySolution(lvl, climb);
   check(driven.parked && driven.hits === 0, `scripted climb should park upstairs (${JSON.stringify(driven)})`);
+  check(
+    floorProblems({
+      ...lvl,
+      floors: [lvl.floors![0], { ...lvl.floors![1], area: [{ x: 0, z: 0, hw: 500, hl: 5, rot: 0 }] }],
+    }).some((m) => m.includes('not inside the lot')),
+    'a floor poking out of the lot should be rejected',
+  );
+  check(
+    holdComplete(PARK_HOLD) && holdComplete(PARK_HOLD - 1e-12) && !holdComplete(PARK_HOLD - 1e-3),
+    'park hold: one shared completion check',
+  );
+  {
+    // After a push-out on the ramp the height and pitch must match the surface under the axles.
+    const c = new CarPhysics();
+    c.reset(0, 6, 0, surf);
+    c.z += 0.7;
+    c.resolveCollisions([{ x: 0, z: c.z + 2.3, hw: 3, hl: 1, rot: 0 }], surf);
+    const ref = new CarPhysics();
+    ref.reset(c.x, c.z, c.heading, surf);
+    check(
+      Math.abs(c.y - ref.y) < 1e-9 && Math.abs(c.pitch - ref.pitch) < 1e-9,
+      'collision push-out left y/pitch stale',
+    );
+  }
   check(!replaySolution(rampLevel(15), []).parked, 'standing on the ground floor counted as parked upstairs');
   const wrongFloor = replaySolution({ ...lvl, target: { ...lvl.target, z: 25, floor: 'ground' } }, climb);
   check(!wrongFloor.parked, 'parking on the wrong floor counted as parked');
@@ -731,7 +776,7 @@ console.log('Floors and ramps');
       const ctl = { throttle: k < 400 ? 1 : -1, steer: Math.sin(k / 50), handbrake: false };
       a.step(STEP, ctl, fs);
       b.step(STEP, ctl);
-      a.resolveCollisions(a.reachable(fs, lo));
+      a.resolveCollisions(a.reachable(fs, lo), fs);
       b.resolveCollisions(plain);
     }
     check(
@@ -1037,16 +1082,20 @@ console.log('Collision response');
 }
 
 console.log('Rear mirror cost');
-check(mirrorScale('high') === 1, 'high mirror is full resolution');
-check(mirrorScale('low') < 1, 'low mirror is reduced resolution');
-check(
-  [0, 1, 2, 3].every((f) => mirrorRendersScene('high', f)),
-  'high re-renders the mirror every frame',
-);
-check(
-  [0, 1, 2, 3].filter((f) => mirrorRendersScene('low', f)).length === 2,
-  'low re-renders the mirror every other frame',
-);
+check(mirrorAllowed('high'), 'the mirror is drawn on High');
+check(!mirrorAllowed('low'), 'the mirror is shed on Low (setting or slow-frame downgrade)');
+
+console.log('Shared car geometry');
+{
+  const scene = new THREE.Group();
+  const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  const wheelMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  wheelMesh.name = 'wheel-front-left';
+  scene.add(bodyMesh, wheelMesh);
+  toTemplate(scene);
+  check(MODEL_SHARED.has(bodyMesh.geometry), 'body geometry is marked shared');
+  check(MODEL_SHARED.has(wheelMesh.geometry), 'wheel geometry (reparented out of the scene) is marked shared');
+}
 
 console.log('Star rules');
 for (const lvl of LEVELS) {
@@ -1254,6 +1303,17 @@ check(parseRemote({ version: '1.0.0', build: 'x' })?.minVersion === null, 'minVe
 check(parseRemote({ version: 'nope', build: 'x' }) === null, 'bad remote version rejected');
 check(parseRemote({ version: '1.0.0', build: 'x', minVersion: 'zz' }) === null, 'bad minVersion rejected');
 check(parseRemote(null) === null && parseRemote('x') === null, 'non-object remote rejected');
+check(mergeUpdate('optional', 'none') === 'none', 'a none result clears a stale optional');
+check(mergeUpdate('required', 'none') === 'required', 'required is never downgraded');
+check(mergeUpdate('none', 'optional') === 'optional', 'optional replaces none');
+check(
+  shouldPrompt(null, 'b1') && shouldPrompt('b1', 'b2') && !shouldPrompt('b1', 'b1'),
+  'newer build re-prompts after dismiss',
+);
+check(
+  reloadUrl('https://x.test/g/?a=1&_u=5#h', 99) === 'https://x.test/g/?a=1&_u=99',
+  'reload url busts cache without stacking',
+);
 const ok = (body: unknown, status = 200) =>
   (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
 check(
@@ -1261,6 +1321,7 @@ check(
   'fetched required update',
 );
 check((await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))) === 'optional', 'fetched optional update');
+check((await fetchUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))).build === 'd', 'fetch reports the remote build');
 check((await checkForUpdate(me, 'v.json', 50, ok({}, 404))) === 'none', 'HTTP error never blocks');
 check((await checkForUpdate(me, 'v.json', 50, ok({ junk: 1 }))) === 'none', 'junk body never blocks');
 check(

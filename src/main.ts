@@ -9,14 +9,14 @@ import { createVehicleModel, PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
-import { PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
+import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
 import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
 import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
-import { RearMirror } from './mirror';
+import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
 import {
   assistMode,
@@ -49,7 +49,7 @@ import {
   saveGhosts,
   type Pose,
 } from './replay';
-import { checkForUpdate, type UpdateKind } from './update';
+import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -469,9 +469,10 @@ function finish(win: boolean, reason: string): void {
 // --- Updates ------------------------------------------------------------------
 // Only shown from the menu or after a level ends, never mid-level.
 let pendingUpdate: UpdateKind = 'none';
-let updateDismissed = false;
+let pendingBuild: string | null = null;
+let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
-const reloadPage = (): void => location.reload();
+const reloadPage = (): void => location.replace(reloadUrl(location.href, Date.now()));
 
 function applyUpdate(): void {
   if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
@@ -482,8 +483,10 @@ function applyUpdate(): void {
     hud.showModal('Please update to keep playing', 'A new version of Park It 3D is required.', null, [
       { label: 'Update', primary: true, onClick: reloadPage },
     ]);
-  } else if (!updateDismissed) {
-    hud.showUpdateBanner(reloadPage, () => (updateDismissed = true));
+  } else if (pendingUpdate === 'optional' && shouldPrompt(dismissedBuild, pendingBuild)) {
+    hud.showUpdateBanner(reloadPage, () => (dismissedBuild = pendingBuild));
+  } else {
+    hud.hideUpdateBanner();
   }
 }
 
@@ -491,12 +494,13 @@ async function runUpdateCheck(): Promise<void> {
   const now = Date.now();
   if (now - lastUpdateCheck < 30_000) return; // launch and resume can fire back to back
   lastUpdateCheck = now;
-  const kind = await checkForUpdate(
+  const res = await fetchUpdate(
     { version: __APP_SEMVER__, build: __APP_BUILD__ },
     new URL('version.json', document.baseURI).href,
   );
-  // A newer answer replaces an older one, but a required update is never downgraded.
-  if (kind !== 'none' && pendingUpdate !== 'required') pendingUpdate = kind;
+  // A newer answer replaces an older one (even 'none'), but a required update is never downgraded.
+  pendingUpdate = mergeUpdate(pendingUpdate, res.kind);
+  pendingBuild = res.build;
   applyUpdate();
 }
 document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());
@@ -608,7 +612,7 @@ function step(dt: number): void {
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
-  if (isTouch(car.resolveCollisions(nearby), TOUCH_MIN_SPEED)) {
+  if (isTouch(car.resolveCollisions(nearby, level.surfaces), TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
     return finish(false, 'You hit something. Ease off near cars, walls and cones.');
@@ -632,7 +636,7 @@ function step(dt: number): void {
         : 'Hold still…';
     hud.setPark(parkHold / PARK_HOLD, label, parkChecklist(park, def.bothWays));
   } else hud.setPark(null, '', '');
-  if (parkHold >= PARK_HOLD) return finish(true, '');
+  if (holdComplete(parkHold)) return finish(true, '');
 
   // Parking sensor beeps when slow and close to something. The proximity test
   // only runs at SENSOR_CHECK_HZ; the beep timer still ticks every step.
@@ -812,9 +816,9 @@ function frameBody(now: number): void {
   }
 
   gfx.render(camera);
-  mirror.quality = gfx.quality;
   mirror.visible =
     settings.mirror &&
+    mirrorAllowed(gfx.quality) &&
     state !== 'menu' &&
     !rig.freeLook &&
     (rig.mode === 'chase' || rig.mode === 'cockpit' || rig.mode === 'hood');

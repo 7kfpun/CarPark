@@ -19,6 +19,8 @@ export const STEER_RETURN = 1.6; // rad/s self-centring when released
 /** Approach speed (m/s) under which a contact is numerical resting noise, not a touch. */
 export const TOUCH_MIN_SPEED = 0.02;
 export const PARK_HOLD = 1.0;
+/** Whether a park held for `hold` seconds is complete: the one check the game and the replay share. */
+export const holdComplete = (hold: number): boolean => hold >= PARK_HOLD - 1e-9;
 export const STOP_SPEED = 0.15;
 export const ALIGN_TOL = (15 * Math.PI) / 180;
 
