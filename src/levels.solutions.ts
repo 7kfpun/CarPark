@@ -218,4 +218,11 @@ export const SOLUTIONS: Record<string, Segment[]> = {
     S(0.5, -1, 1),
     S(1.2, 0, 0, true),
   ],
+  // Up the ramp at full throttle, then an S-bend to the bay and stop.
+  'up-one-floor': [S(12.3, 1, 0), S(1, 1, -1), S(1.3, 1, 1), S(0.4, 1, 0), S(1.6, 1, 0), S(2, 0, 0, true)],
+  // Down the ramp, round to the right along the aisle, then reverse in with full lock and straighten up.
+  basement: [S(13.3, 1, 0), S(2.8, 1, -1), S(0.8, 0, 0, true), S(4.7, -1, 1), S(2.9, -1, 0), S(1, 0, 0, true)],
+  // Straight to the foot of the spiral, then one steady half-lock curve (steer 0.5) for three storeys, then off
+  // the ramp onto the top deck and an S-bend into the bay.
+  spiral: [S(6, 1, 0), S(70, 1, 0.5), S(1.4, 1, -1), S(1, 1, 1), S(0.5, 1, 0), S(0.5, 0, 0, true), S(2, 0, 0, true)],
 };

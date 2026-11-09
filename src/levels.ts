@@ -1,4 +1,4 @@
-import type { BayDef, LevelDef, ObstacleDef } from './layout';
+import type { BayDef, FloorDef, LevelDef, ObstacleDef, RampDef } from './layout';
 
 const PI = Math.PI;
 const COLORS = [0x2f6fde, 0xe8e8e8, 0x8a8f98, 0xc8322b, 0x2e8b57, 0x222428, 0x7a4fd0, 0x1fa3b5];
@@ -29,9 +29,102 @@ function coneLine(x0: number, x1: number, z: number, gapX: number, gapW: number,
   return out;
 }
 
+/** A parked car on a given floor of a multi-storey level. */
+function carOn(floor: string, x: number, z: number, rot = 0): ObstacleDef {
+  return { ...car(x, z, rot), floor };
+}
+
+const SPIRAL = {
+  /** Ramp segments per turn: each one is straight, so the 2D collision of a layer stays simple. */
+  perTurn: 8,
+  turns: 3,
+  /** Storey height (m). */
+  rise: 3,
+  /** Ramp width and length (m): the shortest length the car fits on. */
+  w: 7,
+  len: 7,
+  /** Where the spiral ends: the middle of the top deck's entry landing. */
+  exit: { x: 9.5, z: 4.2 },
+};
+
+/**
+ * A left-hand spiral ramp of `perTurn * turns` straight segments, each turning
+ * 360 / perTurn degrees to the left of the one before. Segments are joined by
+ * square landings (a ramp starts at the middle of its landing and ends at the
+ * edge of the next), so the centre line is a regular polygon. The last segment
+ * heads straight along +z onto the top deck.
+ */
+function spiral(): { floors: FloorDef[]; ramps: RampDef[]; start: { x: number; z: number; rot: number } } {
+  const { perTurn, turns, rise, w, len } = SPIRAL;
+  const n = perTurn * turns;
+  const side = len + w / 2; // distance between neighbouring landing centres
+  const turn = (2 * PI) / perTurn;
+  const rot = (i: number): number => (n - 1 - i) * turn; // heading of segment i; the last one is 0 (+z)
+  // Landing centres, worked back from the exit.
+  const c: { x: number; z: number }[] = [];
+  c[n] = { ...SPIRAL.exit };
+  for (let i = n - 1; i >= 0; i--) {
+    c[i] = { x: c[i + 1].x - side * Math.sin(rot(i)), z: c[i + 1].z - side * Math.cos(rot(i)) };
+  }
+  const id = (i: number): string =>
+    i === 0 ? 'ground' : i === n ? 'top' : i % perTurn === 0 ? `level-${i / perTurn}` : `p${i}`;
+  const y = (i: number): number => (i / perTurn) * rise;
+  const floors: FloorDef[] = [];
+  const ramps: RampDef[] = [];
+  const back = 20; // length of the approach road before the first ramp (m)
+  const deck = 20; // length of the top deck (m)
+  // The approach road is squared half way between the first ramp and the segment before it, so the car arrives
+  // on the line a smooth circle through the landings would take.
+  const lead = rot(0) + turn / 2;
+  const [sl, cl] = [Math.sin(lead), Math.cos(lead)];
+  for (let i = 0; i <= n; i++) {
+    if (i === 0) {
+      // The ground floor is an approach road ending just past the foot of the first ramp.
+      const mid = (2.5 - back) / 2;
+      floors.push({
+        id: id(i),
+        y: 0,
+        area: [{ x: c[0].x + sl * mid, z: c[0].z + cl * mid, hw: 4, hl: (back + 2.5) / 2, rot: lead }],
+      });
+    } else if (i === n) {
+      // The top deck starts where the last ramp ends and runs straight ahead (+z).
+      floors.push({
+        id: id(i),
+        y: y(i),
+        area: [{ x: c[i].x, z: c[i].z - w / 2 + deck / 2, hw: 8, hl: deck / 2, rot: 0 }],
+      });
+    } else {
+      // A landing is squared to the segment that arrives at it.
+      const area = { x: c[i].x, z: c[i].z, hw: w / 2, hl: w / 2, rot: rot(i - 1) };
+      floors.push({ id: id(i), y: y(i), area: [area], landing: i % perTurn !== 0 });
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const [s, co] = [Math.sin(rot(i)), Math.cos(rot(i))];
+    ramps.push({
+      id: `r${i}`,
+      from: id(i),
+      to: id(i + 1),
+      x: c[i].x + (s * len) / 2,
+      z: c[i].z + (co * len) / 2,
+      rot: rot(i),
+      w,
+      l: len,
+    });
+  }
+  return {
+    floors,
+    ramps,
+    start: { x: c[0].x - sl * (back - 4), z: c[0].z - cl * (back - 4), rot: Math.atan2(sl, cl) },
+  };
+}
+
 const row7 = [-9, -6, -3, 0, 3, 6, 9];
 const row8 = [-10.5, -7.5, -4.5, -1.5, 1.5, 4.5, 7.5, 10.5];
 const row9 = [-12, -9, -6, -3, 0, 3, 6, 9, 12];
+
+const SPIRAL_PARTS = spiral();
+const EX = SPIRAL.exit;
 
 export const LEVELS: LevelDef[] = [
   {
@@ -152,6 +245,88 @@ export const LEVELS: LevelDef[] = [
       ...carRow(row9, 18, [-3]),
       car(-8, -12, PI / 2),
       car(4, -18, -PI / 2),
+    ],
+  },
+  {
+    id: 'up-one-floor',
+    name: 'Up One Floor',
+    hint: 'Drive up the ramp to level 1, then pull forwards into the glowing bay and stop.',
+    lot: { w: 20, l: 66 },
+    spawn: { x: 0, z: -28, rot: 0 },
+    target: { x: 3, z: 26, rot: 0, w: 3, l: 5.6, floor: 'upper' },
+    bothWays: false,
+    time: 75,
+    stars: { three: 36, two: 55 },
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: -18, hw: 10, hl: 15, rot: 0 }] },
+      { id: 'upper', y: 3, area: [{ x: 0, z: 23, hw: 10, hl: 10, rot: 0 }] },
+    ],
+    ramps: [{ id: 'ramp', from: 'ground', to: 'upper', x: 0, z: 5, rot: 0, w: 5, l: 16 }],
+    obstacles: [
+      carOn('upper', -9, 26, 0),
+      carOn('upper', -6, 26, PI),
+      carOn('upper', -3, 26, 0),
+      carOn('upper', 9, 26, PI),
+      carOn('upper', -7.5, 17, PI / 2),
+      carOn('upper', 8, 17, PI / 2),
+    ],
+  },
+  {
+    id: 'basement',
+    name: 'Basement',
+    hint: 'Down the ramp into the dark. Reverse into the bay between the two cars.',
+    lot: { w: 20, l: 66 },
+    spawn: { x: 0, z: -28, rot: 0 },
+    target: { x: 1, z: 29, rot: PI, w: 3, l: 5.6, floor: 'basement' },
+    bothWays: false,
+    time: 105,
+    stars: { three: 52, two: 80 },
+    floors: [
+      // The ground floor is the street, the ramp's sides and the roof of the basement.
+      {
+        id: 'ground',
+        y: 0,
+        area: [
+          { x: 0, z: -18, hw: 10, hl: 15, rot: 0 },
+          { x: -6.4, z: 5.5, hw: 3.6, hl: 8.5, rot: 0 },
+          { x: 6.4, z: 5.5, hw: 3.6, hl: 8.5, rot: 0 },
+          { x: 0, z: 23.5, hw: 10, hl: 9.5, rot: 0 },
+        ],
+      },
+      { id: 'basement', y: -3, area: [{ x: 0, z: 23.5, hw: 10, hl: 9.5, rot: 0 }] },
+    ],
+    ramps: [{ id: 'ramp', from: 'ground', to: 'basement', x: 0, z: 5.5, rot: 0, w: 5, l: 17 }],
+    obstacles: [
+      carOn('basement', -8, 29, PI),
+      carOn('basement', -5, 29, 0),
+      carOn('basement', -2, 29, PI),
+      carOn('basement', 4, 29, 0),
+      carOn('basement', 7, 29, PI),
+      { kind: 'pillar', x: -8.5, z: 18, h: 2.7, floor: 'basement' },
+      { kind: 'pillar', x: 8.5, z: 18, h: 2.7, floor: 'basement' },
+      { kind: 'pillar', x: -4, z: 22, h: 2.7, floor: 'basement' },
+    ],
+  },
+  {
+    id: 'spiral',
+    name: 'Spiral',
+    hint: 'Keep a steady curve all the way up the spiral. The free bay is on the top deck.',
+    lot: { w: 44, l: 44 },
+    spawn: SPIRAL_PARTS.start,
+    target: { x: EX.x + 3.5, z: EX.z + 8, rot: 0, w: 3, l: 5.6, floor: 'top' },
+    bothWays: false,
+    time: 320,
+    stars: { three: 160, two: 240 },
+    floors: SPIRAL_PARTS.floors,
+    ramps: SPIRAL_PARTS.ramps,
+    obstacles: [
+      carOn('top', EX.x - 7.5, EX.z + 8, 0),
+      carOn('top', EX.x - 4.5, EX.z + 8, PI),
+      carOn('top', EX.x - 7.5, EX.z + 13.3, PI),
+      carOn('top', EX.x - 4.5, EX.z + 13.3, 0),
+      carOn('top', EX.x - 1.5, EX.z + 13.3, PI),
+      carOn('top', EX.x + 1.5, EX.z + 13.3, 0),
+      carOn('top', EX.x + 4.5, EX.z + 13.3, PI),
     ],
   },
 ];
