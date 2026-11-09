@@ -44,7 +44,8 @@ import {
 import { detailLayout, detailProblems } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { mirrorRendersScene, mirrorScale } from '../src/mirror';
+import { MODEL_SHARED, toTemplate } from '../src/carModels';
+import { mirrorAllowed } from '../src/mirror';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
@@ -1037,16 +1038,20 @@ console.log('Collision response');
 }
 
 console.log('Rear mirror cost');
-check(mirrorScale('high') === 1, 'high mirror is full resolution');
-check(mirrorScale('low') < 1, 'low mirror is reduced resolution');
-check(
-  [0, 1, 2, 3].every((f) => mirrorRendersScene('high', f)),
-  'high re-renders the mirror every frame',
-);
-check(
-  [0, 1, 2, 3].filter((f) => mirrorRendersScene('low', f)).length === 2,
-  'low re-renders the mirror every other frame',
-);
+check(mirrorAllowed('high'), 'the mirror is drawn on High');
+check(!mirrorAllowed('low'), 'the mirror is shed on Low (setting or slow-frame downgrade)');
+
+console.log('Shared car geometry');
+{
+  const scene = new THREE.Group();
+  const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  const wheelMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  wheelMesh.name = 'wheel-front-left';
+  scene.add(bodyMesh, wheelMesh);
+  toTemplate(scene);
+  check(MODEL_SHARED.has(bodyMesh.geometry), 'body geometry is marked shared');
+  check(MODEL_SHARED.has(wheelMesh.geometry), 'wheel geometry (reparented out of the scene) is marked shared');
+}
 
 console.log('Star rules');
 for (const lvl of LEVELS) {

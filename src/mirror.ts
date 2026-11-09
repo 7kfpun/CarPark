@@ -3,14 +3,9 @@ import { vehicleOf, type VehicleDef } from './vehicles';
 
 import type { Quality } from './graphics';
 
-/** Low draws the mirror at half resolution... */
-export function mirrorScale(q: Quality): number {
-  return q === 'low' ? 0.5 : 1;
-}
-
-/** ...and re-renders the scene into it only every other frame (the last image is re-composited in between). */
-export function mirrorRendersScene(q: Quality, frame: number): boolean {
-  return q === 'high' || frame % 2 === 0;
+/** The mirror re-renders the whole scene, so it is shed on Low (the quality setting or the slow-frame downgrade). */
+export function mirrorAllowed(q: Quality): boolean {
+  return q === 'high';
 }
 
 interface Target {
@@ -34,8 +29,6 @@ export class RearMirror {
   private readonly quadScene = new THREE.Scene();
   private readonly quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly size = new THREE.Vector2();
-  private frame = 0;
-  quality: Quality = 'high';
 
   constructor() {
     const tex = this.target.texture;
@@ -72,21 +65,18 @@ export class RearMirror {
     this.camera.aspect = rect.width / rect.height;
     this.camera.updateProjectionMatrix();
 
-    const pr = renderer.getPixelRatio() * mirrorScale(this.quality);
+    const pr = renderer.getPixelRatio();
     const w = Math.max(1, Math.round(rect.width * pr));
     const h = Math.max(1, Math.round(rect.height * pr));
-    const resized = this.target.width !== w || this.target.height !== h;
-    if (resized) this.target.setSize(w, h);
+    if (this.target.width !== w || this.target.height !== h) this.target.setSize(w, h);
 
-    if (mirrorRendersScene(this.quality, this.frame++) || resized) {
-      // Reuse this frame's shadow map instead of rendering it a second time.
-      const shadowAuto = renderer.shadowMap.autoUpdate;
-      renderer.shadowMap.autoUpdate = false;
-      renderer.setRenderTarget(this.target);
-      renderer.render(scene, this.camera);
-      renderer.setRenderTarget(null);
-      renderer.shadowMap.autoUpdate = shadowAuto;
-    }
+    // Reuse this frame's shadow map instead of rendering it a second time.
+    const shadowAuto = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(this.target);
+    renderer.render(scene, this.camera);
+    renderer.setRenderTarget(null);
+    renderer.shadowMap.autoUpdate = shadowAuto;
 
     // Composite into the frame's screen rect (viewport y is measured from the bottom).
     renderer.getSize(this.size);

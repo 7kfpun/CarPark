@@ -16,7 +16,7 @@ import { buildLevel, type BuiltLevel } from './level';
 import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
-import { RearMirror } from './mirror';
+import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
 import {
   assistMode,
@@ -812,9 +812,9 @@ function frameBody(now: number): void {
   }
 
   gfx.render(camera);
-  mirror.quality = gfx.quality;
   mirror.visible =
     settings.mirror &&
+    mirrorAllowed(gfx.quality) &&
     state !== 'menu' &&
     !rig.freeLook &&
     (rig.mode === 'chase' || rig.mode === 'cockpit' || rig.mode === 'hood');
