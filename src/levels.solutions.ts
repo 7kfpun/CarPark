@@ -437,3 +437,15 @@ export const SOLUTIONS: Record<string, Segment[]> = {
     S(1.2, 0, 0, true),
   ],
 };
+
+/** A solution driven in the mirror image: the same controls with the steering reversed. */
+function mirror(segments: Segment[]): Segment[] {
+  return segments.map((s) => ({ ...s, steer: s.steer === 0 ? 0 : -s.steer }));
+}
+
+SOLUTIONS['backhand-angle'] = mirror(SOLUTIONS['angle-of-attack']);
+SOLUTIONS['dusk-gate'] = mirror(SOLUTIONS['reverse-gate']);
+SOLUTIONS['twilight-squeeze'] = mirror(SOLUTIONS['tight-squeeze']);
+SOLUTIONS['one-way-curb'] = mirror(SOLUTIONS['curb-side']);
+SOLUTIONS['dusk-slalom'] = mirror(SOLUTIONS['slalom-reverse']);
+SOLUTIONS['night-finale'] = mirror(SOLUTIONS['the-finale']);
