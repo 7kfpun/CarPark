@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { setMaterialDetail } from './materials';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { QualitySetting } from './settings';
 
 export type Quality = 'low' | 'high';
@@ -9,12 +10,20 @@ interface Preset {
   shadowSize: number;
   shadowRadius: number;
   decorShadows: boolean;
+  /** HDR environment map for ambient light and reflections; Low keeps the cheap hemisphere light. */
+  envMap: boolean;
 }
 
 // PCFSoftShadowMap was removed from three.js; PCF with a wider radius gives the soft look.
 const PRESETS: Record<Quality, Preset> = {
-  low: { pixelRatio: () => 1, shadowSize: 1024, shadowRadius: 1, decorShadows: false },
-  high: { pixelRatio: () => Math.min(devicePixelRatio, 2), shadowSize: 2048, shadowRadius: 2.5, decorShadows: true },
+  low: { pixelRatio: () => 1, shadowSize: 1024, shadowRadius: 1, decorShadows: false, envMap: false },
+  high: {
+    pixelRatio: () => Math.min(devicePixelRatio, 2),
+    shadowSize: 2048,
+    shadowRadius: 3.5,
+    decorShadows: true,
+    envMap: true,
+  },
 };
 
 const SLOW_FRAME_MS = 25;
@@ -72,6 +81,8 @@ export class Graphics {
   private sampleTime = 0;
   private sampleFrames = 0;
   private autoDropped = false;
+  private envSource: THREE.DataTexture | null = null;
+  private envTarget: THREE.WebGLRenderTarget | null = null;
   private readonly lostOverlay: HTMLElement;
 
   constructor(
@@ -115,6 +126,7 @@ export class Graphics {
       // render target is re-created on the next shadow pass.
       this.lost = false;
       this.lostOverlay.classList.add('hidden');
+      this.buildEnvironment(); // the prefiltered map's render target does not survive a context loss
       hooks.onRestored();
     });
   }
@@ -125,6 +137,40 @@ export class Graphics {
 
   get contextLost(): boolean {
     return this.lost;
+  }
+
+  /** True while the HDR environment is lighting the scene (High, once loaded). */
+  get envActive(): boolean {
+    return this.scene.environment !== null;
+  }
+
+  /** Loads the equirect HDR sky; until it arrives (or if it fails) the hemisphere light does the work. */
+  loadEnvironment(url: string): void {
+    if (!this.renderer) return;
+    new HDRLoader().load(
+      url,
+      (tex) => {
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        this.envSource = tex;
+        this.buildEnvironment();
+      },
+      undefined,
+      (err) => console.warn('Environment map failed to load', err),
+    );
+  }
+
+  private buildEnvironment(): void {
+    const r = this.renderer;
+    if (!r || !this.envSource) return;
+    this.envTarget?.dispose();
+    const pmrem = new THREE.PMREMGenerator(r);
+    this.envTarget = pmrem.fromEquirectangular(this.envSource);
+    pmrem.dispose();
+    this.applyEnvironment();
+  }
+
+  private applyEnvironment(): void {
+    this.scene.environment = PRESETS[this.quality].envMap && this.envTarget ? this.envTarget.texture : null;
   }
 
   private disposeShadowMap(): void {
@@ -153,6 +199,7 @@ export class Graphics {
       shadow.mapSize.set(p.shadowSize, p.shadowSize);
       this.disposeShadowMap();
     }
+    this.applyEnvironment();
     this.applyDecor(this.scene);
   }
 

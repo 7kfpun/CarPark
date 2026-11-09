@@ -3,7 +3,15 @@ import { CAR_SHARED, createCarModel } from './car';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
 import { levelObstacleDefs, levelObstacles, Surfaces } from './floors';
-import { bayOBB, obstacleDims, type BayDef, type LayeredOBB, type LevelDef, type ObstacleDef } from './layout';
+import {
+  bayOBB,
+  obstacleDims,
+  type ArrowDef,
+  type BayDef,
+  type LayeredOBB,
+  type LevelDef,
+  type ObstacleDef,
+} from './layout';
 import { surfaceMaterial, tileBoxUV } from './materials';
 import { floorShown, rampSignText, SLAB } from './storey';
 
@@ -102,6 +110,25 @@ function decorBay(b: BayDef): THREE.Group {
   line(g, b.w / 2, 0, t, b.l);
   line(g, 0, b.l / 2, b.w + t, t);
   return g;
+}
+
+/** A painted one-way arrow on the asphalt, pointing along its heading. */
+function roadArrow(a: ArrowDef): THREE.Mesh {
+  const s = new THREE.Shape();
+  s.moveTo(0, 1.6);
+  s.lineTo(1, 0.2);
+  s.lineTo(0.35, 0.2);
+  s.lineTo(0.35, -1.6);
+  s.lineTo(-0.35, -1.6);
+  s.lineTo(-0.35, 0.2);
+  s.lineTo(-1, 0.2);
+  s.closePath();
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(s), lineMat);
+  m.rotation.x = -Math.PI / 2;
+  m.rotation.z = Math.PI + a.rot; // shape +y -> world -z, so flip, then turn to the heading
+  m.position.set(a.x, 0.015, a.z);
+  m.receiveShadow = true;
+  return m;
 }
 
 function obstacleMesh(o: ObstacleDef, y: number): THREE.Object3D {
@@ -281,6 +308,7 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   if (!hasBasement) group.add(lot);
 
   for (const b of def.bays ?? []) group.add(decorBay(b));
+  for (const a of def.arrows ?? []) group.add(roadArrow(a));
   const surfaces = new Surfaces(def);
   // Everything tied to a floor is tracked with its height so the top-down view can hide floors above the car.
   const tracked: THREE.Object3D[] = [];

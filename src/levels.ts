@@ -1,4 +1,4 @@
-import type { BayDef, FloorDef, LevelDef, ObstacleDef, RampDef } from './layout';
+import type { ArrowDef, BayDef, FloorDef, LevelDef, ObstacleDef, RampDef } from './layout';
 
 const PI = Math.PI;
 const COLORS = [0x2f6fde, 0xe8e8e8, 0x8a8f98, 0xc8322b, 0x2e8b57, 0x222428, 0x7a4fd0, 0x1fa3b5];
@@ -133,7 +133,7 @@ const row9 = [-12, -9, -6, -3, 0, 3, 6, 9, 12];
 const SPIRAL_PARTS = spiral();
 const EX = SPIRAL.exit;
 
-export const LEVELS: LevelDef[] = [
+const LEVELS_1_12: LevelDef[] = [
   {
     id: 'first-steps',
     name: 'First Steps',
@@ -455,4 +455,75 @@ export const LEVELS: LevelDef[] = [
       car(11, 14, 0),
     ],
   },
+];
+
+/** The level with its layout flipped left to right (x to -x, headings mirrored), under a new identity. */
+function mirrored(base: string, extra: Pick<LevelDef, 'id' | 'name' | 'hint'> & Partial<LevelDef>): LevelDef {
+  const b = LEVELS_1_12.find((l) => l.id === base)!;
+  const flip = <T extends { x: number; rot?: number }>(o: T): T => ({
+    ...o,
+    x: o.x === 0 ? 0 : -o.x,
+    ...(o.rot === undefined ? {} : { rot: -o.rot }),
+  });
+  return {
+    ...b,
+    spawn: flip(b.spawn),
+    target: flip(b.target),
+    obstacles: b.obstacles.map(flip),
+    ...(b.bays && { bays: b.bays.map(flip) }),
+    ...extra,
+  };
+}
+
+/** One-way arrows along a line of travel, from (x0, z0) to (x1, z1) every `step` metres, pointing along `rot`. */
+function arrowLine(x0: number, z0: number, x1: number, z1: number, rot: number, step = 6): ArrowDef[] {
+  const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / step));
+  return Array.from({ length: n + 1 }, (_, i) => ({
+    x: x0 + ((x1 - x0) * i) / n,
+    z: z0 + ((z1 - z0) * i) / n,
+    rot,
+  }));
+}
+
+export const LEVELS: LevelDef[] = [
+  ...LEVELS_1_12,
+  mirrored('angle-of-attack', {
+    id: 'backhand-angle',
+    name: 'Backhand Angle',
+    hint: 'The bays slant the other way now. Follow the arrows, swing wide and turn in.',
+    arrows: arrowLine(9, -10, 9, 0, 0),
+  }),
+  mirrored('reverse-gate', {
+    id: 'dusk-gate',
+    name: 'Dusk Gate',
+    hint: 'The light is fading. Pass the wall, then back through the narrow gate into the bay.',
+    theme: 'dusk',
+  }),
+  mirrored('tight-squeeze', {
+    id: 'twilight-squeeze',
+    name: 'Twilight Squeeze',
+    hint: 'Dusk and a sliver of room either side. Follow the arrows, line up early and creep in.',
+    theme: 'dusk',
+    arrows: arrowLine(5, -12, -7, -12, -PI / 2, 4),
+  }),
+  mirrored('curb-side', {
+    id: 'one-way-curb',
+    name: 'One-Way Curb',
+    hint: 'Traffic only flows one way here. Reverse in at an angle, then straighten up.',
+    arrows: arrowLine(11, 2, 1, 2, -PI / 2, 5),
+  }),
+  mirrored('slalom-reverse', {
+    id: 'dusk-slalom',
+    name: 'Dusk Slalom',
+    hint: 'Weave through the cones as the sun sets, then reverse into the free bay on the left.',
+    theme: 'dusk',
+    arrows: arrowLine(0, -24, 0, -18, 0, 3),
+  }),
+  mirrored('the-finale', {
+    id: 'night-finale',
+    name: 'Night Finale',
+    hint: 'Dusk, pillars, a wall and a walled-in bay with almost no room. Take it slow.',
+    theme: 'dusk',
+    arrows: arrowLine(8, -15, 1, -15, -PI / 2, 3.5),
+  }),
 ];

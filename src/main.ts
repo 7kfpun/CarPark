@@ -4,6 +4,7 @@ import { reducedMotion } from './a11y';
 import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
+import { Cockpit } from './cockpit';
 import { PlayerCar } from './car';
 import { loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
@@ -16,7 +17,18 @@ import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
-import { ceilingAbove, floorHud, lightTarget } from './storey';
+import {
+  assistMode,
+  bodyHidden,
+  CAM_LABELS,
+  fovBoost,
+  hidesCeilings,
+  isCamMode,
+  nextCamMode,
+  reverseHold,
+} from './views';
+import { ambientLevels } from './lighting';
+import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
@@ -31,16 +43,21 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const scene = new THREE.Scene();
 const sky = new THREE.Color(0xa9cfee);
 scene.background = sky;
-scene.fog = new THREE.Fog(sky, 60, 160);
+// Light distance fog: far lots fade into the haze instead of ending at a hard edge.
+scene.fog = new THREE.Fog(sky, 45, 150);
 
 const hemi = new THREE.HemisphereLight(0xdbeeff, 0x4a5a3a, 1.1);
 scene.add(hemi);
 const SKY = sky.clone();
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+const DAY_SKY = 0xa9cfee;
+const DUSK_SKY = 0x7a6a9c;
+const DAY_SUN = 0xffeccf;
+const DUSK_SUN = 0xff8a4a;
+const sun = new THREE.DirectionalLight(DAY_SUN, SUN_OUTDOOR);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
+sun.shadow.bias = -0.0003;
+sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
 // Created before the renderer so the first frame uses the saved quality.
@@ -50,17 +67,27 @@ const gfx = new Graphics(canvas, scene, sun, {
   onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
 });
 gfx.setQuality(settings.quality);
+gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
+rig.reduced = () => reducedMotion.matches;
 rig.mode = settings.camera;
+
+/** Apply the view's field of view (the hood view is wider). */
+function syncFov(): void {
+  const fov = (innerWidth < innerHeight ? 70 : 55) + fovBoost(rig.mode);
+  if (camera.fov === fov) return;
+  camera.fov = fov;
+  camera.updateProjectionMatrix();
+}
 
 function resize(): void {
   const w = innerWidth;
   const h = innerHeight;
   gfx.setSize(w, h);
   camera.aspect = w / h;
-  camera.fov = w < h ? 70 : 55;
+  camera.fov = (w < h ? 70 : 55) + fovBoost(rig.mode);
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
@@ -74,7 +101,6 @@ sfx.muted = !settings.sound;
 const settingsPanel = new SettingsPanel(settings, (s, key) => {
   if (key === 'sound') sfx.muted = !s.sound;
   if (key === 'quality') gfx.setQuality(s.quality);
-  if (key === 'camera') rig.mode = s.camera;
   if (key === 'wheel') applyWheelSide(s.wheel);
 });
 /** Put the steering wheel on the left or right of the touch cockpit (the pedals take the other side). */
@@ -95,8 +121,11 @@ try {
 }
 const player = new PlayerCar();
 const mirror = new RearMirror();
+const cockpit = new Cockpit();
+player.model.root.add(cockpit.group);
 scene.add(player.model.root);
 gfx.applyDecor(player.model.root);
+let reversing = false;
 
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 // Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.
@@ -157,7 +186,13 @@ function loadLevel(i: number): void {
   sc.near = 1;
   sc.far = 200;
   sc.updateProjectionMatrix();
-  sun.position.set(-30, 50, -20);
+  const dusk = level.def.theme === 'dusk';
+  SKY.set(dusk ? DUSK_SKY : DAY_SKY);
+  sun.color.set(dusk ? DUSK_SUN : DAY_SUN);
+  hemi.color.set(dusk ? 0xb8b0e0 : 0xdbeeff);
+  // A low sun throws long shadows.
+  if (dusk) sun.position.set(-50, 25, -20);
+  else sun.position.set(-30, 50, -20);
   sun.target.position.set(0, 0, 0);
 }
 
@@ -178,7 +213,11 @@ function startLevel(i: number): void {
   accumulator = 0;
   input.clear();
   input.setReverse(false);
-  rig.snap(player.physics);
+  reversing = false;
+  rig.mode = viewMode();
+  rig.setFreeLook(false);
+  rig.snap(camTarget());
+  syncFov();
   hud.startLevel(i, def);
   state = 'playing';
   syncAdminBar();
@@ -187,6 +226,9 @@ function startLevel(i: number): void {
 
 function showMenu(): void {
   state = 'menu';
+  rig.setFreeLook(false);
+  player.model.body.visible = true;
+  cockpit.visible = false;
   syncAdminBar();
   if (!level) loadLevel(resumeIndex(progress, LEVEL_IDS));
   player.model.root.visible = false;
@@ -233,6 +275,7 @@ function resume(): void {
   if (state !== 'paused' || !canRun()) return;
   hud.hideModal();
   input.clear(); // drop keys pressed/held while the modal was open
+  rig.setFreeLook(false);
   state = 'playing';
   syncAdminBar();
 }
@@ -321,10 +364,11 @@ input.navRoot = () =>
         ? document.getElementById('menu')
         : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
-// Routes through settings so the panel shows it and it is saved (onChange sets rig.mode).
+// Routes through settings so the panel shows it and it is saved (the frame loop applies the view).
 function toggleCamera(): string {
-  settingsPanel.set('camera', rig.mode === 'chase' ? 'top' : 'chase');
-  return rig.mode === 'top' ? 'Top-down camera' : 'Chase camera';
+  const next = nextCamMode(settings.camera);
+  settingsPanel.set('camera', next);
+  return CAM_LABELS[next];
 }
 input.on('KeyC', () => {
   if (state !== 'playing') return;
@@ -461,13 +505,13 @@ function step(dt: number): void {
 // Outdoors: sun and sky. Under a deck the sun is off and the light is flat and
 // warmer (the strips under each slab are baked emissive, so no shadow maps or
 // point lights); underground it is darker still. Eased so crossing a ramp mouth isn't a pop.
-let lightMix: { sun: number; hemi: number; sky: number } = { sun: 2.2, hemi: 1.1, sky: 1 };
+let lightMix: { sun: number; hemi: number; sky: number } = { sun: SUN_OUTDOOR, hemi: 1.1, sky: 1 };
 function updateLighting(dt: number, def: LevelDef | null): void {
   const car = player.physics;
   const target =
     def?.floors !== undefined
-      ? lightTarget(ceilingAbove(def, car.x, car.z, car.y) !== null, car.y < -1)
-      : lightTarget(false, false);
+      ? lightTarget(ceilingAbove(def, car.x, car.z, car.y) !== null, car.y < -1, def.theme === 'dusk')
+      : lightTarget(false, false, def?.theme === 'dusk');
   const k = 1 - Math.exp(-dt * 5);
   lightMix = {
     sun: lightMix.sun + (target.sun - lightMix.sun) * k,
@@ -475,10 +519,51 @@ function updateLighting(dt: number, def: LevelDef | null): void {
     sky: lightMix.sky + (target.sky - lightMix.sky) * k,
   };
   sun.intensity = lightMix.sun;
-  hemi.intensity = lightMix.hemi;
+  const ambient = ambientLevels(lightMix, gfx.envActive);
+  hemi.intensity = ambient.hemi;
+  scene.environmentIntensity = ambient.env;
   sky.copy(SKY).multiplyScalar(lightMix.sky);
   (scene.fog as THREE.Fog).color.copy(sky);
 }
+
+/** The view in use: the chosen one, or the corner (rear) view while reversing with assist on. */
+function viewMode(): ReturnType<typeof assistMode> {
+  return assistMode(settings.camera, settings.autoRear, reversing);
+}
+function camTarget(): Parameters<typeof rig.snap>[0] {
+  const p = player.physics;
+  return { x: p.x, y: p.y, z: p.z, heading: p.heading, pitch: p.pitch, steer: p.steer, v: p.v };
+}
+
+// Free look: drag on the backdrop while paused or after a level to orbit the car (mouse wheel zooms).
+let dragFrom: { id: number; x: number; y: number } | null = null;
+function canOrbit(): boolean {
+  return (state === 'paused' || state === 'done') && !settingsPanel.isOpen && !gfx.contextLost;
+}
+addEventListener('pointerdown', (e) => {
+  if (!canOrbit() || (e.target as Element | null)?.closest('.panel, button, a')) return;
+  dragFrom = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
+addEventListener('pointermove', (e) => {
+  if (!dragFrom || e.pointerId !== dragFrom.id) return;
+  if (!canOrbit()) return void (dragFrom = null);
+  rig.setFreeLook(true);
+  rig.dragFree(-(e.clientX - dragFrom.x) * 0.008, (e.clientY - dragFrom.y) * 0.008);
+  dragFrom.x = e.clientX;
+  dragFrom.y = e.clientY;
+});
+const endDrag = (e: PointerEvent): void => {
+  if (dragFrom && e.pointerId === dragFrom.id) dragFrom = null;
+};
+addEventListener('pointerup', endDrag);
+addEventListener('pointercancel', endDrag);
+addEventListener(
+  'wheel',
+  (e) => {
+    if (canOrbit() && rig.freeLook) rig.dragFree(0, 0, e.deltaY * 0.01);
+  },
+  { passive: true },
+);
 
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
@@ -532,7 +617,11 @@ function frameBody(now: number): void {
   }
   if (level) {
     const playing = state === 'playing';
-    level.setView(playing ? player.physics.y : 0, playing && rig.mode === 'top');
+    const orbiting = rig.freeLook && (state === 'paused' || state === 'done');
+    level.setView(
+      playing || orbiting ? player.physics.y : 0,
+      (playing || orbiting) && hidesCeilings(rig.mode, orbiting),
+    );
     if (playing) hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
     updateLighting(dt, playing ? level.def : null);
   }
@@ -540,18 +629,31 @@ function frameBody(now: number): void {
   if (state === 'menu' && level) {
     const t = level.def.target;
     rig.orbit(reducedMotion.matches ? 0 : dt, t.x * 0.5, t.z * 0.5, Math.max(level.def.lot.w, level.def.lot.l) * 0.75);
-  } else if (state === 'playing') {
-    rig.update(dt, player.physics);
+  } else if (state !== 'menu') {
+    // Also while paused or done, so a view change or free look is visible behind the panel.
+    reversing = reverseHold(reversing, player.physics.v);
+    rig.mode = viewMode();
+    syncFov();
+    rig.update(dt, camTarget());
+    const inside = bodyHidden(rig.mode, rig.progress);
+    player.model.body.visible = !inside;
+    cockpit.visible = inside;
+    cockpit.setSteer(player.physics.steer);
   }
 
   gfx.render(camera);
-  mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
+  mirror.visible =
+    settings.mirror &&
+    state !== 'menu' &&
+    !rig.freeLook &&
+    (rig.mode === 'chase' || rig.mode === 'cockpit' || rig.mode === 'hood');
   if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
 }
 
 // ?level=N jumps straight into a level, ?cam=top starts top-down (handy for testing).
 const params = new URLSearchParams(location.search);
-if (params.get('cam') === 'top') rig.mode = 'top';
+const camParam = params.get('cam');
+if (isCamMode(camParam)) settings.camera = camParam; // this visit only: not saved
 const qs = params.get('level');
 const byId = qs ? LEVEL_IDS.indexOf(qs) : -1;
 const direct = byId >= 0 ? byId : qs ? Number(qs) - 1 : -1;

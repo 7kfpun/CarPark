@@ -241,3 +241,93 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x -11, z -15, heading 90° |
 
 ![The Finale](maps/the-finale.svg)
+
+## 16. Backhand Angle
+
+> The bays slant the other way now. Follow the arrows, swing wide and turn in.
+
+| | |
+| --- | --- |
+| Id | `backhand-angle` |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 3 × 5.6 m, facing 310° (nose must point that way) |
+| Start pose | x 9, z -14, heading 0° |
+
+![Backhand Angle](maps/backhand-angle.svg)
+
+## 17. Dusk Gate
+
+> The light is fading. Pass the wall, then back through the narrow gate into the bay.
+
+| | |
+| --- | --- |
+| Id | `dusk-gate` |
+| Lot | 28 × 40 m |
+| Time limit | 70 s |
+| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
+| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x -8, z 12, heading 180° |
+
+![Dusk Gate](maps/dusk-gate.svg)
+
+## 18. Twilight Squeeze
+
+> Dusk and a sliver of room either side. Follow the arrows, line up early and creep in.
+
+| | |
+| --- | --- |
+| Id | `twilight-squeeze` |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
+| Start pose | x 10, z -12, heading 270° |
+
+![Twilight Squeeze](maps/twilight-squeeze.svg)
+
+## 19. One-Way Curb
+
+> Traffic only flows one way here. Reverse in at an angle, then straighten up.
+
+| | |
+| --- | --- |
+| Id | `one-way-curb` |
+| Lot | 40 × 26 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 270° (either direction) |
+| Start pose | x 16, z 2, heading 270° |
+
+![One-Way Curb](maps/one-way-curb.svg)
+
+## 20. Dusk Slalom
+
+> Weave through the cones as the sun sets, then reverse into the free bay on the left.
+
+| | |
+| --- | --- |
+| Id | `dusk-slalom` |
+| Lot | 30 × 60 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
+| Target bay | x -12, z 18, 2.8 × 5.6 m, facing 90° (nose must point that way) |
+| Start pose | x 0, z -26, heading 0° |
+
+![Dusk Slalom](maps/dusk-slalom.svg)
+
+## 21. Night Finale
+
+> Dusk, pillars, a wall and a walled-in bay with almost no room. Take it slow.
+
+| | |
+| --- | --- |
+| Id | `night-finale` |
+| Lot | 30 × 40 m |
+| Time limit | 100 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
+| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
+| Start pose | x 11, z -15, heading 270° |
+
+![Night Finale](maps/night-finale.svg)

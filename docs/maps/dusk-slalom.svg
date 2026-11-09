@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -640 680 1280" width="680" height="1280" role="img" aria-label="Dusk Slalom">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-640" width="680" height="1280"/>
+<polygon class="floor" points="300,600 300,-600 -300,-600 -300,600"/>
+<polyline class="bay" points="-296,268 -184,268 -184,212 -296,212"/>
+<polyline class="bay" points="-296,328 -184,328 -184,272 -296,272"/>
+<polyline class="bay" points="-296,388 -184,388 -184,332 -296,332"/>
+<polyline class="bay" points="-296,448 -184,448 -184,392 -296,392"/>
+<polyline class="bay" points="-296,508 -184,508 -184,452 -296,452"/>
+<polyline class="roadarrow" points="0,-510 0,-450"/><polygon class="roadarrowf" points="0,-450 -10.8,-466.8 10.8,-466.8"/>
+<polyline class="roadarrow" points="0,-450 0,-390"/><polygon class="roadarrowf" points="0,-390 -10.8,-406.8 10.8,-406.8"/>
+<polyline class="roadarrow" points="0,-390 0,-330"/><polygon class="roadarrowf" points="0,-330 -10.8,-346.8 10.8,-346.8"/>
+<polygon class="target" points="-184,332 -296,332 -296,388 -184,388"/>
+<polyline class="targetarrow" points="-275,360 -205,360"/><polygon class="targetarrowf" points="-205,360 -224.6,372.6 -224.6,347.4"/>
+<circle class="cone" cx="288" cy="-320" r="5"/>
+<circle class="cone" cx="264" cy="-320" r="5"/>
+<circle class="cone" cx="240" cy="-320" r="5"/>
+<circle class="cone" cx="216" cy="-320" r="5"/>
+<circle class="cone" cx="192" cy="-320" r="5"/>
+<circle class="cone" cx="168" cy="-320" r="5"/>
+<circle class="cone" cx="144" cy="-320" r="5"/>
+<circle class="cone" cx="120" cy="-320" r="5"/>
+<circle class="cone" cx="0" cy="-320" r="5"/>
+<circle class="cone" cx="-24" cy="-320" r="5"/>
+<circle class="cone" cx="-48" cy="-320" r="5"/>
+<circle class="cone" cx="-72" cy="-320" r="5"/>
+<circle class="cone" cx="-96" cy="-320" r="5"/>
+<circle class="cone" cx="-120" cy="-320" r="5"/>
+<circle class="cone" cx="-144" cy="-320" r="5"/>
+<circle class="cone" cx="-168" cy="-320" r="5"/>
+<circle class="cone" cx="-192" cy="-320" r="5"/>
+<circle class="cone" cx="-216" cy="-320" r="5"/>
+<circle class="cone" cx="-240" cy="-320" r="5"/>
+<circle class="cone" cx="-264" cy="-320" r="5"/>
+<circle class="cone" cx="-288" cy="-320" r="5"/>
+<circle class="cone" cx="288" cy="-140" r="5"/>
+<circle class="cone" cx="264" cy="-140" r="5"/>
+<circle class="cone" cx="240" cy="-140" r="5"/>
+<circle class="cone" cx="216" cy="-140" r="5"/>
+<circle class="cone" cx="192" cy="-140" r="5"/>
+<circle class="cone" cx="168" cy="-140" r="5"/>
+<circle class="cone" cx="144" cy="-140" r="5"/>
+<circle class="cone" cx="120" cy="-140" r="5"/>
+<circle class="cone" cx="96" cy="-140" r="5"/>
+<circle class="cone" cx="72" cy="-140" r="5"/>
+<circle class="cone" cx="48" cy="-140" r="5"/>
+<circle class="cone" cx="24" cy="-140" r="5"/>
+<circle class="cone" cx="0" cy="-140" r="5"/>
+<circle class="cone" cx="-120" cy="-140" r="5"/>
+<circle class="cone" cx="-144" cy="-140" r="5"/>
+<circle class="cone" cx="-168" cy="-140" r="5"/>
+<circle class="cone" cx="-192" cy="-140" r="5"/>
+<circle class="cone" cx="-216" cy="-140" r="5"/>
+<circle class="cone" cx="-240" cy="-140" r="5"/>
+<circle class="cone" cx="-264" cy="-140" r="5"/>
+<circle class="cone" cx="-288" cy="-140" r="5"/>
+<circle class="cone" cx="288" cy="40" r="5"/>
+<circle class="cone" cx="264" cy="40" r="5"/>
+<circle class="cone" cx="240" cy="40" r="5"/>
+<circle class="cone" cx="216" cy="40" r="5"/>
+<circle class="cone" cx="192" cy="40" r="5"/>
+<circle class="cone" cx="168" cy="40" r="5"/>
+<circle class="cone" cx="144" cy="40" r="5"/>
+<circle class="cone" cx="120" cy="40" r="5"/>
+<circle class="cone" cx="0" cy="40" r="5"/>
+<circle class="cone" cx="-24" cy="40" r="5"/>
+<circle class="cone" cx="-48" cy="40" r="5"/>
+<circle class="cone" cx="-72" cy="40" r="5"/>
+<circle class="cone" cx="-96" cy="40" r="5"/>
+<circle class="cone" cx="-120" cy="40" r="5"/>
+<circle class="cone" cx="-144" cy="40" r="5"/>
+<circle class="cone" cx="-168" cy="40" r="5"/>
+<circle class="cone" cx="-192" cy="40" r="5"/>
+<circle class="cone" cx="-216" cy="40" r="5"/>
+<circle class="cone" cx="-240" cy="40" r="5"/>
+<circle class="cone" cx="-264" cy="40" r="5"/>
+<circle class="cone" cx="-288" cy="40" r="5"/>
+<polygon class="wall" points="312,612 312,600 -312,600 -312,612"/>
+<polygon class="wall" points="312,-600 312,-612 -312,-612 -312,-600"/>
+<polygon class="wall" points="312,600 312,-600 300,-600 300,600"/>
+<polygon class="wall" points="-300,600 -300,-600 -312,-600 -312,600"/>
+<polygon class="car" fill="#e8e8e8" points="-198,221 -282,221 -282,259 -198,259"/><polyline class="glass" points="-216,256 -216,224"/>
+<polygon class="car" fill="#8a8f98" points="-198,281 -282,281 -282,319 -198,319"/><polyline class="glass" points="-216,316 -216,284"/>
+<polygon class="car" fill="#c8322b" points="-198,401 -282,401 -282,439 -198,439"/><polyline class="glass" points="-216,436 -216,404"/>
+<polygon class="car" fill="#2e8b57" points="-198,461 -282,461 -282,499 -198,499"/><polyline class="glass" points="-216,496 -216,464"/>
+<polygon class="start" points="19,-478 19,-562 -19,-562 -19,-478"/>
+<polyline class="startarrow" points="0,-553.6 0,-486.4"/><polygon class="startarrowf" points="0,-486.4 -12.1,-505.22 12.1,-505.22"/>
+</svg>
