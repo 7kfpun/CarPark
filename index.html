@@ -40,7 +40,13 @@
       </div>
     </div>
 
-    <div id="admin-badge" class="hidden" aria-label="Admin mode">ADMIN</div>
+    <div id="admin-bar" class="hidden">
+      <button id="admin-badge" aria-label="Admin mode: show or hide level skip buttons" aria-pressed="true">
+        ADMIN
+      </button>
+      <button class="admin-skip" id="admin-prev" aria-label="Previous level">◀ Prev</button>
+      <button class="admin-skip" id="admin-next" aria-label="Next level">Next ▶</button>
+    </div>
 
     <div id="hud" class="hidden">
       <div class="hud-top">
