@@ -1,3 +1,4 @@
+import { nextFocusIndex } from './focus';
 import type { LevelDef } from './layout';
 import type { FloorHud } from './storey';
 import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
@@ -214,14 +215,13 @@ export class Hud {
   /** Keep keyboard focus inside the open modal; arrows move between its buttons. */
   private trapFocus = (e: KeyboardEvent): void => {
     if (!this.modalOpen) return;
-    const dir = e.key === 'Tab' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    const dir: 0 | 1 | -1 =
+      e.key === 'Tab' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!dir) return;
     const btns = this.modalButtons();
     if (!btns.length) return;
     e.preventDefault();
-    const i = btns.indexOf(document.activeElement as HTMLButtonElement);
-    const next = i < 0 ? (dir > 0 ? 0 : btns.length - 1) : (i + dir + btns.length) % btns.length;
-    btns[next].focus();
+    btns[nextFocusIndex(btns.length, btns.indexOf(document.activeElement as HTMLButtonElement), dir)].focus();
   };
 
   constructor() {

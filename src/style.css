@@ -718,3 +718,22 @@ kbd {
   background: linear-gradient(90deg, #ffe14d, var(--good));
   transition: width 0.15s;
 }
+
+#admin-badge {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 50;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #d92b2b;
+  color: #fff;
+  font:
+    700 12px/1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+#admin-badge.hidden {
+  display: none;
+}
