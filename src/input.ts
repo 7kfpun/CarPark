@@ -135,6 +135,19 @@ export function pedalControls(
   return { throttle: accel ? (reverse ? -1 : 1) : 0, handbrake: false };
 }
 
+/** How long (ms) a touch that the browser cancelled (edge swipe, system gesture) is held before it counts as released. */
+export const GRIP_GRACE_MS = 250;
+
+/** A touch the browser cancelled while the finger may still be down: remember when it was first lost. */
+export function gripLost(lostAt: number | null, now: number): number {
+  return lostAt ?? now;
+}
+
+/** True once a lost touch has gone unclaimed for the whole grace period (null = never lost = not expired). */
+export function gripExpired(lostAt: number | null, now: number, grace = GRIP_GRACE_MS): boolean {
+  return lostAt !== null && now - lostAt >= grace;
+}
+
 /** Which input device last drove the game; the on-screen cockpit only shows for touch. */
 export type InputSource = 'touch' | 'keys' | 'pad';
 
@@ -160,11 +173,15 @@ export class Input {
   private wheelRot: HTMLElement | null = null;
   private wheelLabel: HTMLElement | null = null;
   private wheelPointer: number | null = null;
+  /** When the wheel touch was cancelled by the browser (held for a grace period), else null. */
+  private wheelLostAt: number | null = null;
   private wheelPrev = 0;
   private wheelAngle = 0;
   private touchSteer = 0;
-  private accelPointers = new Set<number>();
-  private brakePointers = new Set<number>();
+  /** Pointer id -> time the browser cancelled it (null while it is a live touch). */
+  private accelPointers = new Map<number, number | null>();
+  private brakePointers = new Map<number, number | null>();
+  private graceTimer = 0;
   private accelEl: HTMLElement | null = null;
   private brakeEl: HTMLElement | null = null;
   private gearEl: HTMLElement | null = null;
@@ -278,8 +295,10 @@ export class Input {
     };
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      if (this.wheelPointer !== null) return;
+      // A new touch while the old one is only held (cancelled) takes over without snapping the wheel.
+      if (this.wheelPointer !== null && this.wheelLostAt === null) return;
       this.wheelPointer = e.pointerId;
+      this.wheelLostAt = null;
       this.wheelPrev = angleAt(e) ?? 0;
       capture(el, e.pointerId);
       el.classList.add('active');
@@ -293,17 +312,47 @@ export class Input {
       }
       if (e.pointerId !== this.wheelPointer) return;
       e.preventDefault();
+      if (this.wheelLostAt !== null) {
+        // The same finger is still moving after a cancel: resume from where the wheel is, no snap.
+        this.wheelLostAt = null;
+        this.wheelPrev = angleAt(e) ?? this.wheelPrev;
+        capture(el, e.pointerId);
+      }
       const a = angleAt(e);
       if (a === null) return;
       this.setWheel(turnWheel(this.wheelAngle, this.wheelPrev, a));
       this.wheelPrev = a;
     });
-    const end = (e: PointerEvent) => {
+    // Only a real pointerup lets go at once; cancel / lost capture (edge swipes) hold for a grace period.
+    el.addEventListener('pointerup', (e) => {
       if (e.pointerId === this.wheelPointer) this.releaseWheel();
+    });
+    const lost = (e: PointerEvent) => {
+      if (e.pointerId !== this.wheelPointer) return;
+      this.wheelLostAt = gripLost(this.wheelLostAt, performance.now());
+      this.scheduleGrace();
     };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
-    el.addEventListener('lostpointercapture', end);
+    el.addEventListener('pointercancel', lost);
+    el.addEventListener('lostpointercapture', lost);
+  }
+
+  /** Arm one timer that lets go of any held (cancelled) touch that nobody re-claimed within the grace period. */
+  private scheduleGrace(): void {
+    if (this.graceTimer) clearTimeout(this.graceTimer);
+    this.graceTimer = window.setTimeout(() => {
+      this.graceTimer = 0;
+      const now = performance.now();
+      if (gripExpired(this.wheelLostAt, now)) this.releaseWheel();
+      for (const [set, el] of [
+        [this.accelPointers, this.accelEl],
+        [this.brakePointers, this.brakeEl],
+      ] as const) {
+        for (const [id, lostAt] of set) if (gripExpired(lostAt, now)) set.delete(id);
+        if (!set.size) el?.classList.remove('active');
+      }
+      const pending = [this.wheelLostAt, ...this.accelPointers.values(), ...this.brakePointers.values()];
+      if (pending.some((t) => t !== null)) this.scheduleGrace();
+    }, GRIP_GRACE_MS);
   }
 
   private setWheel(deg: number): void {
@@ -316,31 +365,42 @@ export class Input {
   /** Let go of the wheel: it springs back to centre. */
   private releaseWheel(): void {
     this.wheelPointer = null;
+    this.wheelLostAt = null;
     this.setWheel(0);
     this.wheelEl?.classList.remove('active');
   }
 
   /** A pedal is pressed while any finger that landed on it is down (multi-touch safe). */
-  private bindPedal(el: HTMLElement, pointers: Set<number>): void {
+  private bindPedal(el: HTMLElement, pointers: Map<number, number | null>): void {
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       capture(el, e.pointerId);
-      pointers.add(e.pointerId);
+      pointers.set(e.pointerId, null);
       el.classList.add('active');
     });
     // clear() empties the set while the finger still holds capture: re-adopt it on the next move.
+    // A touch the browser cancelled (held) resumes when the same finger moves again.
     el.addEventListener('pointermove', (e) => {
-      if (!pointers.has(e.pointerId) && el.hasPointerCapture(e.pointerId)) {
-        pointers.add(e.pointerId);
+      if (pointers.has(e.pointerId)) {
+        if (pointers.get(e.pointerId) !== null) {
+          pointers.set(e.pointerId, null);
+          capture(el, e.pointerId);
+        }
+      } else if (el.hasPointerCapture(e.pointerId)) {
+        pointers.set(e.pointerId, null);
         el.classList.add('active');
       }
     });
-    const end = (e: PointerEvent) => {
+    el.addEventListener('pointerup', (e) => {
       if (pointers.delete(e.pointerId) && !pointers.size) el.classList.remove('active');
+    });
+    const lost = (e: PointerEvent) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, gripLost(pointers.get(e.pointerId) ?? null, performance.now()));
+      this.scheduleGrace();
     };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
-    el.addEventListener('lostpointercapture', end);
+    el.addEventListener('pointercancel', lost);
+    el.addEventListener('lostpointercapture', lost);
   }
 
   private releaseTouch(): void {

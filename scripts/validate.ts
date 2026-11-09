@@ -40,6 +40,9 @@ import {
   steerFromWheel,
   strongest,
   turnWheel,
+  gripLost,
+  gripExpired,
+  GRIP_GRACE_MS,
   WHEEL_LOCK,
 } from '../src/input';
 import {
@@ -816,6 +819,14 @@ check(
 check(
   turnWheel(WHEEL_LOCK, 90, 180) === WHEEL_LOCK && turnWheel(0, 175, -175) === 10,
   'wheel does not wind past the lock and follows the finger across the ±180° seam',
+);
+check(
+  gripLost(null, 100) === 100 && gripLost(100, 180) === 100,
+  'a cancelled touch remembers when it was first lost, not the latest cancel',
+);
+check(
+  !gripExpired(null, 1e9) && !gripExpired(100, 100 + GRIP_GRACE_MS - 1) && gripExpired(100, 100 + GRIP_GRACE_MS),
+  'a cancelled touch is held for the grace period, then released; a live touch never expires',
 );
 check(steerFromWheel(turnWheel(80, 20, 20 - 80)) === 0, 'letting go springs the wheel back to straight ahead');
 check(
