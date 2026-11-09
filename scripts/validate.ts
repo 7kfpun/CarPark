@@ -5,7 +5,7 @@ import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { nextFocusIndex } from '../src/focus';
-import { Sfx } from '../src/audio';
+import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction } from '../src/guards';
 import {
   angleDelta,
@@ -1389,6 +1389,32 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   sfx.beep();
   check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
   g.AudioContext = prev;
+}
+
+// --- Sound (FOX-246) ---
+{
+  check(engineParams(0, 3.5).gain === 0, 'engine is silent when stopped');
+  const slow = engineParams(1, 3.5);
+  const fast = engineParams(3.5, 3.5);
+  check(fast.freq > slow.freq && fast.gain > slow.gain, 'engine pitch and volume rise with speed');
+  check(engineParams(-2, 3.5).freq === engineParams(2, 3.5).freq, 'engine hum ignores direction');
+  check(engineParams(99, 3.5).freq === fast.freq, 'engine hum is capped at top speed');
+  check(
+    winNotes(1).length < winNotes(2).length && winNotes(2).length < winNotes(3).length,
+    'more stars, longer jingle',
+  );
+  check(
+    winNotes(0).length === winNotes(1).length && winNotes(9).length === winNotes(3).length,
+    'jingle stars are clamped',
+  );
+  check(VOLUME_STEPS.length === 3 && VOLUME_STEPS.every((v) => v > 0 && v <= 1), 'volume steps are valid gains');
+  const store: Record<string, string> = {
+    'car-parking-3d:settings:v1': JSON.stringify({ music: false, sfxVol: 0, musicVol: 7 }),
+  };
+  (globalThis as unknown as { localStorage: unknown }).localStorage = { getItem: (k: string) => store[k] ?? null };
+  const ls = loadSettings();
+  check(!ls.music && ls.sfxVol === 0 && ls.musicVol === 1, 'sound settings load, bad volume falls back');
+  delete (globalThis as unknown as { localStorage?: unknown }).localStorage;
 }
 
 // --- Materials (FOX-237) ---

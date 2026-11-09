@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import './style.css';
 import { reducedMotion } from './a11y';
 import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
-import { Sfx } from './audio';
+import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { PlayerCar } from './car';
@@ -98,9 +98,16 @@ resize();
 const hud = new Hud();
 const input = new Input();
 const sfx = new Sfx();
-sfx.muted = !settings.sound;
+function applySound(s: Settings): void {
+  sfx.muted = !s.sound;
+  sfx.musicOn = s.music;
+  sfx.sfxVolume = VOLUME_STEPS[s.sfxVol];
+  sfx.musicVolume = VOLUME_STEPS[s.musicVol];
+  sfx.applyVolumes();
+}
+applySound(settings);
 const settingsPanel = new SettingsPanel(settings, (s, key) => {
-  if (key === 'sound') sfx.muted = !s.sound;
+  if (key === 'sound' || key === 'music' || key === 'sfxVol' || key === 'musicVol') applySound(s);
   if (key === 'quality') gfx.setQuality(s.quality);
   if (key === 'wheel') applyWheelSide(s.wheel);
 });
@@ -212,6 +219,7 @@ function canRun(): boolean {
 function startLevel(i: number): void {
   if (!canRun()) return;
   sfx.unlock();
+  sfx.startMusic();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
   const vehicle = vehicleOf(def.vehicle);
@@ -266,6 +274,7 @@ function pause(): void {
   // show the modal so touch players can resume.
   if (state === 'paused' ? hud.modalOpen : state !== 'playing') return;
   state = 'paused';
+  sfx.stopEngine();
   syncAdminBar();
   input.clear();
   hud.showModal(
@@ -307,8 +316,8 @@ function finish(win: boolean, reason: string): void {
   hud.setPark(null, '');
   const def = LEVELS[levelIndex];
   if (win) {
-    sfx.win();
     const stars = starsForTime(elapsed, def.stars);
+    sfx.win(stars);
     recordWin(progress, LEVEL_IDS, levelIndex, stars);
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
@@ -473,6 +482,7 @@ function step(dt: number): void {
   if (elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controls, level.surfaces);
+  sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
