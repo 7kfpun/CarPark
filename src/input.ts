@@ -1,7 +1,5 @@
 import type { Controls } from './physics';
 
-type Pedal = 'up' | 'down' | 'brake';
-
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
 
 /** Keys a focused control activates natively (button click, link follow...). */
@@ -14,11 +12,12 @@ function isInteractive(el: EventTarget | null): boolean {
   );
 }
 
-/** Steering pad: finger travel (px) from the touch-down point for full lock. */
-const STEER_TRAVEL = 56;
-const STEER_DEADZONE = 0.08;
-/** Pedal hit-test slack (px) so sliding across the gap between pedals doesn't drop out. */
-const PEDAL_SLACK = 14;
+/** Steering wheel: rotation (degrees) either side of centre that gives full lock. */
+export const WHEEL_LOCK = 120;
+/** Fraction of full lock that still counts as straight ahead. */
+const WHEEL_DEADZONE = 0.05;
+/** Finger distance (px) from the wheel centre inside which the grab angle is too noisy to follow. */
+const WHEEL_MIN_RADIUS = 14;
 const STICK_DEADZONE = 0.15;
 const TRIGGER_DEADZONE = 0.05;
 
@@ -92,10 +91,41 @@ export function strongest(...values: number[]): number {
   return best;
 }
 
-/** Map a horizontal finger offset (px) from the touch-down point to steer -1..1. */
-export function steerFromOffset(dx: number, travel = STEER_TRAVEL, dz = STEER_DEADZONE): number {
-  return deadzone(dx / travel, dz);
+/** Angle (degrees, 0 = straight up, clockwise positive) of a point `dx`, `dy` (screen px) from the wheel centre. */
+export function pointerAngle(dx: number, dy: number): number {
+  return (Math.atan2(dx, -dy) * 180) / Math.PI;
 }
+
+/** Shortest signed difference `to - from` between two angles in degrees, in -180..180. */
+export function angleDelta(from: number, to: number): number {
+  return ((((to - from) % 360) + 540) % 360) - 180;
+}
+
+/** Wheel rotation after the finger moved from angle `prev` to `next`, clamped to the lock (degrees). */
+export function turnWheel(wheel: number, prev: number, next: number, lock = WHEEL_LOCK): number {
+  return Math.max(-lock, Math.min(lock, wheel + angleDelta(prev, next)));
+}
+
+/** Map wheel rotation (degrees, + = clockwise = right) to steer -1..1, the same range as the keyboard. */
+export function steerFromWheel(wheel: number, lock = WHEEL_LOCK, dz = WHEEL_DEADZONE): number {
+  return deadzone(wheel / lock, dz);
+}
+
+/**
+ * Map the on-screen pedals to drive controls. Brake wins over the accelerator and holds the car
+ * (never reverses it); the accelerator drives forward, or backward while the gear is reverse.
+ */
+export function pedalControls(
+  accel: boolean,
+  brake: boolean,
+  reverse: boolean,
+): { throttle: number; handbrake: boolean } {
+  if (brake) return { throttle: 0, handbrake: true };
+  return { throttle: accel ? (reverse ? -1 : 1) : 0, handbrake: false };
+}
+
+/** Which input device last drove the game; the on-screen cockpit only shows for touch. */
+export type InputSource = 'touch' | 'keys' | 'pad';
 
 /** Capture so moves keep arriving after the finger leaves the element (throws if the pointer is already gone). */
 function capture(el: HTMLElement, pointerId: number): void {
@@ -115,14 +145,20 @@ interface PadState {
 export class Input {
   private readonly keys = new Set<string>();
   private readonly actions = new Map<string, () => void>();
-  /** Active pedal / handbrake pointers -> the pedal each is over (null = slid off). */
-  private readonly pedalPointers = new Map<number, Pedal | null>();
-  private readonly pedalEls: Partial<Record<Pedal, HTMLElement>> = {};
-  private steerEl: HTMLElement | null = null;
-  private steerKnob: HTMLElement | null = null;
-  private steerPointer: number | null = null;
-  private steerOrigin = 0;
+  private wheelEl: HTMLElement | null = null;
+  private wheelRot: HTMLElement | null = null;
+  private wheelLabel: HTMLElement | null = null;
+  private wheelPointer: number | null = null;
+  private wheelPrev = 0;
+  private wheelAngle = 0;
   private touchSteer = 0;
+  private accelPointers = new Set<number>();
+  private brakePointers = new Set<number>();
+  private accelEl: HTMLElement | null = null;
+  private brakeEl: HTMLElement | null = null;
+  private gearEl: HTMLElement | null = null;
+  private reverse = false;
+  private source: InputSource = 'touch';
   private pad: PadState = { steer: 0, throttle: 0, handbrake: false };
   private readonly padButtons = new Map<number, boolean>();
   private readonly navDirs = new Set<Dir>();
@@ -139,6 +175,7 @@ export class Input {
     addEventListener('keydown', (e) => {
       const driving = this.driving();
       const focused = isInteractive(e.target);
+      if (GAME_KEYS.has(e.code)) this.setSource('keys');
       if (driving) {
         // Swallow drive keys (and Enter, so a stray focused HUD button can't be clicked).
         if (GAME_KEYS.has(e.code) || ACTIVATE_KEYS.has(e.code)) e.preventDefault();
@@ -153,7 +190,14 @@ export class Input {
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.clear());
-    addEventListener('gamepadconnected', () => this.startPadLoop());
+    addEventListener('gamepadconnected', () => {
+      this.setSource('pad');
+      this.startPadLoop();
+    });
+    addEventListener('gamepaddisconnected', () => this.setSource('touch'));
+    addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') this.setSource('touch');
+    });
   }
 
   /** Register a one-shot action for a key code (fires on press, not repeat). */
@@ -166,117 +210,119 @@ export class Input {
     this.releaseTouch();
   }
 
+  /** Track the active input device on <body data-input> so CSS can hide the cockpit for keyboard / pad. */
+  private setSource(src: InputSource): void {
+    if (src === this.source) return;
+    this.source = src;
+    document.body.dataset.input = src;
+  }
+
   /**
-   * Wire up the on-screen controls inside `root`: the analog steering pad
-   * (#t-steer with a .knob child), the ▲ / ▼ pedals (#t-up / #t-down inside
-   * .pedals; slide between them without lifting) and the P handbrake (#t-brake).
+   * Wire up the on-screen cockpit inside `root`: the steering wheel (#t-wheel with a .wheel-rot child,
+   * dragged round its centre), the accelerator (#t-accel) and brake (#t-brake) pedals and the
+   * R / D gear toggle (#t-gear).
    */
   bindTouch(root: HTMLElement): void {
-    const steer = root.querySelector<HTMLElement>('#t-steer');
-    if (steer) this.bindSteer(steer);
-    for (const key of ['up', 'down', 'brake'] as const) {
-      const el = root.querySelector<HTMLElement>(`#t-${key}`);
-      if (el) this.pedalEls[key] = el;
-    }
-    const pedals = root.querySelector<HTMLElement>('.pedals');
-    if (pedals) this.bindPedalZone(pedals, ['up', 'down']);
-    if (this.pedalEls.brake) this.bindPedalZone(this.pedalEls.brake, ['brake']);
+    document.body.dataset.input = this.source;
+    const wheel = root.querySelector<HTMLElement>('#t-wheel');
+    if (wheel) this.bindWheel(wheel);
+    this.accelEl = root.querySelector<HTMLElement>('#t-accel');
+    this.brakeEl = root.querySelector<HTMLElement>('#t-brake');
+    if (this.accelEl) this.bindPedal(this.accelEl, this.accelPointers);
+    if (this.brakeEl) this.bindPedal(this.brakeEl, this.brakePointers);
+    this.gearEl = root.querySelector<HTMLElement>('#t-gear');
+    this.gearEl?.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.setReverse(!this.reverse);
+    });
+    this.setReverse(false);
     root.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  private bindSteer(el: HTMLElement): void {
-    this.steerEl = el;
-    this.steerKnob = el.querySelector<HTMLElement>('.knob');
+  /** Select reverse (true) or drive (false) for the accelerator pedal. */
+  setReverse(on: boolean): void {
+    this.reverse = on;
+    const g = this.gearEl;
+    if (!g) return;
+    g.textContent = on ? 'R' : 'D';
+    g.classList.toggle('reverse', on);
+    g.setAttribute('aria-pressed', String(on));
+    this.accelEl?.classList.toggle('reverse', on);
+  }
+
+  private bindWheel(el: HTMLElement): void {
+    this.wheelEl = el;
+    this.wheelRot = el.querySelector<HTMLElement>('.wheel-rot');
+    this.wheelLabel = el.querySelector<HTMLElement>('.wheel-lock');
+    const angleAt = (e: PointerEvent): number | null => {
+      const r = el.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      return Math.hypot(dx, dy) < WHEEL_MIN_RADIUS ? null : pointerAngle(dx, dy);
+    };
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      if (this.steerPointer !== null) return;
-      this.steerPointer = e.pointerId;
-      this.steerOrigin = e.clientX;
+      if (this.wheelPointer !== null) return;
+      this.wheelPointer = e.pointerId;
+      this.wheelPrev = angleAt(e) ?? 0;
       capture(el, e.pointerId);
       el.classList.add('active');
-      this.setSteer(0);
     });
     el.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== this.steerPointer) return;
+      if (e.pointerId !== this.wheelPointer) return;
       e.preventDefault();
-      this.setSteer(steerFromOffset(e.clientX - this.steerOrigin));
+      const a = angleAt(e);
+      if (a === null) return;
+      this.setWheel(turnWheel(this.wheelAngle, this.wheelPrev, a));
+      this.wheelPrev = a;
     });
     const end = (e: PointerEvent) => {
-      if (e.pointerId === this.steerPointer) this.releaseSteer();
+      if (e.pointerId === this.wheelPointer) this.releaseWheel();
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('lostpointercapture', end);
   }
 
-  private setSteer(v: number): void {
-    this.touchSteer = v;
-    const knob = this.steerKnob;
-    if (!knob || !this.steerEl) return;
-    // Keep the knob inside the pad even if it's narrower than the steering travel.
-    const room = Math.max(0, (this.steerEl.clientWidth - knob.offsetWidth) / 2);
-    knob.style.transform = `translateX(${(v * Math.min(STEER_TRAVEL, room)).toFixed(1)}px)`;
+  private setWheel(deg: number): void {
+    this.wheelAngle = deg;
+    this.touchSteer = steerFromWheel(deg);
+    if (this.wheelRot) this.wheelRot.style.transform = `rotate(${deg.toFixed(1)}deg)`;
+    if (this.wheelLabel) this.wheelLabel.textContent = `${Math.round(Math.abs(deg))}°`;
   }
 
-  private releaseSteer(): void {
-    this.steerPointer = null;
-    this.setSteer(0);
-    this.steerEl?.classList.remove('active');
+  /** Let go of the wheel: it springs back to centre. */
+  private releaseWheel(): void {
+    this.wheelPointer = null;
+    this.setWheel(0);
+    this.wheelEl?.classList.remove('active');
   }
 
-  /** Pointer-tracked zone: whichever of `keys` each finger is currently over is pressed. */
-  private bindPedalZone(zone: HTMLElement, keys: readonly Pedal[]): void {
-    const hit = (x: number, y: number): Pedal | null => {
-      let best: Pedal | null = null;
-      let bestDist = PEDAL_SLACK;
-      for (const k of keys) {
-        const r = this.pedalEls[k]?.getBoundingClientRect();
-        if (!r) continue;
-        const d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
-        if (d <= bestDist) {
-          best = k;
-          bestDist = d;
-        }
-      }
-      return best;
-    };
-    zone.addEventListener('pointerdown', (e) => {
+  /** A pedal is pressed while any finger that landed on it is down (multi-touch safe). */
+  private bindPedal(el: HTMLElement, pointers: Set<number>): void {
+    el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      const k = hit(e.clientX, e.clientY);
-      if (!k) return;
-      capture(zone, e.pointerId);
-      this.pedalPointers.set(e.pointerId, k);
-      this.refreshPedals();
-    });
-    zone.addEventListener('pointermove', (e) => {
-      if (!this.pedalPointers.has(e.pointerId)) return;
-      e.preventDefault();
-      const k = hit(e.clientX, e.clientY);
-      if (k === this.pedalPointers.get(e.pointerId)) return;
-      this.pedalPointers.set(e.pointerId, k);
-      this.refreshPedals();
+      capture(el, e.pointerId);
+      pointers.add(e.pointerId);
+      el.classList.add('active');
     });
     const end = (e: PointerEvent) => {
-      if (this.pedalPointers.delete(e.pointerId)) this.refreshPedals();
+      if (pointers.delete(e.pointerId) && !pointers.size) el.classList.remove('active');
     };
-    zone.addEventListener('pointerup', end);
-    zone.addEventListener('pointercancel', end);
-    zone.addEventListener('lostpointercapture', end);
-  }
-
-  private pedal(k: Pedal): boolean {
-    for (const v of this.pedalPointers.values()) if (v === k) return true;
-    return false;
-  }
-
-  private refreshPedals(): void {
-    for (const k of ['up', 'down', 'brake'] as const) this.pedalEls[k]?.classList.toggle('active', this.pedal(k));
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', end);
   }
 
   private releaseTouch(): void {
-    this.pedalPointers.clear();
-    this.refreshPedals();
-    this.releaseSteer();
+    for (const [set, el] of [
+      [this.accelPointers, this.accelEl],
+      [this.brakePointers, this.brakeEl],
+    ] as const) {
+      set.clear();
+      el?.classList.remove('active');
+    }
+    this.releaseWheel();
   }
 
   // --- Gamepad -----------------------------------------------------------------
@@ -370,14 +416,15 @@ export class Input {
   }
 
   get controls(): Controls {
-    const up = this.pedal('up') || this.any('KeyW', 'ArrowUp');
-    const down = this.pedal('down') || this.any('KeyS', 'ArrowDown');
+    const up = this.any('KeyW', 'ArrowUp');
+    const down = this.any('KeyS', 'ArrowDown');
     const left = this.any('KeyA', 'ArrowLeft');
     const right = this.any('KeyD', 'ArrowRight');
+    const touch = pedalControls(this.accelPointers.size > 0, this.brakePointers.size > 0, this.reverse);
     return {
-      throttle: strongest((up ? 1 : 0) - (down ? 1 : 0), this.pad.throttle),
+      throttle: strongest((up ? 1 : 0) - (down ? 1 : 0), touch.throttle, this.pad.throttle),
       steer: strongest((right ? 1 : 0) - (left ? 1 : 0), this.touchSteer, this.pad.steer),
-      handbrake: this.pedal('brake') || this.pad.handbrake || this.any('Space'),
+      handbrake: touch.handbrake || this.pad.handbrake || this.any('Space'),
     };
   }
 }

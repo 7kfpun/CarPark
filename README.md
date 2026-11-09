@@ -9,16 +9,16 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 
 ## Controls
 
-| Action                 | Keyboard          | Touch     |
-| ---------------------- | ----------------- | --------- |
-| Accelerate             | `W` / `↑`         | ▲         |
-| Brake / reverse        | `S` / `↓`         | ▼         |
-| Steer                  | `A` `D` / `←` `→` | ◀ ▶       |
-| Handbrake              | `Space`           | P         |
-| Toggle chase / top cam | `C`               | 🎥 button |
-| Restart level          | `R`               |           |
-| Pause / resume         | `Esc` / `P`       | ⏸ button  |
-| Mute                   | `M`               |           |
+| Action                 | Keyboard          | Touch                                 |
+| ---------------------- | ----------------- | ------------------------------------- |
+| Accelerate             | `W` / `↑`         | Accelerator pedal                     |
+| Brake / reverse        | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
+| Steer                  | `A` `D` / `←` `→` | Drag the steering wheel round         |
+| Handbrake              | `Space`           | Brake pedal                           |
+| Toggle chase / top cam | `C`               | 🎥 button                             |
+| Restart level          | `R`               |                                       |
+| Pause / resume         | `Esc` / `P`       | ⏸ button                              |
+| Mute                   | `M`               |                                       |
 
 ### Admin mode (testing)
 

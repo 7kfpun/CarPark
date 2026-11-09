@@ -20,7 +20,7 @@ import { ceilingAbove, floorHud, lightTarget } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
-import { loadSettings, SettingsPanel } from './settings';
+import { loadSettings, SettingsPanel, type Settings } from './settings';
 import { checkForUpdate, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
@@ -74,7 +74,12 @@ const settingsPanel = new SettingsPanel(settings, (s, key) => {
   if (key === 'sound') sfx.muted = !s.sound;
   if (key === 'quality') gfx.setQuality(s.quality);
   if (key === 'camera') rig.mode = s.camera;
+  if (key === 'wheel') applyWheelSide(s.wheel);
 });
+/** Put the steering wheel on the left or right of the touch cockpit (the pedals take the other side). */
+function applyWheelSide(side: Settings['wheel']): void {
+  document.getElementById('touch')!.classList.toggle('wheel-right', side === 'right');
+}
 const loadingEl = document.getElementById('loading')!;
 const loadingText = document.getElementById('loading-text')!;
 const loadingFill = document.getElementById('loading-fill')!;
@@ -164,6 +169,7 @@ function startLevel(i: number): void {
   parkHold = 0;
   accumulator = 0;
   input.clear();
+  input.setReverse(false);
   rig.snap(player.physics);
   hud.startLevel(i, def);
   state = 'playing';
@@ -353,6 +359,7 @@ document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
 });
 input.bindTouch(document.getElementById('touch')!);
+applyWheelSide(settings.wheel);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 // Backgrounded (home, app switch, call, screen lock): pause, silence audio and stop the loop.
 // On return the Pause screen is showing and the car doesn't move until the player taps Resume.
