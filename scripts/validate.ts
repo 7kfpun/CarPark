@@ -86,7 +86,17 @@ import {
   type CamMode,
   type ViewTarget,
 } from '../src/views';
-import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
+import {
+  checkForUpdate,
+  compareVersions,
+  fetchUpdate,
+  mergeUpdate,
+  reloadUrl,
+  shouldPrompt,
+  decideUpdate,
+  parseRemote,
+  parseVersion,
+} from '../src/update';
 import {
   LOCATIONS,
   levelPlayable,
@@ -1293,6 +1303,17 @@ check(parseRemote({ version: '1.0.0', build: 'x' })?.minVersion === null, 'minVe
 check(parseRemote({ version: 'nope', build: 'x' }) === null, 'bad remote version rejected');
 check(parseRemote({ version: '1.0.0', build: 'x', minVersion: 'zz' }) === null, 'bad minVersion rejected');
 check(parseRemote(null) === null && parseRemote('x') === null, 'non-object remote rejected');
+check(mergeUpdate('optional', 'none') === 'none', 'a none result clears a stale optional');
+check(mergeUpdate('required', 'none') === 'required', 'required is never downgraded');
+check(mergeUpdate('none', 'optional') === 'optional', 'optional replaces none');
+check(
+  shouldPrompt(null, 'b1') && shouldPrompt('b1', 'b2') && !shouldPrompt('b1', 'b1'),
+  'newer build re-prompts after dismiss',
+);
+check(
+  reloadUrl('https://x.test/g/?a=1&_u=5#h', 99) === 'https://x.test/g/?a=1&_u=99',
+  'reload url busts cache without stacking',
+);
 const ok = (body: unknown, status = 200) =>
   (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
 check(
@@ -1300,6 +1321,7 @@ check(
   'fetched required update',
 );
 check((await checkForUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))) === 'optional', 'fetched optional update');
+check((await fetchUpdate(me, 'v.json', 50, ok(rem('1.3.0', 'd')))).build === 'd', 'fetch reports the remote build');
 check((await checkForUpdate(me, 'v.json', 50, ok({}, 404))) === 'none', 'HTTP error never blocks');
 check((await checkForUpdate(me, 'v.json', 50, ok({ junk: 1 }))) === 'none', 'junk body never blocks');
 check(
