@@ -41,7 +41,7 @@ function carOn(floor: string, x: number, z: number, rot = 0): ObstacleDef {
 const SPIRAL = {
   /** Ramp segments per turn: each one is straight, so the 2D collision of a layer stays simple. */
   perTurn: 8,
-  turns: 3,
+  turns: 2,
   /** Storey height (m). */
   rise: 3,
   /** Ramp width and length (m): the shortest length the car fits on. */
@@ -326,8 +326,8 @@ const LEVELS_1_12: RawLevel[] = [
     spawn: SPIRAL_PARTS.start,
     target: { x: EX.x + 3.5, z: EX.z + 8, rot: 0, w: 3, l: 5.6, floor: 'top' },
     bothWays: false,
-    time: 320,
-    stars: { three: 160, two: 240 },
+    time: 200,
+    stars: { three: 95, two: 128 },
     floors: SPIRAL_PARTS.floors,
     ramps: SPIRAL_PARTS.ramps,
     obstacles: [

@@ -4,7 +4,7 @@
 <polygon class="floor" points="350,414 350,14 30,14 30,414"/>
 <polygon class="ramp" points="260,14 260,-126 120,-126 120,14"/>
 <polyline class="ramparrow" points="190,-7 190,-105"/><polygon class="ramparrowf" points="190,-105 207.64,-77.56 172.36,-77.56"/>
-<text class="label" x="190" y="-56" text-anchor="middle">r23 down</text>
+<text class="label" x="190" y="-56" text-anchor="middle">r15 down</text>
 <polygon class="target" points="290,300 290,188 230,188 230,300"/>
 <polyline class="targetarrow" points="260,209 260,279"/><polygon class="targetarrowf" points="260,279 247.4,259.4 272.6,259.4"/>
 <polygon class="wall" points="356,414 356,14 350,14 350,414"/>
