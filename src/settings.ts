@@ -8,12 +8,13 @@ export interface Settings {
   quality: QualitySetting;
   camera: CamMode;
   mirror: boolean;
+  wheel: 'left' | 'right';
 }
 
 const KEY = 'car-parking-3d:settings:v1';
 
 export function loadSettings(): Settings {
-  const fresh: Settings = { sound: true, quality: 'auto', camera: 'chase', mirror: true };
+  const fresh: Settings = { sound: true, quality: 'auto', camera: 'chase', mirror: true, wheel: 'left' };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
@@ -24,6 +25,7 @@ export function loadSettings(): Settings {
       quality: s.quality === 'low' || s.quality === 'high' || s.quality === 'auto' ? s.quality : fresh.quality,
       camera: s.camera === 'top' || s.camera === 'chase' ? s.camera : fresh.camera,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
+      wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
     };
   } catch {
     return fresh;
@@ -48,6 +50,7 @@ export class SettingsPanel {
     { key: 'quality', values: ['low', 'high', 'auto'] },
     { key: 'camera', values: ['chase', 'top'] },
     { key: 'mirror', values: [true, false] },
+    { key: 'wheel', values: ['left', 'right'] },
   ];
   private onClose: (() => void) | null = null;
   private opener: HTMLElement | null = null;

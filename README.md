@@ -9,20 +9,20 @@ No asset files are loaded at runtime. The cars, the lots and the sound effects a
 
 ## Controls
 
-| Action                 | Keyboard          | Touch     |
-| ---------------------- | ----------------- | --------- |
-| Accelerate             | `W` / `↑`         | ▲         |
-| Brake / reverse        | `S` / `↓`         | ▼         |
-| Steer                  | `A` `D` / `←` `→` | ◀ ▶       |
-| Handbrake              | `Space`           | P         |
-| Toggle chase / top cam | `C`               | 🎥 button |
-| Restart level          | `R`               |           |
-| Pause / resume         | `Esc` / `P`       | ⏸ button  |
-| Mute                   | `M`               |           |
+| Action                 | Keyboard          | Touch                                 |
+| ---------------------- | ----------------- | ------------------------------------- |
+| Accelerate             | `W` / `↑`         | Accelerator pedal                     |
+| Brake / reverse        | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
+| Steer                  | `A` `D` / `←` `→` | Drag the steering wheel round         |
+| Handbrake              | `Space`           | Brake pedal                           |
+| Toggle chase / top cam | `C`               | 🎥 button                             |
+| Restart level          | `R`               |                                       |
+| Pause / resume         | `Esc` / `P`       | ⏸ button                              |
+| Mute                   | `M`               |                                       |
 
 ### Admin mode (testing)
 
-Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it off) to unlock every level, show an `ADMIN` badge, and skip levels with `]` (next) / `[` (back) or the pause menu's **Skip level** button. Saved progress is never written while it is on. Code: `src/admin.ts`.
+Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it off) to unlock every level, show an `ADMIN` badge, and skip levels with `]` (next) / `[` (back) the pause menu's **Skip level** button, or the **Prev** / **Next** touch buttons beside the `ADMIN` badge (tap the badge to hide or show them). Saved progress is never written while it is on. Code: `src/admin.ts`.
 
 ### Gamepad
 

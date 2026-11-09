@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { reducedMotion } from './a11y';
-import { initAdmin, mayPersist, skipTarget, unlockAll } from './admin';
+import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
@@ -20,7 +20,7 @@ import { ceilingAbove, floorHud, lightTarget } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
-import { loadSettings, SettingsPanel } from './settings';
+import { loadSettings, SettingsPanel, type Settings } from './settings';
 import { checkForUpdate, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
@@ -74,7 +74,12 @@ const settingsPanel = new SettingsPanel(settings, (s, key) => {
   if (key === 'sound') sfx.muted = !s.sound;
   if (key === 'quality') gfx.setQuality(s.quality);
   if (key === 'camera') rig.mode = s.camera;
+  if (key === 'wheel') applyWheelSide(s.wheel);
 });
+/** Put the steering wheel on the left or right of the touch cockpit (the pedals take the other side). */
+function applyWheelSide(side: Settings['wheel']): void {
+  document.getElementById('touch')!.classList.toggle('wheel-right', side === 'right');
+}
 const loadingEl = document.getElementById('loading')!;
 const loadingText = document.getElementById('loading-text')!;
 const loadingFill = document.getElementById('loading-fill')!;
@@ -94,7 +99,29 @@ scene.add(player.model.root);
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 // Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.
 const ADMIN = initAdmin(location.search);
-if (ADMIN) document.getElementById('admin-badge')?.classList.remove('hidden');
+let adminControls = loadControls();
+const adminBar = document.getElementById('admin-bar')!;
+const adminBadge = document.getElementById('admin-badge')!;
+const adminPrev = document.getElementById('admin-prev') as HTMLButtonElement;
+const adminNext = document.getElementById('admin-next') as HTMLButtonElement;
+if (ADMIN) adminBar.classList.remove('hidden');
+/** Show the skip buttons only while a level is open; the badge stays as their toggle. */
+function syncAdminBar(): void {
+  if (!ADMIN) return;
+  const show = showSkipButtons(ADMIN, adminControls, state === 'playing' || state === 'paused');
+  adminPrev.classList.toggle('hidden', !show);
+  adminNext.classList.toggle('hidden', !show);
+  adminPrev.disabled = skipTarget(levelIndex, -1, LEVELS.length) === null;
+  adminNext.disabled = skipTarget(levelIndex, 1, LEVELS.length) === null;
+  adminBadge.setAttribute('aria-pressed', String(adminControls));
+}
+adminBadge.addEventListener('click', () => {
+  adminControls = !adminControls;
+  saveControls(adminControls);
+  syncAdminBar();
+});
+adminPrev.addEventListener('click', () => skipLevel(-1));
+adminNext.addEventListener('click', () => skipLevel(1));
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -142,6 +169,7 @@ function startLevel(i: number): void {
   parkHold = 0;
   accumulator = 0;
   input.clear();
+  input.setReverse(false);
   rig.snap(player.physics);
   hud.startLevel(i, def);
   state = 'playing';
@@ -331,6 +359,7 @@ document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
 });
 input.bindTouch(document.getElementById('touch')!);
+applyWheelSide(settings.wheel);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 // Backgrounded (home, app switch, call, screen lock): pause, silence audio and stop the loop.
 // On return the Pause screen is showing and the car doesn't move until the player taps Resume.
@@ -454,6 +483,7 @@ function frame(now: number): void {
     hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
+    syncAdminBar();
   }
 
   player.sync(state === 'playing' ? dt : 0);

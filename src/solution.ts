@@ -1,6 +1,7 @@
 import { corners, pointInOBB, sat, type OBB } from './collision';
 import { CAR_L, CAR_W, TOUCH_MIN_SPEED, PARK_HOLD, STEP } from './config';
-import { allObstacles, bayOBB, obstacleOBB, type LevelDef } from './layout';
+import { floorProblems, levelObstacles, Surfaces } from './floors';
+import { bayOBB, type LevelDef } from './layout';
 import { evaluateParking } from './parking';
 import { isTouch } from './rules';
 import { CarPhysics, type Controls } from './physics';
@@ -26,14 +27,20 @@ const carBox = (x: number, z: number, rot: number): OBB => ({ x, z, hw: CAR_W / 
 /** Static problems with a level's geometry: empty when it is fine. */
 export function staticProblems(def: LevelDef): string[] {
   const out: string[] = [];
-  const obs = allObstacles(def).map(obstacleOBB);
+  out.push(...floorProblems(def));
+  const surfaces = new Surfaces(def);
+  const all = levelObstacles(def, surfaces);
   const t = def.target;
 
-  const spawn = obs.findIndex((o) => sat(carBox(def.spawn.x, def.spawn.z, def.spawn.rot), o));
+  // Only obstacles on the same floor as the spawn / bay count (a pillar a storey below never blocks).
+  const onLayer = (layer: string, x: number, z: number) => surfaces.reachable(layer, x, z, all);
+  const spawn = onLayer(surfaces.startLayer, def.spawn.x, def.spawn.z).findIndex((o) =>
+    sat(carBox(def.spawn.x, def.spawn.z, def.spawn.rot), o),
+  );
   if (spawn >= 0) out.push(`spawn overlaps obstacle #${spawn}`);
 
   const parked = carBox(t.x, t.z, t.rot);
-  const hit = obs.findIndex((o) => sat(parked, o));
+  const hit = onLayer(t.floor ?? surfaces.startLayer, t.x, t.z).findIndex((o) => sat(parked, o));
   if (hit >= 0) out.push(`target pose overlaps obstacle #${hit}`);
 
   if (t.w < CAR_W || t.l < CAR_L) out.push(`bay ${t.w}x${t.l} is smaller than the car ${CAR_W}x${CAR_L}`);
@@ -52,9 +59,10 @@ export function staticProblems(def: LevelDef): string[] {
  * After the last segment the controls are released and the car coasts.
  */
 export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResult {
-  const obs = allObstacles(def).map(obstacleOBB);
+  const surfaces = new Surfaces(def);
+  const obstacles = levelObstacles(def, surfaces);
   const car = new CarPhysics();
-  car.reset(def.spawn.x, def.spawn.z, def.spawn.rot);
+  car.reset(def.spawn.x, def.spawn.z, def.spawn.rot, surfaces);
   let hold = 0;
   let maxImpact = 0;
   let hits = 0;
@@ -63,13 +71,15 @@ export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResu
   for (const seg of [...segments, release]) {
     const n = Math.round(seg.t / STEP);
     for (let i = 0; i < n; i++) {
-      car.step(STEP, seg);
+      car.step(STEP, seg, surfaces);
       steps++;
-      const impact = car.resolveCollisions(obs);
+      const impact = car.resolveCollisions(car.reachable(surfaces, obstacles));
       maxImpact = Math.max(maxImpact, impact);
       if (isTouch(impact, TOUCH_MIN_SPEED)) hits++;
       // Same bookkeeping as the game loop: the hold drains 3x as fast as it fills.
-      hold = evaluateParking(car.obb, car.v, def.target, def.bothWays).ok ? hold + STEP : Math.max(0, hold - STEP * 3);
+      hold = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer).ok
+        ? hold + STEP
+        : Math.max(0, hold - STEP * 3);
       if (hold >= PARK_HOLD - 1e-9) return { parked: true, finishTime: steps * STEP, maxImpact, hits };
     }
   }

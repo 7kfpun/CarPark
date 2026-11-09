@@ -48,3 +48,27 @@ export function skipTarget(index: number, dir: 1 | -1, count: number): number | 
 export function mayPersist(admin: boolean): boolean {
   return !admin;
 }
+
+const CONTROLS_KEY = 'car-parking-3d:admin-controls';
+
+/** Whether the on-screen skip buttons are shown: on unless the badge turned them off this session. */
+export function loadControls(): boolean {
+  try {
+    return sessionStorage.getItem(CONTROLS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+export function saveControls(on: boolean): void {
+  try {
+    sessionStorage.setItem(CONTROLS_KEY, on ? '1' : '0');
+  } catch {
+    // ignore
+  }
+}
+
+/** Skip buttons show only in admin mode, with the toggle on, while a level is open. */
+export function showSkipButtons(admin: boolean, controls: boolean, playing: boolean): boolean {
+  return admin && controls && playing;
+}
