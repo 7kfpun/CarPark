@@ -13,6 +13,7 @@ import {
   type LevelDef,
   type ObstacleDef,
 } from './layout';
+import { APRON_W, detailLayout, WALL_T, type Spot } from './detail';
 import { surfaceMaterial, tileBoxUV } from './materials';
 import { floorShown, rampSignText, SLAB } from './storey';
 
@@ -37,14 +38,6 @@ export interface BuiltLevel {
 /** Metres covered by one ground texture tile. */
 const TILE_M = 6;
 
-/** Deterministic RNG so decoration is stable per level. */
-function rng(seed: number): () => number {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-}
-
 const lineMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.8 });
 const concrete = surfaceMaterial('concrete', 0xe6e2d8);
 const curbMat = surfaceMaterial('concrete', 0xf6f0e0);
@@ -61,8 +54,20 @@ const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 1 
 const leafMat = new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1 });
 const trunkGeo = new THREE.CylinderGeometry(0.18, 0.25, 1.6, 8);
 const leafGeo = new THREE.ConeGeometry(1.4, 3.2, 9);
-const TREE_COUNT = 60;
-
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x4a4f57, roughness: 0.6, metalness: 0.5 });
+const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff3d2 });
+const fenceMat = new THREE.MeshStandardMaterial({ color: 0x7d838c, roughness: 0.5, metalness: 0.6 });
+const bollardMat = new THREE.MeshStandardMaterial({ color: 0xf5c400, roughness: 0.6 });
+const drainMat = new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: 0.9 });
+const wearMat = new THREE.MeshBasicMaterial({ color: 0x3a3c40, transparent: true, opacity: 0.4, depthWrite: false });
+const poleGeo = new THREE.CylinderGeometry(0.07, 0.11, 6, 8).translate(0, 3, 0);
+const armGeo = new THREE.BoxGeometry(0.08, 0.08, 1.4).translate(0, 6, 0.65);
+const lampGeo = new THREE.BoxGeometry(0.35, 0.08, 0.7).translate(0, 5.94, 1.3);
+const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6).translate(0, 0.7, 0);
+const railGeo = new THREE.BoxGeometry(0.03, 0.04, 1).translate(0, 1.15, 0);
+const bollardGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.9, 10).translate(0, 0.45, 0);
+const drainGeo = new THREE.BoxGeometry(0.6, 0.02, 0.35).translate(0, 0.012, 0);
+const wearGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.024, 0);
 // A cone is its body plus a flat square base (one geometry, coneMat) and a white stripe.
 const coneBodyGeo = (() => {
   const body = new THREE.ConeGeometry(0.22, 0.7, 16).translate(0, 0.4, 0);
@@ -73,7 +78,21 @@ const coneBodyGeo = (() => {
   return merged;
 })();
 const coneStripeGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.1, 16).translate(0, 0.45, 0);
-const sharedGeo = new Set<THREE.BufferGeometry>([trunkGeo, leafGeo, stripGeo, coneBodyGeo, coneStripeGeo]);
+const sharedGeo = new Set<THREE.BufferGeometry>([
+  trunkGeo,
+  leafGeo,
+  stripGeo,
+  coneBodyGeo,
+  coneStripeGeo,
+  poleGeo,
+  armGeo,
+  lampGeo,
+  postGeo,
+  railGeo,
+  bollardGeo,
+  drainGeo,
+  wearGeo,
+]);
 const shared = new Set<THREE.Material>([
   lineMat,
   concrete,
@@ -87,6 +106,12 @@ const shared = new Set<THREE.Material>([
   deckMat,
   ceilingMat,
   stripMat,
+  poleMat,
+  lampMat,
+  fenceMat,
+  bollardMat,
+  drainMat,
+  wearMat,
 ]);
 
 function shadowed<T extends THREE.Object3D>(o: T): T {
@@ -97,6 +122,25 @@ function shadowed<T extends THREE.Object3D>(o: T): T {
     }
   });
   return o;
+}
+
+/** One draw call for many copies of a mesh. Each spot is a position and a heading; `scale` may stretch it. */
+const _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _up = new THREE.Vector3(0, 1, 0);
+function instanced(
+  geo: THREE.BufferGeometry,
+  mat: THREE.Material,
+  spots: (Spot & { y?: number; sx?: number; sy?: number; sz?: number })[],
+): THREE.InstancedMesh {
+  const im = new THREE.InstancedMesh(geo, mat, spots.length);
+  spots.forEach((p, i) => {
+    _q.setFromAxisAngle(_up, p.rot);
+    _m.compose(new THREE.Vector3(p.x, p.y ?? 0, p.z), _q, new THREE.Vector3(p.sx ?? 1, p.sy ?? 1, p.sz ?? 1));
+    im.setMatrixAt(i, _m);
+  });
+  im.instanceMatrix.needsUpdate = true;
+  return im;
 }
 
 function line(
@@ -398,27 +442,65 @@ export function buildLevel(def: LevelDef, index: number): BuiltLevel {
   marker.position.set(t.x, markerY, t.z);
   group.add(marker);
 
-  // Trees around the lot.
-  const rand = rng(1234 + index * 97);
-  const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, TREE_COUNT);
-  const leaves = new THREE.InstancedMesh(leafGeo, leafMat, TREE_COUNT);
-  const m = new THREE.Matrix4();
-  for (let i = 0; i < TREE_COUNT; i++) {
-    const side = Math.floor(rand() * 4);
-    const along = (rand() - 0.5) * (side < 2 ? w + 30 : l + 30);
-    const out = 4 + rand() * 14;
-    const x = side < 2 ? along : (side === 2 ? 1 : -1) * (w / 2 + out);
-    const z = side < 2 ? (side === 0 ? 1 : -1) * (l / 2 + out) : along;
-    const s = 0.7 + rand() * 0.7;
-    m.makeScale(s, s, s).setPosition(x, 0.8 * s, z);
-    trunks.setMatrixAt(i, m);
-    m.makeScale(s, s, s).setPosition(x, 2.9 * s, z);
-    leaves.setMatrixAt(i, m);
+  // Scenery: trees, lamp posts, fence, bollards, drains, kerb apron and paint wear, all instanced (one draw call each).
+  const detail = detailLayout(def, index, !multi);
+  for (const [geo, mat, lift] of [
+    [trunkGeo, trunkMat, 0.8],
+    [leafGeo, leafMat, 2.9],
+  ] as const) {
+    const im = instanced(
+      geo,
+      mat,
+      detail.trees.map((t) => ({ ...t, y: lift * t.scale, sx: t.scale, sy: t.scale, sz: t.scale })),
+    );
+    im.userData.decor = true;
+    group.add(shadowed(im));
   }
-
-  // Graphics.applyDecor toggles castShadow on whatever is tagged decor.
-  trunks.userData.decor = leaves.userData.decor = true;
-  group.add(shadowed(trunks), shadowed(leaves));
+  group.add(
+    instanced(
+      wearGeo,
+      wearMat,
+      detail.wear.map((w) => ({ ...w, sx: w.w, sz: w.l })),
+    ),
+  );
+  if (!multi) {
+    const poles = detail.poles;
+    for (const [geo, mat] of [
+      [poleGeo, poleMat],
+      [armGeo, poleMat],
+      [lampGeo, lampMat],
+    ] as const) {
+      const im = instanced(geo, mat, poles);
+      im.userData.decor = true;
+      group.add(shadowed(im));
+    }
+    group.add(instanced(postGeo, fenceMat, detail.posts));
+    group.add(
+      instanced(
+        railGeo,
+        fenceMat,
+        detail.rails.map((r) => ({ ...r, sz: r.l })),
+      ),
+    );
+    group.add(shadowed(instanced(bollardGeo, bollardMat, detail.bollards)));
+    group.add(instanced(drainGeo, drainMat, detail.drains));
+    // Raised kerb apron round the lot, outside the walls (the walls themselves are the collision shape).
+    const apronH = 0.12;
+    const out = WALL_T + APRON_W / 2;
+    for (const [x, z, aw, al] of [
+      [0, l / 2 + out, w + 2 * (WALL_T + APRON_W), APRON_W],
+      [0, -l / 2 - out, w + 2 * (WALL_T + APRON_W), APRON_W],
+      [w / 2 + out, 0, APRON_W, l],
+      [-w / 2 - out, 0, APRON_W, l],
+    ] as const) {
+      const geo = new THREE.BoxGeometry(aw, apronH, al);
+      tileBoxUV(geo, TILE_M);
+      const m = new THREE.Mesh(geo, curbMat);
+      m.position.set(x, apronH / 2 - 0.02, z);
+      m.receiveShadow = true;
+      group.add(m);
+    }
+  }
 
   return {
     def,

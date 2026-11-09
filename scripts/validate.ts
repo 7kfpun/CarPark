@@ -41,6 +41,7 @@ import {
   lightTarget,
   rampSignText,
 } from '../src/storey';
+import { detailLayout, detailProblems } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { mirrorRendersScene, mirrorScale } from '../src/mirror';
@@ -1614,6 +1615,27 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   );
   const fp = freePose(FREE_START, car);
   check(fp.py > car.y && fp.lx === car.x, 'free look orbits above, looking at the car');
+}
+
+{
+  // Lot scenery (FOX-238): decoration only, never inside the lot walls, deterministic, and no collision shapes.
+  for (const [i, def] of LEVELS.entries()) {
+    const flat = def.floors === undefined;
+    const d = detailLayout(def, i, flat);
+    const bad = detailProblems(def, d);
+    check(
+      bad.length === 0,
+      `${def.id}: scenery stays outside the lot walls${bad.length ? ` (${bad.join(', ')})` : ''}`,
+    );
+    check(
+      JSON.stringify(d) === JSON.stringify(detailLayout(def, i, flat)),
+      `${def.id}: scenery layout is deterministic`,
+    );
+    check(
+      flat ? d.poles.length >= 2 && d.posts.length > 0 && d.rails.length > 0 : d.poles.length === 0,
+      `${def.id}: scenery by lot type`,
+    );
+  }
 }
 
 {
