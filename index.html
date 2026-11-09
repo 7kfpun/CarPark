@@ -63,18 +63,22 @@
     </div>
 
     <div id="touch" class="hidden">
-      <div class="touch-group left">
-        <div id="t-steer" aria-label="Steering: drag left or right">
-          <span class="track" aria-hidden="true">◀ &nbsp; ▶</span>
-          <div class="knob" aria-hidden="true"></div>
+      <div class="touch-group wheel-group">
+        <div id="t-wheel" role="img" aria-label="Steering wheel: drag round to steer">
+          <svg class="wheel-rot" viewBox="-50 -50 100 100" aria-hidden="true">
+            <circle r="44" class="rim" />
+            <path d="M-42 4 L-12 4 L0 14 L12 4 L42 4" class="spokes" />
+            <path d="M0 14 L0 42" class="spokes" />
+            <circle r="11" class="hub" />
+            <path d="M-5 -44 H5" class="mark" />
+          </svg>
+          <span class="wheel-lock" aria-hidden="true">0°</span>
         </div>
       </div>
-      <div class="touch-group right">
-        <button id="t-brake" class="small" aria-label="Handbrake">P</button>
-        <div class="pedals">
-          <button id="t-up" aria-label="Accelerate">▲</button>
-          <button id="t-down" aria-label="Brake / reverse">▼</button>
-        </div>
+      <div class="touch-group pedal-group">
+        <button id="t-gear" class="gear-toggle" aria-label="Reverse gear" aria-pressed="false">D</button>
+        <div id="t-brake" role="button" aria-label="Brake"><span aria-hidden="true">BRAKE</span></div>
+        <div id="t-accel" role="button" aria-label="Accelerator"><span aria-hidden="true">GO</span></div>
       </div>
     </div>
 
@@ -145,6 +149,13 @@
           <div class="seg" role="group" aria-labelledby="lbl-mirror">
             <button data-setting="mirror" data-value="true">On</button>
             <button data-setting="mirror" data-value="false">Off</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-wheel">Wheel side</span>
+          <div class="seg" role="group" aria-labelledby="lbl-wheel">
+            <button data-setting="wheel" data-value="left">Left</button>
+            <button data-setting="wheel" data-value="right">Right</button>
           </div>
         </div>
         <button class="settings-done" id="settings-done">Done</button>

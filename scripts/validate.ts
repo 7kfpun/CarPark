@@ -3,7 +3,17 @@ import { mayPersist, resolveAdmin, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { nextFocusIndex } from '../src/focus';
-import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
+import {
+  angleDelta,
+  deadzone,
+  pedalControls,
+  pickNeighbor,
+  pointerAngle,
+  steerFromWheel,
+  strongest,
+  turnWheel,
+  WHEEL_LOCK,
+} from '../src/input';
 import {
   ceilingAbove,
   clampCameraDistance,
@@ -374,9 +384,43 @@ check(
   strongest(1, -0.4) === 1 && strongest(0.2, -0.7, 0) === -0.7 && strongest() === 0,
   'strongest picks largest magnitude',
 );
-check(steerFromOffset(0) === 0 && steerFromOffset(2) === 0, 'tiny finger jitter should not steer');
-check(steerFromOffset(500) === 1 && steerFromOffset(-500) === -1, 'big drag should give full lock');
-check(steerFromOffset(30) > 0 && steerFromOffset(30) < 1, 'partial drag should give partial steer');
+check(steerFromWheel(0) === 0 && steerFromWheel(3) === 0, 'wheel near centre should not steer (dead zone)');
+check(
+  steerFromWheel(WHEEL_LOCK) === 1 && steerFromWheel(-WHEEL_LOCK) === -1 && steerFromWheel(900) === 1,
+  'full wheel lock should give full steer, either side',
+);
+check(
+  steerFromWheel(WHEEL_LOCK / 2) > 0 && steerFromWheel(WHEEL_LOCK / 2) < 1 && steerFromWheel(-30) < 0,
+  'partial wheel angle should give partial steer, clockwise = right',
+);
+check(Math.abs(steerFromWheel(30) + steerFromWheel(-30)) < 1e-9, 'wheel steer should be symmetric');
+check(
+  Math.abs(pointerAngle(0, -10)) < 1e-9 && Math.abs(pointerAngle(10, 0) - 90) < 1e-9 && pointerAngle(-10, 0) === -90,
+  'pointer angle: 0 at top, clockwise positive',
+);
+check(angleDelta(170, -170) === 20 && angleDelta(-170, 170) === -20 && angleDelta(10, 40) === 30, 'angle delta wraps');
+check(
+  turnWheel(0, 0, 30) === 30 && turnWheel(100, 0, 90) === WHEEL_LOCK && turnWheel(-100, 0, -90) === -WHEEL_LOCK,
+  'wheel turns with the finger and stops at the lock',
+);
+check(
+  turnWheel(WHEEL_LOCK, 90, 180) === WHEEL_LOCK && turnWheel(0, 175, -175) === 10,
+  'wheel does not wind past the lock and follows the finger across the ±180° seam',
+);
+check(steerFromWheel(turnWheel(80, 20, 20 - 80)) === 0, 'letting go springs the wheel back to straight ahead');
+{
+  const none = pedalControls(false, false, false);
+  const go = pedalControls(true, false, false);
+  const rev = pedalControls(true, false, true);
+  const stop = pedalControls(false, true, false);
+  check(none.throttle === 0 && !none.handbrake, 'no pedal: coast');
+  check(go.throttle === 1 && !go.handbrake, 'accelerator in D drives forward');
+  check(rev.throttle === -1 && !rev.handbrake, 'accelerator in R drives backward');
+  check(stop.throttle === 0 && stop.handbrake, 'brake pedal holds the car');
+  const both = pedalControls(true, true, true);
+  check(both.throttle === 0 && both.handbrake, 'brake wins when both pedals are pressed');
+  check(!pedalControls(false, true, true).throttle, 'brake never reverses the car');
+}
 {
   // 3x2 grid of 10px boxes with 2px gaps, plus a lone row of two modal buttons.
   const box = (c: number, r: number) => ({ left: c * 12, top: r * 12, right: c * 12 + 10, bottom: r * 12 + 10 });
