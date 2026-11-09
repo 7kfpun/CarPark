@@ -28,27 +28,12 @@ const templates = new Map<string, CarTemplate>();
 /** Geometries, materials and textures owned by the loaded templates (never disposed per level). */
 export const MODEL_SHARED = new Set<object>();
 
-function toTemplate(scene: THREE.Object3D): CarTemplate {
+/** Exported for the validate script. */
+export function toTemplate(scene: THREE.Object3D): CarTemplate {
   scene.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(scene);
-  const body = new THREE.Group();
-  const wheels: WheelTemplate[] = [];
-  for (const child of [...scene.children]) {
-    // Only the four road wheels animate (the SUV's spare "wheel-back" stays on the body).
-    const m = /^wheel-(front|back)-(left|right)$/.exec(child.name);
-    if (m) {
-      const pos = child.position.clone();
-      child.position.set(0, 0, 0);
-      wheels.push({ mesh: child, pos, front: m[1] === 'front' });
-    } else body.add(child);
-  }
-  body.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-  });
-  for (const w of wheels) w.mesh.traverse((o) => ((o as THREE.Mesh).isMesh ? (o.castShadow = true) : undefined));
+  // Collect shared resources while every mesh is still under `scene`: the loop below reparents
+  // them, after which scene.traverse would miss them and level.dispose() would free them.
   scene.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -67,6 +52,24 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
       for (const t of [m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t) MODEL_SHARED.add(t);
     }
   });
+  const body = new THREE.Group();
+  const wheels: WheelTemplate[] = [];
+  for (const child of [...scene.children]) {
+    // Only the four road wheels animate (the SUV's spare "wheel-back" stays on the body).
+    const m = /^wheel-(front|back)-(left|right)$/.exec(child.name);
+    if (m) {
+      const pos = child.position.clone();
+      child.position.set(0, 0, 0);
+      wheels.push({ mesh: child, pos, front: m[1] === 'front' });
+    } else body.add(child);
+  }
+  body.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  });
+  for (const w of wheels) w.mesh.traverse((o) => ((o as THREE.Mesh).isMesh ? (o.castShadow = true) : undefined));
   return { body, wheels, box };
 }
 
