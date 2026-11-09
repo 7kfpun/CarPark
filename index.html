@@ -55,6 +55,21 @@
         <div class="pill hidden" id="hud-floor"></div>
       </div>
       <div class="hud-corner">
+        <button class="icon-btn" id="btn-reset-view" aria-label="Reset view" title="Reset view (V)">
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="12" r="6" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+        </button>
         <button class="icon-btn" id="btn-cam" aria-label="Change camera view">🎥</button>
         <button class="icon-btn" id="btn-pause" aria-label="Pause">⏸</button>
         <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
@@ -118,7 +133,10 @@
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
           <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
-          <div><kbd>C</kbd> camera view · <kbd>R</kbd> restart · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute</div>
+          <div>
+            <kbd>C</kbd> camera view · <kbd>V</kbd> reset view · drag to look around · <kbd>R</kbd> restart ·
+            <kbd>Esc</kbd> pause · <kbd>M</kbd> mute
+          </div>
         </div>
         <div id="menu-version"></div>
       </div>

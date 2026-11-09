@@ -235,3 +235,71 @@ test('gear lever: tap a slot or use arrows to change gear, and a cancelled drag 
   await expect(gear).toHaveAttribute('aria-valuetext', 'Drive');
   await context.close();
 });
+
+test('camera: a drag orbits, Reset view and V restore it, and a drag that starts on the wheel steers instead', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await openGame(page, '?level=1');
+  const reset = page.locator('#btn-reset-view');
+  await expect(reset).toHaveAttribute('aria-label', 'Reset view');
+  await expect(reset).not.toHaveClass(/off-centre/);
+  const fire = (sel: string, type: string, id: number, x: number, y: number) =>
+    page.evaluate(
+      ([s, t, pid, cx, cy]) => {
+        const el = document.querySelector(s as string)!;
+        el.dispatchEvent(
+          new PointerEvent(t as string, {
+            pointerId: pid as number,
+            pointerType: 'touch',
+            clientX: cx as number,
+            clientY: cy as number,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [sel, type, id, x, y],
+    );
+  // A drag that starts on the wheel steers the car and leaves the camera alone.
+  const wb = (await page.locator('#t-wheel').boundingBox())!;
+  const wx = wb.x + wb.width / 2;
+  const wy = wb.y + wb.height / 2;
+  await fire('#t-wheel', 'pointerdown', 3, wx, wy - 60);
+  await fire('#t-wheel', 'pointermove', 3, wx + 60, wy);
+  await page.clock.runFor(100);
+  expect(
+    await page.evaluate(() => document.querySelector<HTMLElement>('#t-wheel .wheel-rot')!.style.transform),
+  ).not.toBe('rotate(0deg)');
+  await expect(reset).not.toHaveClass(/off-centre/);
+  await fire('#t-wheel', 'pointerup', 3, wx + 60, wy);
+
+  // A drag on the empty game area orbits; the other thumb can keep steering meanwhile.
+  await fire('#game', 'pointerdown', 4, 420, 120);
+  await fire('#game', 'pointermove', 4, 520, 150);
+  await fire('#game', 'pointerup', 4, 520, 150);
+  await page.clock.runFor(100);
+  await expect(reset).toHaveClass(/off-centre/);
+
+  // A cancelled touch leaves the view where it is.
+  await fire('#game', 'pointerdown', 5, 420, 120);
+  await fire('#game', 'pointercancel', 5, 420, 120);
+  await page.clock.runFor(100);
+  await expect(reset).toHaveClass(/off-centre/);
+
+  await page.evaluate(() => document.getElementById('btn-reset-view')!.click());
+  await page.clock.runFor(600);
+  await expect(reset).not.toHaveClass(/off-centre/);
+
+  // V resets too.
+  await fire('#game', 'pointerdown', 6, 420, 120);
+  await fire('#game', 'pointermove', 6, 380, 100);
+  await fire('#game', 'pointerup', 6, 380, 100);
+  await page.clock.runFor(100);
+  await expect(reset).toHaveClass(/off-centre/);
+  await page.keyboard.press('KeyV');
+  await page.clock.runFor(600);
+  await expect(reset).not.toHaveClass(/off-centre/);
+  await context.close();
+});
