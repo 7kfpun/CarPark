@@ -1056,3 +1056,47 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
 .icon-btn {
   zoom: var(--ui-scale);
 }
+
+/* ---------- Short landscape screens (a phone held sideways) ---------- */
+/* Height is the scarce axis here: keep the HUD to the edges so the road stays visible. */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --wheel: clamp(96px, 30vh, 150px);
+    --pedal-h: clamp(80px, 24vh, 120px);
+  }
+  .hud-top {
+    top: calc(6px + var(--safe-t));
+    gap: 6px;
+  }
+  .pill {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .hud-corner {
+    top: calc(6px + var(--safe-t));
+    gap: 6px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  /* The hint sits low and small instead of covering the middle of the view. */
+  #hud-hint {
+    top: auto;
+    bottom: calc(8px + var(--safe-b));
+    max-width: min(46vw, 420px);
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  #admin-bar {
+    top: calc(44px + var(--safe-t));
+    transform: scale(0.75);
+    transform-origin: top left;
+  }
+  #park-meter {
+    bottom: calc(40px + var(--safe-b));
+  }
+}
