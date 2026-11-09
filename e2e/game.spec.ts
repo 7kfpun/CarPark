@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { LEVELS } from '../src/levels';
+import { LOCATIONS, worldLevels } from '../src/worlds';
 import { collectErrors, driveSolution, openGame, run } from './helpers';
 
 const PROGRESS_KEY = 'car-parking-3d:progress';
@@ -12,8 +13,13 @@ test('menu loads with every level and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await openGame(page);
   await expect(page.locator('#menu')).toBeVisible();
-  await expect(page.locator('#level-grid .level-btn')).toHaveCount(LEVELS.length);
-  for (const [i, lvl] of LEVELS.entries()) {
+  // The menu lists the worlds; only the first is open on a fresh save.
+  await expect(page.locator('#level-grid .world-btn')).toHaveCount(LOCATIONS.length);
+  await expect(page.locator('#level-grid .world-btn:not([disabled])')).toHaveCount(1);
+  await page.locator('#level-grid .world-btn').first().click();
+  const first = worldLevels(LEVELS, LOCATIONS[0]);
+  await expect(page.locator('#level-grid .level-btn')).toHaveCount(first.length);
+  for (const [i, lvl] of first.entries()) {
     await expect(page.locator('#level-grid .level-btn').nth(i)).toContainText(lvl.name);
   }
   // Only the first level is open on a fresh save.
@@ -24,6 +30,7 @@ test('menu loads with every level and no console errors', async ({ page }) => {
 test('level 1: the recorded solution parks and shows the win modal with stars', async ({ page }) => {
   const errors = collectErrors(page);
   await openGame(page);
+  await page.locator('#level-grid .world-btn').first().click();
   await page.locator('#level-grid .level-btn').first().click();
   await expect(page.locator('#hud')).toBeVisible();
   await expect(page.locator('#hud-level')).toContainText(`1. ${LEVELS[0].name}`);
@@ -100,7 +107,11 @@ test('admin mode shows the skip buttons, and skipping or winning writes no saved
   await openGame(page, '?admin=1');
   await expect(page.locator('#admin-badge')).toBeVisible();
   // Every level is open in admin mode.
-  await expect(page.locator('#level-grid .level-btn:not([disabled])')).toHaveCount(LEVELS.length);
+  await expect(page.locator('#level-grid .world-btn:not([disabled])')).toHaveCount(LOCATIONS.length);
+  await page.locator('#level-grid .world-btn').first().click();
+  await expect(page.locator('#level-grid .level-btn:not([disabled])')).toHaveCount(
+    worldLevels(LEVELS, LOCATIONS[0]).length,
+  );
   await page.locator('#level-grid .level-btn').first().click();
   await expect(page.locator('#admin-prev')).toBeVisible();
   await expect(page.locator('#admin-next')).toBeVisible();
@@ -118,6 +129,7 @@ test('admin mode shows the skip buttons, and skipping or winning writes no saved
 
 test('saved progress survives a reload', async ({ page }) => {
   await openGame(page);
+  await page.locator('#level-grid .world-btn').first().click();
   await page.locator('#level-grid .level-btn').first().click();
   await driveSolution(page, FIRST);
   await run(page, 1);
@@ -127,6 +139,7 @@ test('saved progress survives a reload', async ({ page }) => {
   await page.reload();
   await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator('#menu')).toBeVisible();
+  await page.locator('#level-grid .world-btn').first().click();
   const buttons = page.locator('#level-grid .level-btn');
   await expect(buttons.first()).toHaveAttribute('aria-label', /3 of 3 stars/);
   await expect(buttons.nth(1)).toBeEnabled();

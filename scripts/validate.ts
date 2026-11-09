@@ -76,6 +76,16 @@ import {
   type ViewTarget,
 } from '../src/views';
 import { checkForUpdate, compareVersions, decideUpdate, parseRemote, parseVersion } from '../src/update';
+import {
+  LOCATIONS,
+  levelPlayable,
+  resumeLevel,
+  WORLDS,
+  worldComplete,
+  worldLevels,
+  worldStars,
+  worldUnlocked,
+} from '../src/worlds';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
 import {
@@ -1269,6 +1279,48 @@ check(
   )) === 'none',
   'hung server times out without blocking',
 );
+
+console.log('Worlds');
+{
+  check(
+    LEVELS.every((l) => LOCATIONS.includes(l.location)),
+    'every level has a known location',
+  );
+  const order = LEVELS.map((l) => LOCATIONS.indexOf(l.location));
+  check(
+    order.every((n, i) => i === 0 || n >= order[i - 1]),
+    'levels are listed in world order',
+  );
+  check(
+    LOCATIONS.every((w) => worldLevels(LEVELS, w).length > 0 && WORLDS[w].name),
+    'every world has levels and a name',
+  );
+  const [w1, w2, w3] = LOCATIONS;
+  const p = parseProgress(null, ids);
+  const lv = (id: string) => LEVELS.find((l) => l.id === id)!;
+  check(worldUnlocked(p, LEVELS, w1) && !worldUnlocked(p, LEVELS, w2), 'a fresh save opens only the first world');
+  check(worldUnlocked(p, LEVELS, w2, true), 'admin opens every world');
+  const first1 = worldLevels(LEVELS, w1);
+  for (const l of first1.slice(0, -1)) p.stars[l.id] = 1;
+  check(!worldComplete(p, LEVELS, w1) && !worldUnlocked(p, LEVELS, w2), 'one level short keeps the next world shut');
+  p.stars[first1[first1.length - 1].id] = 2;
+  check(worldComplete(p, LEVELS, w1) && worldUnlocked(p, LEVELS, w2), 'finishing a world opens the next');
+  check(!worldUnlocked(p, LEVELS, w3), 'the world after next stays shut');
+  const s = worldStars(p, LEVELS, w1);
+  check(s.got === first1.length + 1 && s.max === first1.length * 3, 'world star total sums its levels');
+  const open2 = worldLevels(LEVELS, w2)[0];
+  check(levelPlayable(p, LEVELS, open2), 'the first level of an open world is playable even if not saved unlocked');
+  check(!levelPlayable(p, LEVELS, worldLevels(LEVELS, w2)[1]), 'later levels still follow their own unlock');
+  const locked = worldLevels(LEVELS, w3)[0];
+  p.unlocked.push(locked.id);
+  check(!levelPlayable(p, LEVELS, locked), 'an unlocked level in a locked world is not playable');
+  check(resumeLevel(parseProgress(null, ids), LEVELS) === 0, 'a fresh save resumes at the first level');
+  check(LEVELS[resumeLevel(p, LEVELS)].location === w2, 'resume never lands in a locked world');
+  check(
+    lv('basement').location === 'multi-storey' && lv('van-garage').location === 'industrial',
+    'levels sit in the right worlds',
+  );
+}
 
 console.log('Admin mode');
 {

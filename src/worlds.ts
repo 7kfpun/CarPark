@@ -1,0 +1,83 @@
+import type { LevelDef, LocationId } from './layout';
+import { isUnlocked, starsFor, type Progress } from './progress';
+
+/** Worlds in play order: finish one to open the next. */
+export const LOCATIONS: LocationId[] = ['open-air', 'multi-storey', 'industrial', 'twilight'];
+
+export interface WorldInfo {
+  id: LocationId;
+  name: string;
+  blurb: string;
+  icon: string;
+  /** Accent colour of the world's card. */
+  color: string;
+}
+
+export const WORLDS: Record<LocationId, WorldInfo> = {
+  'open-air': {
+    id: 'open-air',
+    name: 'Open-Air Lots',
+    blurb: 'Daylight, wide bays and the basics.',
+    icon: '☀️',
+    color: '#ffb703',
+  },
+  'multi-storey': {
+    id: 'multi-storey',
+    name: 'Multi-Storey',
+    blurb: 'Ramps, basements and a spiral.',
+    icon: '🏢',
+    color: '#8d99ae',
+  },
+  industrial: {
+    id: 'industrial',
+    name: 'Industrial Yard',
+    blurb: 'Vans, buses and trucks need room.',
+    icon: '🏭',
+    color: '#e76f51',
+  },
+  twilight: {
+    id: 'twilight',
+    name: 'Twilight District',
+    blurb: 'Dusk light, one-way lanes and tight finishes.',
+    icon: '🌆',
+    color: '#9d4edd',
+  },
+};
+
+/** The levels of one world, in play order. */
+export function worldLevels(levels: LevelDef[], world: LocationId): LevelDef[] {
+  return levels.filter((l) => l.location === world);
+}
+
+/** Stars earned in a world and the most it offers. */
+export function worldStars(p: Progress, levels: LevelDef[], world: LocationId): { got: number; max: number } {
+  const own = worldLevels(levels, world);
+  return { got: own.reduce((a, l) => a + starsFor(p, l.id), 0), max: own.length * 3 };
+}
+
+/** A world is finished when every one of its levels has at least one star. */
+export function worldComplete(p: Progress, levels: LevelDef[], world: LocationId): boolean {
+  const own = worldLevels(levels, world);
+  return own.length > 0 && own.every((l) => starsFor(p, l.id) > 0);
+}
+
+/** The first world is always open; each other opens once the one before it is finished (`openAll`: admin mode). */
+export function worldUnlocked(p: Progress, levels: LevelDef[], world: LocationId, openAll = false): boolean {
+  const i = LOCATIONS.indexOf(world);
+  return openAll || i <= 0 || worldComplete(p, levels, LOCATIONS[i - 1]);
+}
+
+/** A level can be played when its world is open and the level is unlocked; an open world's first level always is. */
+export function levelPlayable(p: Progress, levels: LevelDef[], lvl: LevelDef, openAll = false): boolean {
+  if (!worldUnlocked(p, levels, lvl.location, openAll)) return false;
+  return isUnlocked(p, lvl.id) || worldLevels(levels, lvl.location)[0] === lvl;
+}
+
+/** Index of the furthest playable level in play order (where "Enter" resumes). */
+export function resumeLevel(p: Progress, levels: LevelDef[], openAll = false): number {
+  let at = 0;
+  levels.forEach((l, i) => {
+    if (levelPlayable(p, levels, l, openAll)) at = i;
+  });
+  return at;
+}

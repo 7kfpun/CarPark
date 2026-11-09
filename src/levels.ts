@@ -1,4 +1,8 @@
-import type { ArrowDef, BayDef, FloorDef, LevelDef, ObstacleDef, RampDef } from './layout';
+import { LOCATIONS } from './worlds';
+import type { ArrowDef, BayDef, FloorDef, LevelDef, LocationId, ObstacleDef, RampDef } from './layout';
+
+/** A level as written below: its location is filled in from `LOCATION_OF`. */
+type RawLevel = Omit<LevelDef, 'location'>;
 
 const PI = Math.PI;
 const COLORS = [0x2f6fde, 0xe8e8e8, 0x8a8f98, 0xc8322b, 0x2e8b57, 0x222428, 0x7a4fd0, 0x1fa3b5];
@@ -133,7 +137,7 @@ const row9 = [-12, -9, -6, -3, 0, 3, 6, 9, 12];
 const SPIRAL_PARTS = spiral();
 const EX = SPIRAL.exit;
 
-const LEVELS_1_12: LevelDef[] = [
+const LEVELS_1_12: RawLevel[] = [
   {
     id: 'first-steps',
     name: 'First Steps',
@@ -458,7 +462,7 @@ const LEVELS_1_12: LevelDef[] = [
 ];
 
 /** The level with its layout flipped left to right (x to -x, headings mirrored), under a new identity. */
-function mirrored(base: string, extra: Pick<LevelDef, 'id' | 'name' | 'hint'> & Partial<LevelDef>): LevelDef {
+function mirrored(base: string, extra: Pick<LevelDef, 'id' | 'name' | 'hint'> & Partial<RawLevel>): RawLevel {
   const b = LEVELS_1_12.find((l) => l.id === base)!;
   const flip = <T extends { x: number; rot?: number }>(o: T): T => ({
     ...o,
@@ -486,7 +490,7 @@ function arrowLine(x0: number, z0: number, x1: number, z1: number, rot: number, 
 }
 
 /** Levels for the larger vehicles (src/vehicles.ts): each one is laid out for the size and turning circle of its own vehicle. */
-const VEHICLE_LEVELS: LevelDef[] = [
+const VEHICLE_LEVELS: RawLevel[] = [
   {
     id: 'van-garage',
     name: 'Van Garage',
@@ -574,7 +578,7 @@ const VEHICLE_LEVELS: LevelDef[] = [
   },
 ];
 
-export const LEVELS: LevelDef[] = [
+const RAW_LEVELS: RawLevel[] = [
   ...LEVELS_1_12,
   mirrored('angle-of-attack', {
     id: 'backhand-angle',
@@ -617,3 +621,37 @@ export const LEVELS: LevelDef[] = [
   }),
   ...VEHICLE_LEVELS,
 ];
+
+/** Location of every level. Ids are permanent; this is the only place a level is assigned to a world. */
+const LOCATION_OF: Record<string, LocationId> = {
+  'first-steps': 'open-air',
+  'back-it-in': 'open-air',
+  'parallel-pro': 'open-air',
+  'cone-gates': 'open-air',
+  'the-garage': 'open-air',
+  'rush-hour': 'open-air',
+  'angle-of-attack': 'open-air',
+  'backhand-angle': 'open-air',
+  'curb-side': 'open-air',
+  'one-way-curb': 'open-air',
+  'up-one-floor': 'multi-storey',
+  basement: 'multi-storey',
+  spiral: 'multi-storey',
+  'van-garage': 'industrial',
+  'bus-bay': 'industrial',
+  'loading-dock': 'industrial',
+  'minibus-parallel': 'industrial',
+  'reverse-gate': 'twilight',
+  'tight-squeeze': 'twilight',
+  'slalom-reverse': 'twilight',
+  'the-finale': 'twilight',
+  'dusk-gate': 'twilight',
+  'twilight-squeeze': 'twilight',
+  'dusk-slalom': 'twilight',
+  'night-finale': 'twilight',
+};
+
+/** Every level with its location, grouped by world in world order (play order) and otherwise in the order written above. */
+export const LEVELS: LevelDef[] = LOCATIONS.flatMap((loc) =>
+  RAW_LEVELS.filter((l) => LOCATION_OF[l.id] === loc).map((l) => ({ ...l, location: loc })),
+);
