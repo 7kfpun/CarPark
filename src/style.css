@@ -126,8 +126,8 @@ button:focus-visible {
 }
 
 .icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: var(--panel);
@@ -681,6 +681,15 @@ kbd {
   padding: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.setting-row.wrap {
+  flex-wrap: wrap;
+}
+
+.seg.wrap {
+  flex-wrap: wrap;
+  border-radius: 24px;
 }
 
 .seg button {
