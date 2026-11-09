@@ -1,0 +1,133 @@
+import { expect, test, type Page } from '@playwright/test';
+import { LEVELS } from '../src/levels';
+import { collectErrors, driveSolution, openGame, run } from './helpers';
+
+const PROGRESS_KEY = 'car-parking-3d:progress';
+const FIRST = LEVELS[0].id;
+
+const savedProgress = (page: Page) => page.evaluate((k) => localStorage.getItem(k), PROGRESS_KEY);
+const timer = (page: Page) => page.locator('#hud-timer').innerText();
+
+test('menu loads with every level and no console errors', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page);
+  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#level-grid .level-btn')).toHaveCount(LEVELS.length);
+  for (const [i, lvl] of LEVELS.entries()) {
+    await expect(page.locator('#level-grid .level-btn').nth(i)).toContainText(lvl.name);
+  }
+  // Only the first level is open on a fresh save.
+  await expect(page.locator('#level-grid .level-btn:not([disabled])')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('level 1: the recorded solution parks and shows the win modal with stars', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page);
+  await page.locator('#level-grid .level-btn').first().click();
+  await expect(page.locator('#hud')).toBeVisible();
+  await expect(page.locator('#hud-level')).toContainText(`1. ${LEVELS[0].name}`);
+  await driveSolution(page, FIRST);
+  await run(page, 1);
+  await expect(page.locator('#modal-title')).toHaveText('Parked!');
+  await expect(page.locator('#modal-stars')).toHaveAttribute('aria-label', '3 of 3 stars');
+  expect(errors).toEqual([]);
+});
+
+test('any collision fails the level', async ({ page }) => {
+  await openGame(page, '?level=1');
+  await expect(page.locator('#hud')).toBeVisible();
+  // Floor it with no steering: the car runs through the bay and into the far wall.
+  await page.keyboard.down('ArrowUp');
+  await run(page, 20);
+  await page.keyboard.up('ArrowUp');
+  await expect(page.locator('#modal-title')).toHaveText('Level failed');
+  await expect(page.locator('#modal-body')).toHaveText('You hit something.');
+});
+
+test('Escape pauses and resumes; the game does not run under Settings', async ({ page }) => {
+  await openGame(page, '?level=1');
+  await expect(page.locator('#hud')).toBeVisible();
+  await run(page, 2);
+  const t0 = await timer(page);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal-title')).toHaveText('Paused');
+  await run(page, 3);
+  expect(await timer(page)).toBe(t0);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal')).toBeHidden();
+  await run(page, 3);
+  expect(await timer(page)).not.toBe(t0);
+
+  // Settings opened from play freezes the game until it is closed.
+  await page.locator('#btn-settings').click();
+  await expect(page.locator('#settings')).toBeVisible();
+  const t1 = await timer(page);
+  await run(page, 3);
+  expect(await timer(page)).toBe(t1);
+
+  await page.locator('#settings-done').click();
+  await expect(page.locator('#settings')).toBeHidden();
+  await run(page, 3);
+  expect(await timer(page)).not.toBe(t1);
+});
+
+for (const [name, viewport] of [
+  ['portrait 390x844', { width: 390, height: 844 }],
+  ['landscape 844x390', { width: 844, height: 390 }],
+] as const) {
+  test(`touch layout, ${name}: wheel and pedals visible, no horizontal scroll`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
+    const page = await context.newPage();
+    await openGame(page, '?level=1');
+    for (const id of ['#t-wheel', '#t-accel', '#t-brake', '#t-gear']) {
+      await expect(page.locator(id)).toBeVisible();
+      const box = (await page.locator(id).boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    }
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await context.close();
+  });
+}
+
+test('admin mode shows the skip buttons, and skipping or winning writes no saved progress', async ({ page }) => {
+  await openGame(page, '?admin=1');
+  await expect(page.locator('#admin-badge')).toBeVisible();
+  // Every level is open in admin mode.
+  await expect(page.locator('#level-grid .level-btn:not([disabled])')).toHaveCount(LEVELS.length);
+  await page.locator('#level-grid .level-btn').first().click();
+  await expect(page.locator('#admin-prev')).toBeVisible();
+  await expect(page.locator('#admin-next')).toBeVisible();
+
+  await driveSolution(page, FIRST);
+  await run(page, 1);
+  await expect(page.locator('#modal-title')).toHaveText('Parked!');
+  expect(await savedProgress(page)).toBeNull();
+
+  await page.locator('#modal-buttons button', { hasText: 'Retry' }).click();
+  await page.locator('#admin-next').click();
+  await expect(page.locator('#hud-level')).toContainText(`2. ${LEVELS[1].name}`);
+  expect(await savedProgress(page)).toBeNull();
+});
+
+test('saved progress survives a reload', async ({ page }) => {
+  await openGame(page);
+  await page.locator('#level-grid .level-btn').first().click();
+  await driveSolution(page, FIRST);
+  await run(page, 1);
+  await expect(page.locator('#modal-title')).toHaveText('Parked!');
+  expect(await savedProgress(page)).not.toBeNull();
+
+  await page.reload();
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator('#menu')).toBeVisible();
+  const buttons = page.locator('#level-grid .level-btn');
+  await expect(buttons.first()).toHaveAttribute('aria-label', /3 of 3 stars/);
+  await expect(buttons.nth(1)).toBeEnabled();
+});

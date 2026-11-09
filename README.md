@@ -50,10 +50,18 @@ npm run lint         # ESLint (typescript-eslint)
 npm run format       # Prettier, rewrite files
 npm run format:check # Prettier, check only
 npm run validate     # level geometry and car physics checks (scripts/validate.ts)
+npm run test:e2e     # Playwright browser tests against the production build (see Testing)
+npm run test:e2e:ui  # the same in Playwright's interactive UI
 npm run maps         # regenerate docs/LEVELS.md and docs/maps/*.svg from src/levels.ts
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate and build on every push to `main` and on pull requests.
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate and build on every push to `main` and on pull requests. A separate `e2e` job runs the browser tests and uploads the Playwright report and failure screenshots as an artifact; it is not required for deploy.
+
+### Testing
+
+- `npm run validate` is the fast logic suite: level geometry, car physics and the recorded solutions, with no browser.
+- `npm run test:e2e` is the end-to-end suite in `e2e/` (Playwright, Chromium only). It builds the game, serves it with `vite preview` on port 4173 and plays it in a real browser: the menu, level 1 driven by its recorded solution through the keyboard, collisions, pause and Settings, the touch layout at 390x844 and 844x390, admin mode, and saved progress across a reload. The tests drive the game on a fake clock (one frame per 1/60 s), so the results do not depend on how fast the machine renders.
+- First run: `npx playwright install chromium` (add `--with-deps` on a fresh Linux box). Failures leave screenshots and traces in `test-results/`; the HTML report is in `playwright-report/`. Both are gitignored.
 
 Every level's layout is documented, with a top-down map, in [docs/LEVELS.md](docs/LEVELS.md). It is generated: after changing `src/levels.ts` run `npm run maps` and commit the result (`npm run validate` fails when it is out of date).
 
