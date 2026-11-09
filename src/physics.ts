@@ -2,36 +2,25 @@ import { contactPoint, sat, type OBB } from './collision';
 import type { Surfaces } from './floors';
 import { DEFAULT_FLOOR, type LayeredOBB } from './layout';
 import {
-  ACCEL,
   BRAKE,
-  CAR_L,
-  CAR_W,
   COLLISION_YAW_TIME,
   CONTACT_MEMORY,
   HANDBRAKE,
   MAX_COLLISION_YAW,
-  MAX_FWD,
-  MAX_REV,
-  MAX_STEER,
   RESTITUTION,
   RESTITUTION_FULL,
   RESTITUTION_MIN,
-  REV_ACCEL,
   SCRAPE_FRICTION,
   ROLL_DRAG,
   SLOPE_GRAVITY,
-  STEER_RATE,
   STEER_RETURN,
   STEP,
   WALL_FRICTION,
-  WHEELBASE,
 } from './config';
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 /** Below this tilt (rad) the car counts as being on the flat. */
 const FLAT_PITCH = 0.01;
-
-/** Radius of gyration squared of the car body (I / m for a uniform box). */
-const GYRATION2 = (CAR_W * CAR_W + CAR_L * CAR_L) / 12;
 
 export interface Controls {
   throttle: number; // -1..1 (negative = brake / reverse)
@@ -58,9 +47,16 @@ export class CarPhysics {
   pitch = 0;
   /** Floor or ramp the car is on; only obstacles on it (or level with it) can be hit. */
   layer = DEFAULT_FLOOR;
+  /** Radius of gyration squared of the body (I / m for a uniform box). */
+  private readonly gyration2: number;
   /** resolveCollisions call count, and the call each obstacle was last touched. */
   private calls = 0;
   private lastContact = new WeakMap<OBB, number>();
+
+  constructor(readonly vehicle: VehicleDef = vehicleOf()) {
+    this.gyration2 = (vehicle.width ** 2 + vehicle.length ** 2) / 12;
+    this.box = { x: 0, z: 0, hw: vehicle.width / 2, hl: vehicle.length / 2, rot: 0 };
+  }
 
   reset(x: number, z: number, heading: number, surfaces?: Surfaces): void {
     this.layer = surfaces?.startLayer ?? DEFAULT_FLOOR;
@@ -77,10 +73,10 @@ export class CarPhysics {
   }
 
   /** Scratch box reused by resolveCollisions so each read does not allocate. */
-  private readonly box: OBB = { x: 0, z: 0, hw: CAR_W / 2, hl: CAR_L / 2, rot: 0 };
+  private readonly box: OBB;
 
   get obb(): OBB {
-    return { x: this.x, z: this.z, hw: CAR_W / 2, hl: CAR_L / 2, rot: this.heading };
+    return { x: this.x, z: this.z, hw: this.vehicle.width / 2, hl: this.vehicle.length / 2, rot: this.heading };
   }
 
   /** The car's current box in a shared object: use immediately, never keep it. */
@@ -93,10 +89,11 @@ export class CarPhysics {
   }
 
   step(dt: number, c: Controls, surfaces?: Surfaces): void {
+    const veh = this.vehicle;
     // Steering: less lock at speed, smooth towards the target.
-    const speedFactor = 1 - Math.min(Math.abs(this.v) / MAX_FWD, 1) * 0.35;
-    const target = c.steer * MAX_STEER * speedFactor;
-    const rate = c.steer === 0 ? STEER_RETURN : STEER_RATE;
+    const speedFactor = 1 - Math.min(Math.abs(this.v) / veh.maxFwd, 1) * 0.35;
+    const target = c.steer * veh.maxSteer * speedFactor;
+    const rate = c.steer === 0 ? STEER_RETURN : veh.steerRate;
     const ds = target - this.steer;
     this.steer += Math.max(-rate * dt, Math.min(rate * dt, ds));
 
@@ -106,12 +103,12 @@ export class CarPhysics {
       if (this.v < -0.05) {
         this.v = towardZero(this.v, BRAKE * dt);
         this.braking = true;
-      } else this.v += ACCEL * c.throttle * dt;
+      } else this.v += veh.accel * c.throttle * dt;
     } else if (c.throttle < 0) {
       if (this.v > 0.05) {
         this.v = towardZero(this.v, BRAKE * dt);
         this.braking = true;
-      } else this.v += REV_ACCEL * c.throttle * dt;
+      } else this.v += veh.revAccel * c.throttle * dt;
     } else {
       // Coasting drag only holds the car on the flat; on a slope gravity wins.
       if (Math.abs(this.pitch) < FLAT_PITCH) this.v = towardZero(this.v, ROLL_DRAG * dt);
@@ -120,16 +117,16 @@ export class CarPhysics {
       this.v = towardZero(this.v, HANDBRAKE * dt);
       this.braking = true;
     } else this.v -= SLOPE_GRAVITY * Math.sin(this.pitch) * dt; // uphill (pitch > 0) slows the car
-    this.v = Math.max(-MAX_REV, Math.min(MAX_FWD, this.v));
+    this.v = Math.max(-veh.maxRev, Math.min(veh.maxFwd, this.v));
 
     // Integrate around the rear axle.
-    const half = WHEELBASE / 2;
+    const half = this.vehicle.wheelbase / 2;
     let rx = this.x - Math.sin(this.heading) * half;
     let rz = this.z - Math.cos(this.heading) * half;
     rx += Math.sin(this.heading) * this.v * dt;
     rz += Math.cos(this.heading) * this.v * dt;
     // Positive steer turns right, which is decreasing heading.
-    this.heading -= (this.v / WHEELBASE) * Math.tan(this.steer) * dt;
+    this.heading -= (this.v / this.vehicle.wheelbase) * Math.tan(this.steer) * dt;
     this.x = rx + Math.sin(this.heading) * half;
     this.z = rz + Math.cos(this.heading) * half;
     // The rear axle crossing a ramp's end line changes the layer.
@@ -140,13 +137,13 @@ export class CarPhysics {
   /** Height and pitch from the surface under the axles. */
   private settle(surfaces?: Surfaces): void {
     if (!surfaces) return;
-    const half = WHEELBASE / 2;
+    const half = this.vehicle.wheelbase / 2;
     const fx = Math.sin(this.heading) * half;
     const fz = Math.cos(this.heading) * half;
     const yFront = surfaces.heightAt(this.layer, this.x + fx, this.z + fz);
     const yRear = surfaces.heightAt(this.layer, this.x - fx, this.z - fz);
     this.y = (yFront + yRear) / 2;
-    this.pitch = Math.atan2(yFront - yRear, WHEELBASE);
+    this.pitch = Math.atan2(yFront - yRear, this.vehicle.wheelbase);
   }
 
   /** The obstacles this car can touch right now. */
@@ -156,7 +153,7 @@ export class CarPhysics {
 
   /** Yaw rate of the kinematic model (rad/s, heading convention). */
   get yawRate(): number {
-    return -(this.v / WHEELBASE) * Math.tan(this.steer);
+    return -(this.v / this.vehicle.wheelbase) * Math.tan(this.steer);
   }
 
   /**
@@ -202,7 +199,7 @@ export class CarPhysics {
         // Contact point velocity: rear-axle velocity plus yaw about the rear
         // axle. perp(r) = d(point)/d(heading) for an offset r.
         const [px, pz] = contactPoint(this.currentBox(), o, c);
-        const half = WHEELBASE / 2;
+        const half = this.vehicle.wheelbase / 2;
         const ax = px - (this.x - fx * half);
         const az = pz - (this.z - fz * half);
         const w = this.yawRate;
@@ -238,7 +235,7 @@ export class CarPhysics {
           const rx = px - this.x;
           const rz = pz - this.z;
           const arm = c.nx * rz - c.nz * rx;
-          const want = (COLLISION_YAW_TIME * j * arm) / (GYRATION2 + arm * arm);
+          const want = (COLLISION_YAW_TIME * j * arm) / (this.gyration2 + arm * arm);
           // Never turn the heading past parallel to the surface: if the car is
           // driving into it, stop at tangency; if only the steering swings a
           // corner in, undo at most one step of that swing.

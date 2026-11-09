@@ -2,7 +2,8 @@
 // that surface is, and which obstacles the car can touch from there.
 // A flat level is one floor ('ground', y = 0), so it needs no description.
 import { corners, pointInOBB, type OBB } from './collision';
-import { CAR_L, CAR_W, RAMP_MAX_SLOPE, WHEELBASE } from './config';
+import { RAMP_MAX_SLOPE } from './config';
+import { vehicleOf } from './vehicles';
 import {
   allObstacles,
   bayOBB,
@@ -199,6 +200,7 @@ export function levelObstacles(def: LevelDef, surfaces: Surfaces): LayeredOBB[] 
 /** Problems with a level's floors and ramps (empty when fine). */
 export function floorProblems(def: LevelDef): string[] {
   const s = new Surfaces(def);
+  const veh = vehicleOf(def.vehicle);
   const out: string[] = [];
   const ids = new Set<string>();
   if (def.floors && def.floors[0]?.id !== DEFAULT_FLOOR) out.push(`the first floor must have id '${DEFAULT_FLOOR}'`);
@@ -211,8 +213,9 @@ export function floorProblems(def: LevelDef): string[] {
       if (s.floorHeight(end) === null) out.push(`ramp ${r.id} joins unknown floor ${end}`);
     if (s.rampSlope(r) > RAMP_MAX_SLOPE + 1e-9)
       out.push(`ramp ${r.id} is ${((s.rampSlope(r) * 180) / Math.PI).toFixed(1)} deg, over the limit`);
-    if (r.w < CAR_W + RAMP_MARGIN) out.push(`ramp ${r.id} is too narrow for the car (needs ${CAR_W + RAMP_MARGIN} m)`);
-    if (r.l < CAR_L + WHEELBASE) out.push(`ramp ${r.id} is too short for the car`);
+    if (r.w < veh.width + RAMP_MARGIN)
+      out.push(`ramp ${r.id} is too narrow for the car (needs ${veh.width + RAMP_MARGIN} m)`);
+    if (r.l < veh.length + veh.wheelbase) out.push(`ramp ${r.id} is too short for the car`);
     if (r.from === r.to) out.push(`ramp ${r.id} starts and ends on the same floor`);
     else if (s.floorHeight(r.from) === s.floorHeight(r.to)) out.push(`ramp ${r.id} joins two floors of equal height`);
     // Each end must sit on its floor, or the ramp leads to nowhere / floats above the deck.

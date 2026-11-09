@@ -1,11 +1,12 @@
+import { VEHICLES } from './vehicles';
 import { MODEL_TIMEOUT_MS, withTimeout } from './loading';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // CC0 car models from Kenney's Car Kit (www.kenney.nl), see public/models/cars/License.txt.
-export const PLAYER_MODEL = 'sedan-sports';
 export const PARKED_MODELS = ['sedan', 'suv', 'hatchback-sports', 'van', 'taxi', 'suv-luxury'] as const;
-const ALL = [PLAYER_MODEL, ...PARKED_MODELS];
+/** Every model file to load: the parked-car set plus those the vehicle table drives. */
+const ALL = [...new Set([...VEHICLES.flatMap((v) => (v.model ? [v.model] : [])), ...PARKED_MODELS])];
 
 export interface WheelTemplate {
   mesh: THREE.Object3D;

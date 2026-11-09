@@ -1,10 +1,11 @@
 import { corners, pointInOBB, sat, type OBB } from './collision';
-import { CAR_L, CAR_W, TOUCH_MIN_SPEED, PARK_HOLD, STEP } from './config';
+import { TOUCH_MIN_SPEED, PARK_HOLD, STEP } from './config';
 import { floorProblems, levelObstacles, Surfaces } from './floors';
 import { bayOBB, type LevelDef } from './layout';
 import { evaluateParking } from './parking';
 import { isTouch } from './rules';
 import { CarPhysics, type Controls } from './physics';
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 /** Hold `controls` for `t` seconds. */
 export interface Segment extends Controls {
@@ -22,11 +23,18 @@ export interface SolutionResult {
   hits: number;
 }
 
-const carBox = (x: number, z: number, rot: number): OBB => ({ x, z, hw: CAR_W / 2, hl: CAR_L / 2, rot });
+const carBox = (v: VehicleDef, x: number, z: number, rot: number): OBB => ({
+  x,
+  z,
+  hw: v.width / 2,
+  hl: v.length / 2,
+  rot,
+});
 
 /** Static problems with a level's geometry: empty when it is fine. */
 export function staticProblems(def: LevelDef): string[] {
   const out: string[] = [];
+  const veh = vehicleOf(def.vehicle);
   out.push(...floorProblems(def));
   const surfaces = new Surfaces(def);
   const all = levelObstacles(def, surfaces);
@@ -35,20 +43,21 @@ export function staticProblems(def: LevelDef): string[] {
   // Only obstacles on the same floor as the spawn / bay count (a pillar a storey below never blocks).
   const onLayer = (layer: string, x: number, z: number) => surfaces.reachable(layer, x, z, all);
   const spawn = onLayer(surfaces.startLayer, def.spawn.x, def.spawn.z).findIndex((o) =>
-    sat(carBox(def.spawn.x, def.spawn.z, def.spawn.rot), o),
+    sat(carBox(veh, def.spawn.x, def.spawn.z, def.spawn.rot), o),
   );
   if (spawn >= 0) out.push(`spawn overlaps obstacle #${spawn}`);
 
-  const parked = carBox(t.x, t.z, t.rot);
+  const parked = carBox(veh, t.x, t.z, t.rot);
   const hit = onLayer(t.floor ?? surfaces.startLayer, t.x, t.z).findIndex((o) => sat(parked, o));
   if (hit >= 0) out.push(`target pose overlaps obstacle #${hit}`);
 
-  if (t.w < CAR_W || t.l < CAR_L) out.push(`bay ${t.w}x${t.l} is smaller than the car ${CAR_W}x${CAR_L}`);
+  if (t.w < veh.width || t.l < veh.length)
+    out.push(`bay ${t.w}x${t.l} is smaller than the ${veh.name} ${veh.width}x${veh.length}`);
   if (!corners(parked).every(([x, z]) => pointInOBB(x, z, bayOBB(t)))) out.push('car does not fit inside the bay');
 
   const lot: OBB = { x: 0, z: 0, hw: def.lot.w / 2, hl: def.lot.l / 2, rot: 0 };
   if (!corners(bayOBB(t)).every(([x, z]) => pointInOBB(x, z, lot))) out.push('bay is not inside the lot');
-  if (!corners(carBox(def.spawn.x, def.spawn.z, def.spawn.rot)).every(([x, z]) => pointInOBB(x, z, lot)))
+  if (!corners(carBox(veh, def.spawn.x, def.spawn.z, def.spawn.rot)).every(([x, z]) => pointInOBB(x, z, lot)))
     out.push('spawn is not inside the lot');
   return out;
 }
@@ -61,7 +70,7 @@ export function staticProblems(def: LevelDef): string[] {
 export function replaySolution(def: LevelDef, segments: Segment[]): SolutionResult {
   const surfaces = new Surfaces(def);
   const obstacles = levelObstacles(def, surfaces);
-  const car = new CarPhysics();
+  const car = new CarPhysics(vehicleOf(def.vehicle));
   car.reset(def.spawn.x, def.spawn.z, def.spawn.rot, surfaces);
   let hold = 0;
   let maxImpact = 0;

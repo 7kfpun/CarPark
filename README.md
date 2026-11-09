@@ -63,6 +63,8 @@ CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate, build and format
 - `npm run test:e2e` is the end-to-end suite in `e2e/` (Playwright, Chromium only). It builds the game, serves it with `vite preview` on port 4173 and plays it in a real browser: the menu, level 1 driven by its recorded solution through the keyboard, collisions, pause and Settings, the touch layout at 390x844 and 844x390, admin mode, and saved progress across a reload. The tests drive the game on a fake clock (one frame per 1/60 s), so the results do not depend on how fast the machine renders.
 - First run: `npx playwright install chromium` (add `--with-deps` on a fresh Linux box). Failures leave screenshots and traces in `test-results/`; the HTML report is in `playwright-report/`. Both are gitignored.
 
+Each level can name the vehicle it is driven with (`vehicle` in `src/levels.ts`, an id from `src/vehicles.ts`; the hatchback when omitted). Physics, collision, the parking check, the cameras and the rear mirror all read that vehicle's dimensions, and `npm run validate` replays each level's recorded solution with its own vehicle. The hatchback, sedan, SUV and van use the CC0 Kenney models; the minibus, city bus and box truck are simple coloured bodies built in code.
+
 Every level's layout is documented, with a top-down map, in [docs/LEVELS.md](docs/LEVELS.md). It is generated: after changing `src/levels.ts` run `npm run maps` and commit the result (`npm run validate` fails when it is out of date).
 
 The build uses `base: './'`, so `dist/` can be served from any sub-path.
@@ -91,6 +93,7 @@ scripts/maps.ts         regenerates docs/LEVELS.md and the map SVGs (with mapsRe
 scripts/version.ts      build version string shared by vite.config.ts and validate
 src/main.ts             entry point: renderer, scene, game state machine, main loop, URL params
 src/config.ts           shared tuning constants (car size, speeds, steering, tolerances)
+src/vehicles.ts         the vehicle table: size, wheelbase, steering lock, speeds, camera and mirror eye point of each vehicle
 src/physics.ts          kinematic bicycle-model car physics and collision response
 src/collision.ts        2D oriented bounding boxes (OBB) and SAT overlap tests
 src/parking.ts          decides whether the car is parked correctly inside the target bay

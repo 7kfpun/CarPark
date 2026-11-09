@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { wrapAngle } from './collision';
 import { clampCameraDistance } from './storey';
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 export type CamMode = 'chase' | 'top';
 
@@ -13,6 +14,8 @@ interface Target {
 
 export class CameraRig {
   mode: CamMode = 'chase';
+  /** Sets how far back and high the chase camera sits. */
+  vehicle: VehicleDef = vehicleOf();
   private camHeading = 0;
   private readonly pos = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
@@ -35,10 +38,14 @@ export class CameraRig {
     if (this.mode === 'chase') {
       const fx = Math.sin(this.camHeading);
       const fz = Math.cos(this.camHeading);
-      this.pos.set(t.x - fx * 7.5, t.y + 3.8, t.z - fz * 7.5);
+      this.pos.set(
+        t.x - fx * this.vehicle.camDistance,
+        t.y + this.vehicle.camHeight,
+        t.z - fz * this.vehicle.camDistance,
+      );
       this.look.set(t.x + fx * 1.5, t.y + 0.6, t.z + fz * 1.5);
     } else {
-      this.pos.set(t.x, t.y + 34, t.z - 10);
+      this.pos.set(t.x, t.y + 34 + this.vehicle.camHeight - 3.8, t.z - 10);
       this.look.set(t.x, t.y, t.z);
     }
   }

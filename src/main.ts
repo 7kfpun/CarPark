@@ -16,6 +16,7 @@ import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
+import { vehicleOf } from './vehicles';
 import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
@@ -183,6 +184,14 @@ function startLevel(i: number): void {
   sfx.unlock();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
+  const vehicle = vehicleOf(def.vehicle);
+  const previous = player.model.root;
+  if (player.use(vehicle)) {
+    scene.remove(previous);
+    scene.add(player.model.root);
+  }
+  rig.vehicle = vehicle;
+  mirror.vehicle = vehicle;
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
   player.model.root.visible = true;
   elapsed = 0;
