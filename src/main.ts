@@ -20,6 +20,7 @@ import { ceilingAbove, floorHud, lightTarget } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
+import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, type Settings } from './settings';
 import { checkForUpdate, type UpdateKind } from './update';
 
@@ -159,7 +160,13 @@ function loadLevel(i: number): void {
   sun.target.position.set(0, 0, 0);
 }
 
+/** False while Settings or the graphics-reset overlay covers the game. */
+function canRun(): boolean {
+  return canRunGame(settingsPanel.isOpen, gfx.contextLost);
+}
+
 function startLevel(i: number): void {
+  if (!canRun()) return;
   sfx.unlock();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
@@ -173,11 +180,13 @@ function startLevel(i: number): void {
   rig.snap(player.physics);
   hud.startLevel(i, def);
   state = 'playing';
+  syncAdminBar();
   hud.hideUpdateBanner(); // never interrupt a level; it comes back at the next menu
 }
 
 function showMenu(): void {
   state = 'menu';
+  syncAdminBar();
   if (!level) loadLevel(resumeIndex(progress, LEVEL_IDS));
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, (i) => {
@@ -194,18 +203,25 @@ function pause(): void {
   // show the modal so touch players can resume.
   if (state === 'paused' ? hud.modalOpen : state !== 'playing') return;
   state = 'paused';
+  syncAdminBar();
   input.clear();
-  hud.showModal('Paused', `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`, null, [
-    { label: 'Resume', primary: true, onClick: resume },
-    { label: 'Restart', onClick: () => startLevel(levelIndex) },
-    ...(ADMIN ? [{ label: 'Skip level', onClick: () => skipLevel(1) }] : []),
-    { label: 'Menu', onClick: showMenu },
-  ]);
+  hud.showModal(
+    'Paused',
+    `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`,
+    null,
+    [
+      { label: 'Resume', primary: true, onClick: resume },
+      { label: 'Restart', onClick: () => startLevel(levelIndex) },
+      ...(ADMIN ? [{ label: 'Skip level', onClick: () => skipLevel(1) }] : []),
+      { label: 'Menu', onClick: showMenu },
+    ],
+    !settingsPanel.isOpen, // never pull focus into a modal hidden behind Settings
+  );
 }
 
 /** Admin only: jump to the next/previous level without awarding stars or times. */
 function skipLevel(dir: 1 | -1): void {
-  if (!ADMIN || (state !== 'playing' && state !== 'paused')) return;
+  if (!ADMIN || !canRun() || (state !== 'playing' && state !== 'paused')) return;
   const t = skipTarget(levelIndex, dir, LEVELS.length);
   if (t === null) return;
   hud.hideModal();
@@ -213,14 +229,16 @@ function skipLevel(dir: 1 | -1): void {
 }
 
 function resume(): void {
-  if (state !== 'paused') return;
+  if (state !== 'paused' || !canRun()) return;
   hud.hideModal();
   input.clear(); // drop keys pressed/held while the modal was open
   state = 'playing';
+  syncAdminBar();
 }
 
 function finish(win: boolean, reason: string): void {
   state = 'done';
+  syncAdminBar();
   input.clear();
   hud.setPark(null, '');
   const def = LEVELS[levelIndex];
@@ -325,6 +343,7 @@ input.on('Escape', () => {
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
+  if (!canRun()) return;
   if (state === 'menu') startLevel(resumeIndex(progress, LEVEL_IDS));
   else if (hud.modalOpen) hud.clickPrimary();
 });
