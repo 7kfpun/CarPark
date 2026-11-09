@@ -5,6 +5,11 @@ export type QualitySetting = 'auto' | 'low' | 'high';
 
 export interface Settings {
   sound: boolean;
+  /** Background music on/off (needs sound on). */
+  music: boolean;
+  /** Index into VOLUME_STEPS for effects/engine and for music. */
+  sfxVol: number;
+  musicVol: number;
   quality: QualitySetting;
   camera: CamMode;
   /** Switch to the corner (rear) view while reversing. */
@@ -18,6 +23,9 @@ const KEY = 'car-parking-3d:settings:v1';
 export function loadSettings(): Settings {
   const fresh: Settings = {
     sound: true,
+    music: true,
+    sfxVol: 1,
+    musicVol: 1,
     quality: 'auto',
     camera: 'chase',
     autoRear: false,
@@ -31,6 +39,9 @@ export function loadSettings(): Settings {
     if (!s || typeof s !== 'object') return fresh;
     return {
       sound: typeof s.sound === 'boolean' ? s.sound : fresh.sound,
+      music: typeof s.music === 'boolean' ? s.music : fresh.music,
+      sfxVol: s.sfxVol === 0 || s.sfxVol === 1 || s.sfxVol === 2 ? s.sfxVol : fresh.sfxVol,
+      musicVol: s.musicVol === 0 || s.musicVol === 1 || s.musicVol === 2 ? s.musicVol : fresh.musicVol,
       quality: s.quality === 'low' || s.quality === 'high' || s.quality === 'auto' ? s.quality : fresh.quality,
       camera: parseCamMode(s.camera, fresh.camera),
       autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
@@ -57,6 +68,9 @@ export class SettingsPanel {
   private readonly root = document.getElementById('settings')!;
   private readonly rows: Choice<keyof Settings>[] = [
     { key: 'sound', values: [true, false] },
+    { key: 'sfxVol', values: [0, 1, 2] },
+    { key: 'music', values: [true, false] },
+    { key: 'musicVol', values: [0, 1, 2] },
     { key: 'quality', values: ['low', 'high', 'auto'] },
     { key: 'camera', values: [...CAM_MODES] },
     { key: 'autoRear', values: [true, false] },

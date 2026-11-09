@@ -5,7 +5,7 @@ Each lot has one glowing target bay. Drive in, line up with the bay and hold sti
 moment to park. Every level has a time limit, and touching anything (a car, wall, pillar or cone) fails the level at once. You earn up to three
 stars per level from your time: finishing in time is one star, and each level sets the times for two and three stars. Progress is saved in `localStorage`, keyed by each level's permanent `id` (see `LevelDef`), so levels can be added or reordered without losing stars.
 
-The lots and the sound effects are generated in code. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
+The lots, the sound effects (an engine hum that follows your speed, crash and fail stings, a win jingle that grows with stars) and the background music are generated in code. Settings has separate effects and music volumes and a music toggle. The only assets fetched at runtime are seven CC0 Kenney car models (`public/models/cars/*.glb`, about 1.3 MB). If a model is slow or fails to load, a box car is used instead.
 
 ## Controls
 
