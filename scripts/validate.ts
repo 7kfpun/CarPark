@@ -8,6 +8,8 @@ import { canRunGame, padConfirmAction } from '../src/guards';
 import {
   angleDelta,
   deadzone,
+  isMetaKey,
+  isShortcut,
   pedalControls,
   pickNeighbor,
   pointerAngle,
@@ -484,6 +486,14 @@ check(
   'wheel does not wind past the lock and follows the finger across the ±180° seam',
 );
 check(steerFromWheel(turnWheel(80, 20, 20 - 80)) === 0, 'letting go springs the wheel back to straight ahead');
+check(
+  isShortcut({ ctrlKey: false, metaKey: true, altKey: false }) &&
+    isShortcut({ ctrlKey: true, metaKey: false, altKey: false }) &&
+    isShortcut({ ctrlKey: false, metaKey: false, altKey: true }) &&
+    !isShortcut({ ctrlKey: false, metaKey: false, altKey: false }),
+  'Cmd/Ctrl/Alt combos are shortcuts, not drive keys',
+);
+check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Meta keyup is recognised');
 {
   const none = pedalControls(false, false, false);
   const go = pedalControls(true, false, false);
