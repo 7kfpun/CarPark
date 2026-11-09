@@ -142,7 +142,7 @@ export class Hud {
     this.floor.classList.toggle('hidden', !def.floors);
     this.floorText = '';
     this.setPark(null, '', '');
-    this.showHint(`${vehicleOf(def.vehicle).name}: ${def.hint} ${starRequirement(def)}`, 6);
+    this.showHint(`${vehicleOf(def.vehicle).name}: ${def.hint} ${starRequirement(def)}`, 4);
     this.hideModal();
   }
 

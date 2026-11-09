@@ -836,9 +836,9 @@ function frameBody(now: number): void {
     updateGhost(elapsed);
     hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
-    hud.tick(dt);
     syncAdminBar();
   }
+  hud.tick(dt);
 
   if (replay) {
     // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
