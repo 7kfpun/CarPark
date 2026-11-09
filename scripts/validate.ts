@@ -1,6 +1,7 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
+import { nextFocusIndex } from '../src/focus';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
@@ -758,6 +759,11 @@ check(
   )) === 'none',
   'hung server times out without blocking',
 );
+
+check(nextFocusIndex(3, 0, 1) === 1 && nextFocusIndex(3, 2, 1) === 0, 'focus cycle wraps forward');
+check(nextFocusIndex(3, 0, -1) === 2 && nextFocusIndex(3, 2, -1) === 1, 'focus cycle wraps backward');
+check(nextFocusIndex(3, -1, 1) === 0 && nextFocusIndex(3, -1, -1) === 2, 'focus enters at the ends when none focused');
+check(nextFocusIndex(0, -1, 1) === -1, 'focus cycle with no items');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
