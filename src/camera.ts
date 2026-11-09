@@ -15,6 +15,7 @@ import {
   type Pose,
   type ViewTarget,
 } from './views';
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 export type { CamMode } from './views';
 
@@ -30,6 +31,8 @@ interface Target {
 
 export class CameraRig {
   private _mode: CamMode = 'chase';
+  /** The vehicle being followed: sets camera distance, eye point and the corner views. */
+  vehicle: VehicleDef = vehicleOf();
   private camHeading = 0;
   private readonly pos = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
@@ -105,7 +108,7 @@ export class CameraRig {
       pitch: t.pitch,
       steer: t.steer,
     };
-    const p: Pose = this.free ? freePose(this.free, t) : viewPose(this._mode, vt, this.reversing);
+    const p: Pose = this.free ? freePose(this.free, t) : viewPose(this._mode, vt, this.reversing, this.vehicle);
     this.pos.set(p.px, p.py, p.pz);
     this.look.set(p.lx, p.ly, p.lz);
   }

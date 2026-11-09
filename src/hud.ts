@@ -2,6 +2,7 @@ import { nextFocusIndex } from './focus';
 import type { LevelDef } from './layout';
 import type { FloorHud } from './storey';
 import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
+import { vehicleOf } from './vehicles';
 import { APP_VERSION } from './version';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
@@ -92,7 +93,7 @@ export class Hud {
     this.floor.classList.toggle('hidden', !def.floors);
     this.floorText = '';
     this.setPark(null, '');
-    this.showHint(`${def.hint} ${starRequirement(def)}`, 6);
+    this.showHint(`${vehicleOf(def.vehicle).name}: ${def.hint} ${starRequirement(def)}`, 6);
     this.hideModal();
   }
 

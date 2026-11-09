@@ -17,6 +17,7 @@ import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
+import { vehicleOf, type VehicleDef } from './vehicles';
 import {
   assistMode,
   bodyHidden,
@@ -121,7 +122,14 @@ try {
 }
 const player = new PlayerCar();
 const mirror = new RearMirror();
-const cockpit = new Cockpit();
+/** One interior per vehicle, drawn around its own eye point. */
+const cockpits = new Map<string, Cockpit>();
+function cockpitFor(v: VehicleDef): Cockpit {
+  let c = cockpits.get(v.id);
+  if (!c) cockpits.set(v.id, (c = new Cockpit(v)));
+  return c;
+}
+let cockpit = cockpitFor(player.vehicle);
 player.model.root.add(cockpit.group);
 scene.add(player.model.root);
 gfx.applyDecor(player.model.root);
@@ -206,6 +214,18 @@ function startLevel(i: number): void {
   sfx.unlock();
   if (!level || levelIndex !== i) loadLevel(i);
   const def = LEVELS[i];
+  const vehicle = vehicleOf(def.vehicle);
+  const previous = player.model.root;
+  if (player.use(vehicle)) {
+    previous.remove(cockpit.group);
+    scene.remove(previous);
+    cockpit = cockpitFor(vehicle);
+    player.model.root.add(cockpit.group);
+    scene.add(player.model.root);
+    gfx.applyDecor(player.model.root);
+  }
+  rig.vehicle = vehicle;
+  mirror.vehicle = vehicle;
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
   player.model.root.visible = true;
   elapsed = 0;

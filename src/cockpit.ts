@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CAR_W } from './config';
-import { EYE } from './views';
+import { vehicleOf, type VehicleDef } from './vehicles';
+import { EYE as HATCH_EYE } from './views';
 
 const dashMat = new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.85 });
 const trimMat = new THREE.MeshStandardMaterial({ color: 0x2c2f36, roughness: 0.7 });
@@ -26,9 +26,13 @@ export class Cockpit {
   readonly group = new THREE.Group();
   private readonly wheel = new THREE.Group();
 
-  constructor() {
+  constructor(vehicle: VehicleDef = vehicleOf()) {
+    const CAR_W = vehicle.width;
+    const EYE = vehicle.eye;
     const hw = CAR_W / 2;
     const g = this.group;
+    // The interior is drawn around the hatchback's eye point; move it to this vehicle's.
+    g.position.set(0, EYE.y - HATCH_EYE.y, EYE.z - HATCH_EYE.z);
     // Dashboard and cowl, with the instrument hood in front of the driver.
     g.add(part(new THREE.BoxGeometry(CAR_W - 0.1, 0.26, 0.5), dashMat, 0, 0.66, 0.7));
     g.add(part(new THREE.BoxGeometry(0.5, 0.1, 0.2), trimMat, EYE.x, 0.82, 0.55));

@@ -1,6 +1,7 @@
 // Pure camera-view logic: which views exist, the cycle order, saved-value
 // parsing, blending and the pose each view asks for. No three.js here, so
 // scripts/validate.ts can test it. The camera never feeds back into physics.
+import { vehicleOf, type VehicleDef } from './vehicles';
 
 /** The selectable views, in cycle order (C key / 🎥 button). Free look is not in the cycle: it is a drag-to-orbit mode while paused. */
 export const CAM_MODES = ['chase', 'cockpit', 'hood', 'top', 'corner'] as const;
@@ -98,13 +99,12 @@ export interface Pose {
   lz: number;
 }
 
-/** Driver's eye in car-local metres: x left, y up, z forward. */
-export const EYE = { x: 0.36, y: 1.2, z: -0.1 } as const;
-/** Hood camera, low on the bonnet. */
-export const HOOD = { x: 0, y: 1.25, z: 1.15 } as const;
+/** The hatchback's driver eye and hood camera in car-local metres (x left, y up, z forward); other vehicles have their own. */
+export const EYE = vehicleOf().eye;
+export const HOOD = vehicleOf().hood;
 
 /** The camera pose a view asks for. `reversing` only matters for the corner view. */
-export function viewPose(mode: CamMode, t: ViewTarget, reversing = false): Pose {
+export function viewPose(mode: CamMode, t: ViewTarget, reversing = false, veh: VehicleDef = vehicleOf()): Pose {
   const fx = Math.sin(t.heading);
   const fz = Math.cos(t.heading);
   // Car-local x points left, so the world direction of +x is (fz, -fx).
@@ -117,12 +117,19 @@ export function viewPose(mode: CamMode, t: ViewTarget, reversing = false): Pose 
   ];
   switch (mode) {
     case 'chase':
-      return pose(t.x - fx * 7.5, t.y + 3.8, t.z - fz * 7.5, t.x + fx * 1.5, t.y + 0.6, t.z + fz * 1.5);
+      return pose(
+        t.x - fx * veh.camDistance,
+        t.y + veh.camHeight,
+        t.z - fz * veh.camDistance,
+        t.x + fx * 1.5,
+        t.y + 0.6,
+        t.z + fz * 1.5,
+      );
     case 'top':
-      return pose(t.x, t.y + 34, t.z - 10, t.x, t.y, t.z);
+      return pose(t.x, t.y + 34 + veh.camHeight - 3.8, t.z - 10, t.x, t.y, t.z);
     case 'cockpit':
     case 'hood': {
-      const o = mode === 'cockpit' ? EYE : HOOD;
+      const o = mode === 'cockpit' ? veh.eye : veh.hood;
       const [px, py, pz] = at(o.x, o.y, o.z);
       // Look slightly into the turn (positive steer = right = decreasing heading) and along the slope.
       const a = t.heading - t.steer * 0.35;
@@ -139,14 +146,15 @@ export function viewPose(mode: CamMode, t: ViewTarget, reversing = false): Pose 
     case 'corner': {
       if (reversing) {
         // Rear camera: above the back bumper, looking back and down at the rear corners.
-        const [px, py, pz] = at(0, 4.2, -2.4);
-        const [qx, qy, qz] = at(0, 0, -6.5);
+        const [px, py, pz] = at(0, 4.2 + veh.camHeight - 3.8, -(veh.length / 2 + 0.3));
+        const [qx, qy, qz] = at(0, 0, -(veh.length / 2 + 4.4));
         return pose(px, py, pz, qx, qy, qz);
       }
       // Close top-down-ish view of the front corner on the side the wheel is turned towards.
       const side = t.steer === 0 ? 0 : t.steer > 0 ? -1 : 1; // local x: left is +
-      const [qx, qy, qz] = at(side * 0.9, 0, 2.2);
-      const [px, py, pz] = at(side * 0.9, 9, -1.2);
+      const sx = veh.width * 0.47;
+      const [qx, qy, qz] = at(side * sx, 0, veh.length / 2 + 0.1);
+      const [px, py, pz] = at(side * sx, 9 + veh.camHeight - 3.8, veh.length / 2 - 3.3);
       return pose(px, py, pz, qx, qy, qz);
     }
   }

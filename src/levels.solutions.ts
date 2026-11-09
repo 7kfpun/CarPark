@@ -449,3 +449,91 @@ SOLUTIONS['twilight-squeeze'] = mirror(SOLUTIONS['tight-squeeze']);
 SOLUTIONS['one-way-curb'] = mirror(SOLUTIONS['curb-side']);
 SOLUTIONS['dusk-slalom'] = mirror(SOLUTIONS['slalom-reverse']);
 SOLUTIONS['night-finale'] = mirror(SOLUTIONS['the-finale']);
+
+// Van: drive past the bay, then reverse in at an angle (found by searching the physics, replayed by validate).
+SOLUTIONS['van-garage'] = [
+  S(0.5, 1, -1),
+  S(0.5, 1, -1),
+  S(0.5, 1, -1),
+  S(0.5, 1, -1),
+  S(0.5, 1, -1),
+  S(0.5, 0, 0, true),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 1),
+  S(0.5, -1, 1),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, -1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0),
+  S(0.5, -1, -1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -1),
+  S(0.5, -1, -0.5),
+  S(0.5, 1, -1),
+  S(0.5, 0, 0, true),
+  S(0.5, 0, 0, true),
+];
+
+// Box truck: swing wide, line up with the dock, then reverse in square.
+SOLUTIONS['loading-dock'] = [
+  S(1.5, 1, -0.75),
+  S(3.75, 1, 0.5),
+  S(2.75, 1, -1),
+  S(0.5, 0, 0, true),
+  S(7.25, -1, 1),
+  S(3.5, -1, -0.25),
+  S(4.5, -1, 0.75),
+  S(6.25, -1, -0.25),
+  S(0.5, 0, 0, true),
+];
+
+// City bus: run up the left lane, swing right into the bay ahead of the parked bus, then back up to square off.
+SOLUTIONS['bus-bay'] = [
+  S(3.75, 1, 0),
+  S(1.75, 1, -1),
+  S(2.75, 1, 0.75),
+  S(1.5, 1, -0.5),
+  S(3.75, 1, 0.25),
+  S(0.5, 0, -1, true),
+  S(4, -1, -1),
+  S(4.5, -1, 1),
+  S(0.5, 0, 1, true),
+];
+
+// Minibus: pull past the gap, reverse in at full lock, then straighten up.
+SOLUTIONS['minibus-parallel'] = [
+  S(5.5, 1, -0.25),
+  S(4.5, 1, 0.5),
+  S(0.5, 0, 0.75, true),
+  S(1.5, -1, -1),
+  S(4.5, -1, 0.25),
+  S(1, -1, 1),
+  S(0.5, 0, 0.25, true),
+  S(1.5, 1, -0.5),
+  S(0.5, 0, -0.25, true),
+];

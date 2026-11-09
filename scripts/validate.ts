@@ -39,6 +39,7 @@ import { loadingLabel, withTimeout } from '../src/loading';
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { DEFAULT_VEHICLE, minTurnRadius, VEHICLES, vehicleOf, type VehicleDef } from '../src/vehicles';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
 import { replaySolution, staticProblems } from '../src/solution';
 import {
@@ -84,7 +85,13 @@ function check(cond: boolean, msg: string): void {
   }
 }
 
-const carBox = (x: number, z: number, rot: number): OBB => ({ x, z, hw: CAR_W / 2, hl: CAR_L / 2, rot });
+const carBox = (x: number, z: number, rot: number, v: VehicleDef = vehicleOf()): OBB => ({
+  x,
+  z,
+  hw: v.width / 2,
+  hl: v.length / 2,
+  rot,
+});
 
 /** Geometry and parking-rule checks for one level, on the layer its bay is on. */
 function levelChecks(lvl: LevelDef): void {
@@ -92,19 +99,20 @@ function levelChecks(lvl: LevelDef): void {
   const layer = lvl.target.floor ?? surfaces.startLayer;
   const t = lvl.target;
   const reachable = (box: OBB) => surfaces.reachable(layer, box.x, box.z, levelObstacles(lvl, surfaces));
-  const parked = carBox(t.x, t.z, t.rot);
+  const veh = vehicleOf(lvl.vehicle);
+  const parked = carBox(t.x, t.z, t.rot, veh);
   check(evaluateParking(parked, 0, t, lvl.bothWays, layer).ok, 'centred target pose is not a valid park');
   check(!evaluateParking(parked, 2, t, lvl.bothWays, layer).ok, 'moving car counted as parked');
-  const flipped = carBox(t.x, t.z, t.rot + Math.PI);
+  const flipped = carBox(t.x, t.z, t.rot + Math.PI, veh);
   check(evaluateParking(flipped, 0, t, lvl.bothWays, layer).ok === lvl.bothWays, 'reverse orientation rule wrong');
-  const off = carBox(t.x + t.w, t.z, t.rot);
+  const off = carBox(t.x + t.w, t.z, t.rot, veh);
   check(!evaluateParking(off, 0, t, lvl.bothWays, layer).ok, 'car outside bay counted as parked');
   const other = surfaces.floors.find((f) => f.id !== layer);
   if (other)
     check(!evaluateParking(parked, 0, t, lvl.bothWays, other.id).ok, 'parked on the wrong floor counted as parked');
 
   // Free space around the bay: car should have >= 0.3m clearance sideways.
-  const side = carBox(t.x, t.z, t.rot);
+  const side = carBox(t.x, t.z, t.rot, veh);
   side.hw += 0.3;
   check(
     reachable(side).every((o) => !sat(side, o)),
@@ -212,6 +220,140 @@ console.log('Multi-storey levels');
     }
     check(car.layer === 'top' && touched === 0, `Spiral: steer ${steer} should reach the top without a touch`);
   }
+}
+
+console.log('Vehicles');
+{
+  const ids = new Set<string>();
+  for (const v of VEHICLES) {
+    check(!ids.has(v.id), `duplicate vehicle id ${v.id}`);
+    ids.add(v.id);
+    const bad = (m: string) => check(false, `${v.name}: ${m}`);
+    if (!(v.length > 0 && v.width > 0 && v.wheelbase > 0 && v.wheelbase < v.length))
+      bad('sane body size and wheelbase');
+    if (!(v.accel > 0 && v.revAccel > 0)) bad('acceleration must be positive');
+    if (!(v.maxFwd > 0 && v.maxRev > 0 && v.maxRev <= v.maxFwd)) bad('top and reverse speed');
+    if (!(v.maxSteer > 0.2 && v.maxSteer < Math.PI / 2 && v.steerRate > 0)) bad('steering lock and rate');
+    const r = minTurnRadius(v);
+    if (!(Number.isFinite(r) && r >= v.wheelbase)) bad(`turning radius ${r}`);
+    if (!(v.camDistance > v.length / 2 && v.camHeight > 2)) bad('chase camera must sit behind and above the body');
+    if (!(v.eyeBack >= 0 && v.eyeBack < v.length / 2 && v.eyeHeight > 1)) bad('mirror eye point must be on the body');
+    if (!(Math.abs(v.eye.x) < v.width / 2 && Math.abs(v.eye.z) < v.length / 2 && v.eye.y > 1))
+      bad('cockpit eye must be inside the body');
+    if (!(v.hood.z > 0 && v.hood.z < v.length / 2 && v.hood.y > 1))
+      bad('hood camera must sit on the front of the body');
+    if (v.shape === 'model')
+      check(
+        v.model !== undefined && existsSync(`public/models/cars/${v.model}.glb`),
+        `${v.name}: model file public/models/cars/${v.model}.glb is missing`,
+      );
+    // The physics body and the parking box use the definition's own size.
+    const body = new CarPhysics(v).obb;
+    check(body.hw * 2 === v.width && body.hl * 2 === v.length, `${v.name}: collision box is not its size`);
+    // Measured turning circle at crawl speed matches wheelbase / tan(lock): the numbers do the work.
+    const c = new CarPhysics(v);
+    c.reset(0, 0, 0);
+    // A crawl with the wheel hard over: the rear axle's path length over the heading change is the turning radius
+    // (the steering lock eases a little with speed, so the expected radius uses the same factor).
+    let dist = 0;
+    const crawl = (secs: number): void => {
+      for (let i = 0; i < Math.round(secs / STEP); i++) {
+        c.v = 0.3;
+        c.step(STEP, { throttle: 0, steer: 1, handbrake: false });
+        dist += c.v * STEP;
+      }
+    };
+    crawl(6);
+    const h0 = c.heading;
+    dist = 0;
+    crawl(2);
+    const measured = dist / Math.abs(c.heading - h0);
+    const lock = v.maxSteer * (1 - (0.3 / v.maxFwd) * 0.35);
+    const expected = v.wheelbase / Math.tan(lock);
+    check(
+      Math.abs(measured / expected - 1) < 0.02,
+      `${v.name}: turning radius ${measured.toFixed(2)} m, expected ${expected.toFixed(2)}`,
+    );
+    // Parking: a vehicle in a bay with 0.2 m to spare is parked; slid out by 0.5 m it is not.
+    const bay = { x: 0, z: 0, rot: 0, w: v.width + 0.4, l: v.length + 0.4 };
+    check(evaluateParking(carBox(0, 0, 0, v), 0, bay, false).ok, `${v.name}: parked in a bay of its own size`);
+    check(!evaluateParking(carBox(0.5, 0, 0, v), 0, bay, false).ok, `${v.name}: counted as parked half out of the bay`);
+    // All four corners count: a corner poking out of the bay fails even when the centre is inside.
+    check(!evaluateParking(carBox(0, 0, 0.12, v), 0, bay, false).ok, `${v.name}: skewed vehicle counted as parked`);
+  }
+  check(vehicleOf().id === DEFAULT_VEHICLE && DEFAULT_VEHICLE === 'hatchback', 'the default vehicle is the hatchback');
+  const hatch = vehicleOf('hatchback');
+  check(
+    hatch.length === CAR_L && hatch.width === CAR_W && hatch.maxFwd === MAX_FWD && hatch.maxRev === MAX_REV,
+    'the hatchback keeps the original car numbers (existing levels and saves stay valid)',
+  );
+  check(
+    VEHICLES.every((v) => v.id === 'hatchback' || v.length > CAR_L - 0.001),
+    'no other vehicle is smaller than the hatchback',
+  );
+  const radius = (id: string): number => minTurnRadius(vehicleOf(id));
+  check(
+    radius('bus') > radius('box-truck') &&
+      radius('box-truck') > radius('minibus') &&
+      radius('minibus') > radius('van') &&
+      radius('van') > radius('hatchback'),
+    'bigger vehicles turn in wider circles: bus > box truck > minibus > van > hatchback',
+  );
+  // Camera views follow the vehicle: a bigger one gets a camera further back and a driver's eye further forward.
+  {
+    const at = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, steer: 0 };
+    const bus = vehicleOf('bus');
+    check(
+      viewPose('chase', at, false, bus).pz < viewPose('chase', at).pz,
+      'the chase camera sits further back for a bus than for the hatchback',
+    );
+    check(
+      viewPose('cockpit', at, false, bus).pz > viewPose('cockpit', at).pz + 3,
+      'the cockpit view sits at the bus driver, far forward of the centre',
+    );
+    check(
+      viewPose('corner', at, true, bus).pz < viewPose('corner', at, true).pz,
+      'the reversing view looks from behind the bus, not the hatchback',
+    );
+  }
+  let threw = false;
+  try {
+    vehicleOf('hovercraft');
+  } catch {
+    threw = true;
+  }
+  check(threw, 'an unknown vehicle id must be rejected');
+
+  // A bus cannot fit a hatchback-sized bay, and the checker says so.
+  const hatchBay = { ...LEVELS[0].target, w: 3, l: 5.6 };
+  const busPark = { ...LEVELS[0], vehicle: 'bus', target: hatchBay, spawn: { x: 0, z: -10, rot: 0 } };
+  check(
+    !evaluateParking(carBox(hatchBay.x, hatchBay.z, 0, vehicleOf('bus')), 0, hatchBay, true).ok,
+    'a bus parked in a hatchback bay',
+  );
+  check(
+    staticProblems(busPark).some((m) => m.includes('smaller than the City Bus')),
+    'a hatchback-sized bay was accepted for a bus',
+  );
+  for (const v of VEHICLES.filter((x) => x.length > 5.6 || x.width > 3))
+    check(
+      staticProblems({ ...LEVELS[0], vehicle: v.id }).some((m) => m.includes('smaller than')),
+      `${v.name} accepted in the first level's hatchback bay`,
+    );
+  // The same scripted run that parks the hatchback does not park a bus.
+  check(
+    !replaySolution(busPark, SOLUTIONS['first-steps']).parked,
+    'a bus replayed a hatchback solution into a hatchback bay',
+  );
+
+  // Levels: every vehicle id is known, each larger vehicle has a level, and the vehicle fits the bay it must park in.
+  const used = new Set(LEVELS.map((l) => l.vehicle ?? DEFAULT_VEHICLE));
+  for (const l of LEVELS)
+    check(
+      VEHICLES.some((v) => v.id === (l.vehicle ?? DEFAULT_VEHICLE)),
+      `${l.id}: unknown vehicle ${l.vehicle}`,
+    );
+  for (const id of ['van', 'minibus', 'bus', 'box-truck']) check(used.has(id), `no level drives the ${id}`);
 }
 
 console.log('Solution checker');

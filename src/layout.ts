@@ -98,6 +98,8 @@ export interface LevelDef {
   floors?: FloorDef[];
   /** Lighting: `dusk` is a low orange sun, a dim sky and long shadows. Defaults to `day`. */
   theme?: 'day' | 'dusk';
+  /** Id of the vehicle the player drives (src/vehicles.ts). Defaults to the hatchback. */
+  vehicle?: string;
   /** Painted one-way arrows on the asphalt (decorative: they show the way to drive, they do not block you). */
   arrows?: ArrowDef[];
   /** Ramps joining floors. Their side kerbs and the floor-edge kerbs are generated. */
