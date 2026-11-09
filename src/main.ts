@@ -96,6 +96,7 @@ try {
 const player = new PlayerCar();
 const mirror = new RearMirror();
 scene.add(player.model.root);
+gfx.applyDecor(player.model.root);
 
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 // Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.

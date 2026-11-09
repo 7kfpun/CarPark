@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setMaterialDetail } from './materials';
 import type { QualitySetting } from './settings';
 
 export type Quality = 'low' | 'high';
@@ -155,8 +156,9 @@ export class Graphics {
     this.applyDecor(this.scene);
   }
 
-  /** Trees etc. (userData.decor) only cast shadows on High. Call after adding a level. */
+  /** Trees etc. (userData.decor) only cast shadows on High, and ground/car materials drop their extra maps on Low. Call after adding a level. */
   applyDecor(root: THREE.Object3D): void {
+    setMaterialDetail(root, this.quality === 'high');
     const cast = PRESETS[this.quality].decorShadows;
     root.traverse((o) => {
       if (!o.userData.decor) return;
