@@ -70,27 +70,40 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
   return { body, wheels, box };
 }
 
+/** Model files to fetch before the first frame: just the first vehicle's car (the menu needs no others). */
+export const FIRST_MODELS: readonly string[] = ALL.slice(0, 1);
+/** Everything else, fetched in the background once the game is up. */
+export const LATER_MODELS: readonly string[] = ALL.slice(1);
+
+/** URL of a model file; the build id in the query makes a redeploy bypass a stale cached copy. */
+export function modelUrl(name: string, baseUrl = `${import.meta.env.BASE_URL}models/cars/`): string {
+  return `${baseUrl}${name}.glb?v=${__APP_BUILD__}`;
+}
+
 /**
- * Load every car model. Resolves even if some fail: missing models fall back to
- * the built-in box car, so the game always starts.
+ * Load the given car models (all of them by default). Resolves even if some fail: missing
+ * models fall back to the built-in box car, so the game always starts.
  */
 export async function loadCarModels(
-  baseUrl = `${import.meta.env.BASE_URL}models/cars/`,
+  names: readonly string[] = ALL,
   onProgress?: (loaded: number, total: number) => void,
   timeoutMs = MODEL_TIMEOUT_MS,
+  baseUrl?: string,
 ): Promise<void> {
   const manager = new THREE.LoadingManager();
   if (onProgress) manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
   const loader = new GLTFLoader(manager);
   await Promise.all(
-    ALL.map(async (name) => {
-      try {
-        const gltf = await withTimeout(loader.loadAsync(`${baseUrl}${name}.glb`), timeoutMs, `Car model "${name}"`);
-        templates.set(name, toTemplate(gltf.scene));
-      } catch (err) {
-        console.warn(`Car model "${name}" failed to load; using the box car.`, err);
-      }
-    }),
+    names
+      .filter((name) => !templates.has(name))
+      .map(async (name) => {
+        try {
+          const gltf = await withTimeout(loader.loadAsync(modelUrl(name, baseUrl)), timeoutMs, `Car model "${name}"`);
+          templates.set(name, toTemplate(gltf.scene));
+        } catch (err) {
+          console.warn(`Car model "${name}" failed to load; using the box car.`, err);
+        }
+      }),
   );
 }
 

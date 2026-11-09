@@ -6,7 +6,7 @@ import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
-import { loadCarModels } from './carModels';
+import { FIRST_MODELS, LATER_MODELS, loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
@@ -140,13 +140,20 @@ const loadingText = document.getElementById('loading-text')!;
 const loadingFill = document.getElementById('loading-fill')!;
 try {
   // Falls back to box cars if a model can't load.
-  await loadCarModels(undefined, (loaded, total) => {
+  await loadCarModels(FIRST_MODELS, (loaded, total) => {
     loadingText.textContent = loadingLabel(loaded, total);
     loadingFill.style.width = `${total > 0 ? Math.round((loaded / total) * 100) : 0}%`;
   });
 } finally {
   loadingEl.remove();
 }
+/** The other models load while the menu is up; a level only starts once they are in. */
+let modelsDone = false;
+const laterModels = loadCarModels(LATER_MODELS).then(() => {
+  modelsDone = true;
+  // The menu's backdrop lot was built with box cars: rebuild it with the real models.
+  if (state === 'menu' && level) loadLevel(levelIndex);
+});
 const player = new PlayerCar();
 const mirror = new RearMirror();
 /** One interior per vehicle, drawn around its own eye point. */
@@ -366,7 +373,8 @@ function showMenu(): void {
     if (state !== 'menu') return;
     sfx.unlock();
     sfx.click();
-    startLevel(i);
+    if (modelsDone) startLevel(i);
+    else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
   applyUpdate();
 }
@@ -538,7 +546,7 @@ input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? res
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
   if (!canRun()) return;
-  if (state === 'menu') startLevel(resumeLevel(progress, LEVELS, ADMIN));
+  if (state === 'menu' && modelsDone) startLevel(resumeLevel(progress, LEVELS, ADMIN));
   else if (hud.modalOpen) hud.clickPrimary();
 });
 
@@ -828,7 +836,9 @@ if (isCamMode(camParam)) settings.camera = camParam; // this visit only: not sav
 const qs = params.get('level');
 const byId = qs ? LEVEL_IDS.indexOf(qs) : -1;
 const direct = byId >= 0 ? byId : qs ? Number(qs) - 1 : -1;
-if (direct >= 0 && direct < LEVELS.length) startLevel(direct);
-else showMenu();
+if (direct >= 0 && direct < LEVELS.length) {
+  await laterModels; // a test jump starts at once, so wait for the parked-car models
+  startLevel(direct);
+} else showMenu();
 startLoop();
 void runUpdateCheck();
