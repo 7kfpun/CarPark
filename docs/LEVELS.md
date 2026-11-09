@@ -212,16 +212,14 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Id | `spiral` |
 | Vehicle | Hatchback |
 | Lot | 44 × 44 m |
-| Time limit | 320 s |
-| Star times | 3 stars ≤ 160 s, 2 stars ≤ 240 s, 1 star within 320 s |
+| Time limit | 200 s |
+| Star times | 3 stars ≤ 95 s, 2 stars ≤ 128 s, 1 star within 200 s |
 | Target bay | x 13, z 12.2, 3 × 5.6 m, facing 0°, floor `top` (nose must point that way) |
 | Start pose | x 15.62, z -10.58, heading 337.5° |
 
 ![Spiral, floor ground](maps/spiral-ground.svg)
 
 ![Spiral, floor level-1](maps/spiral-level-1.svg)
-
-![Spiral, floor level-2](maps/spiral-level-2.svg)
 
 ![Spiral, floor top](maps/spiral-top.svg)
 

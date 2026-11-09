@@ -256,13 +256,13 @@ console.log('Multi-storey levels');
     'Basement has pillars',
   );
 
-  // Spiral: 8 straight segments a turn, three storeys up, the bay on the top deck near the ramp exit.
+  // Spiral: 8 straight segments a turn, two storeys up, the bay on the top deck near the ramp exit.
   const sf = new Surfaces(spiral);
   const storeys = spiral.floors!.filter((f) => !f.landing);
-  check(spiral.ramps!.length === 24, `Spiral: 8 ramp segments a turn for 3 turns (got ${spiral.ramps!.length})`);
-  check(storeys.length === 4 && sf.floorHeight('top') === 9, 'Spiral: ground plus three storeys above it');
+  check(spiral.ramps!.length === 16, `Spiral: 8 ramp segments a turn for 2 turns (got ${spiral.ramps!.length})`);
+  check(storeys.length === 3 && sf.floorHeight('top') === 6, 'Spiral: ground plus two storeys above it');
   check(spiral.target.floor === 'top', 'Spiral: the free bay is on the top deck');
-  const exit = spiral.ramps![23];
+  const exit = spiral.ramps![15];
   const exitEnd = { x: exit.x + (Math.sin(exit.rot) * exit.l) / 2, z: exit.z + (Math.cos(exit.rot) * exit.l) / 2 };
   check(
     Math.hypot(spiral.target.x - exitEnd.x, spiral.target.z - exitEnd.z) < 14,
