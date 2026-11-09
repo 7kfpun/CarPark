@@ -105,6 +105,9 @@ export interface LightTarget {
   sky: number;
 }
 
+/** Outdoor sun strength; softer than before since the HDR sky now supplies ambient light and fill. */
+export const SUN_OUTDOOR = 1.9;
+
 /** Outdoor light at dusk: a low sun, a dim hemisphere and a darker sky. */
 export const DUSK_LIGHT: LightTarget = { sun: 2.0, hemi: 1.6, sky: 1 };
 
@@ -112,7 +115,7 @@ export const DUSK_LIGHT: LightTarget = { sun: 2.0, hemi: 1.6, sky: 1 };
 export function lightTarget(covered: boolean, underground: boolean, dusk = false): LightTarget {
   if (underground) return { sun: 0, hemi: 0.75, sky: 0.12 };
   if (covered) return { sun: 0, hemi: 1.25, sky: 0.45 };
-  return dusk ? DUSK_LIGHT : { sun: 2.2, hemi: 1.1, sky: 1 };
+  return dusk ? DUSK_LIGHT : { sun: SUN_OUTDOOR, hemi: 1.1, sky: 1 };
 }
 
 /** Whether a floor (height `y`) is drawn: floors above the car vanish in the top-down view. */

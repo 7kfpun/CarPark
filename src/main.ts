@@ -16,7 +16,8 @@ import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
-import { ceilingAbove, floorHud, lightTarget } from './storey';
+import { ambientLevels } from './lighting';
+import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
@@ -31,20 +32,21 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const scene = new THREE.Scene();
 const sky = new THREE.Color(0xa9cfee);
 scene.background = sky;
-scene.fog = new THREE.Fog(sky, 60, 160);
+// Light distance fog: far lots fade into the haze instead of ending at a hard edge.
+scene.fog = new THREE.Fog(sky, 45, 150);
 
 const hemi = new THREE.HemisphereLight(0xdbeeff, 0x4a5a3a, 1.1);
 scene.add(hemi);
 const SKY = sky.clone();
 const DAY_SKY = 0xa9cfee;
 const DUSK_SKY = 0x7a6a9c;
-const DAY_SUN = 0xfff1dc;
+const DAY_SUN = 0xffeccf;
 const DUSK_SUN = 0xff8a4a;
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+const sun = new THREE.DirectionalLight(DAY_SUN, SUN_OUTDOOR);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
+sun.shadow.bias = -0.0003;
+sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
 // Created before the renderer so the first frame uses the saved quality.
@@ -54,6 +56,7 @@ const gfx = new Graphics(canvas, scene, sun, {
   onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
 });
 gfx.setQuality(settings.quality);
+gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
@@ -470,7 +473,7 @@ function step(dt: number): void {
 // Outdoors: sun and sky. Under a deck the sun is off and the light is flat and
 // warmer (the strips under each slab are baked emissive, so no shadow maps or
 // point lights); underground it is darker still. Eased so crossing a ramp mouth isn't a pop.
-let lightMix: { sun: number; hemi: number; sky: number } = { sun: 2.2, hemi: 1.1, sky: 1 };
+let lightMix: { sun: number; hemi: number; sky: number } = { sun: SUN_OUTDOOR, hemi: 1.1, sky: 1 };
 function updateLighting(dt: number, def: LevelDef | null): void {
   const car = player.physics;
   const target =
@@ -484,7 +487,9 @@ function updateLighting(dt: number, def: LevelDef | null): void {
     sky: lightMix.sky + (target.sky - lightMix.sky) * k,
   };
   sun.intensity = lightMix.sun;
-  hemi.intensity = lightMix.hemi;
+  const ambient = ambientLevels(lightMix, gfx.envActive);
+  hemi.intensity = ambient.hemi;
+  scene.environmentIntensity = ambient.env;
   sky.copy(SKY).multiplyScalar(lightMix.sky);
   (scene.fog as THREE.Fog).color.copy(sky);
 }
