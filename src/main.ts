@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { reducedMotion } from './a11y';
-import { initAdmin, mayPersist, skipTarget, unlockAll } from './admin';
+import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
@@ -94,7 +94,29 @@ scene.add(player.model.root);
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 // Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.
 const ADMIN = initAdmin(location.search);
-if (ADMIN) document.getElementById('admin-badge')?.classList.remove('hidden');
+let adminControls = loadControls();
+const adminBar = document.getElementById('admin-bar')!;
+const adminBadge = document.getElementById('admin-badge')!;
+const adminPrev = document.getElementById('admin-prev') as HTMLButtonElement;
+const adminNext = document.getElementById('admin-next') as HTMLButtonElement;
+if (ADMIN) adminBar.classList.remove('hidden');
+/** Show the skip buttons only while a level is open; the badge stays as their toggle. */
+function syncAdminBar(): void {
+  if (!ADMIN) return;
+  const show = showSkipButtons(ADMIN, adminControls, state === 'playing' || state === 'paused');
+  adminPrev.classList.toggle('hidden', !show);
+  adminNext.classList.toggle('hidden', !show);
+  adminPrev.disabled = skipTarget(levelIndex, -1, LEVELS.length) === null;
+  adminNext.disabled = skipTarget(levelIndex, 1, LEVELS.length) === null;
+  adminBadge.setAttribute('aria-pressed', String(adminControls));
+}
+adminBadge.addEventListener('click', () => {
+  adminControls = !adminControls;
+  saveControls(adminControls);
+  syncAdminBar();
+});
+adminPrev.addEventListener('click', () => skipLevel(-1));
+adminNext.addEventListener('click', () => skipLevel(1));
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -454,6 +476,7 @@ function frame(now: number): void {
     hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
+    syncAdminBar();
   }
 
   player.sync(state === 'playing' ? dt : 0);
