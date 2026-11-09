@@ -1,3 +1,4 @@
+import { padConfirmAction } from './guards';
 import type { Controls } from './physics';
 
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
@@ -407,8 +408,10 @@ export class Input {
   private confirm(): void {
     const root = this.navRoot();
     const el = document.activeElement;
-    if (root && el instanceof HTMLButtonElement && root.contains(el) && !el.disabled) el.click();
-    else this.actions.get('Enter')?.();
+    const inNav = !!root && el instanceof HTMLButtonElement && root.contains(el) && !el.disabled;
+    const act = padConfirmAction(inNav, this.actionsEnabled());
+    if (act === 'click') (el as HTMLButtonElement).click();
+    else if (act === 'enter') this.actions.get('Enter')?.();
   }
 
   private any(...codes: string[]): boolean {

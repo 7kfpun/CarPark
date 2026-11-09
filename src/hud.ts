@@ -155,7 +155,7 @@ export class Hud {
     this.flash.classList.add('on');
   }
 
-  showModal(title: string, body: string, stars: number | null, buttons: ModalButton[]): void {
+  showModal(title: string, body: string, stars: number | null, buttons: ModalButton[], focusPrimary = true): void {
     $('modal-title').textContent = title;
     $('modal-body').textContent = body;
     const s = $('modal-stars');
@@ -180,7 +180,7 @@ export class Hud {
     }
     this.modal.classList.remove('hidden');
     this.announce(stars === null ? `${title}. ${body}` : `${title} ${starLabel(stars)}. ${body}`);
-    (row.querySelector('.primary') as HTMLButtonElement | null)?.focus();
+    if (focusPrimary) (row.querySelector('.primary') as HTMLButtonElement | null)?.focus();
   }
 
   /** Dismissible "new version" banner. */

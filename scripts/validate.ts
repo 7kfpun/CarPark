@@ -4,6 +4,7 @@ import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
 import { nextFocusIndex } from '../src/focus';
+import { canRunGame, padConfirmAction } from '../src/guards';
 import {
   angleDelta,
   deadzone,
@@ -1030,6 +1031,15 @@ check(nextFocusIndex(3, 0, 1) === 1 && nextFocusIndex(3, 2, 1) === 0, 'focus cyc
 check(nextFocusIndex(3, 0, -1) === 2 && nextFocusIndex(3, 2, -1) === 1, 'focus cycle wraps backward');
 check(nextFocusIndex(3, -1, 1) === 0 && nextFocusIndex(3, -1, -1) === 2, 'focus enters at the ends when none focused');
 check(nextFocusIndex(0, -1, 1) === -1, 'focus cycle with no items');
+
+check(canRunGame(false, false), 'game may run with no overlay');
+check(
+  !canRunGame(true, false) && !canRunGame(false, true) && !canRunGame(true, true),
+  'Settings or a lost context blocks the game',
+);
+check(padConfirmAction(true, false) === 'click', 'pad A clicks a focused nav button even with actions off');
+check(padConfirmAction(false, true) === 'enter', 'pad A runs Enter when actions are on');
+check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Settings');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
