@@ -260,7 +260,11 @@ export class Hud {
   }
 
   private modalButtons(): HTMLButtonElement[] {
-    return [...this.modal.querySelectorAll<HTMLButtonElement>('#modal-buttons button')];
+    const btns = [...this.modal.querySelectorAll<HTMLButtonElement>('#modal-buttons button')];
+    // The update banner sits outside the modal: keep it reachable from the keyboard while it is visible.
+    const banner = $('update-banner');
+    if (!banner.classList.contains('hidden')) btns.push(...banner.querySelectorAll<HTMLButtonElement>('button'));
+    return btns;
   }
 
   /** Keep keyboard focus inside the open modal; arrows move between its buttons. */

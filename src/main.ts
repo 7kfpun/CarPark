@@ -49,7 +49,7 @@ import {
   saveGhosts,
   type Pose,
 } from './replay';
-import { checkForUpdate, type UpdateKind } from './update';
+import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -469,9 +469,10 @@ function finish(win: boolean, reason: string): void {
 // --- Updates ------------------------------------------------------------------
 // Only shown from the menu or after a level ends, never mid-level.
 let pendingUpdate: UpdateKind = 'none';
-let updateDismissed = false;
+let pendingBuild: string | null = null;
+let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
-const reloadPage = (): void => location.reload();
+const reloadPage = (): void => location.replace(reloadUrl(location.href, Date.now()));
 
 function applyUpdate(): void {
   if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
@@ -482,8 +483,10 @@ function applyUpdate(): void {
     hud.showModal('Please update to keep playing', 'A new version of Park It 3D is required.', null, [
       { label: 'Update', primary: true, onClick: reloadPage },
     ]);
-  } else if (!updateDismissed) {
-    hud.showUpdateBanner(reloadPage, () => (updateDismissed = true));
+  } else if (pendingUpdate === 'optional' && shouldPrompt(dismissedBuild, pendingBuild)) {
+    hud.showUpdateBanner(reloadPage, () => (dismissedBuild = pendingBuild));
+  } else {
+    hud.hideUpdateBanner();
   }
 }
 
@@ -491,12 +494,13 @@ async function runUpdateCheck(): Promise<void> {
   const now = Date.now();
   if (now - lastUpdateCheck < 30_000) return; // launch and resume can fire back to back
   lastUpdateCheck = now;
-  const kind = await checkForUpdate(
+  const res = await fetchUpdate(
     { version: __APP_SEMVER__, build: __APP_BUILD__ },
     new URL('version.json', document.baseURI).href,
   );
-  // A newer answer replaces an older one, but a required update is never downgraded.
-  if (kind !== 'none' && pendingUpdate !== 'required') pendingUpdate = kind;
+  // A newer answer replaces an older one (even 'none'), but a required update is never downgraded.
+  pendingUpdate = mergeUpdate(pendingUpdate, res.kind);
+  pendingBuild = res.build;
   applyUpdate();
 }
 document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());

@@ -50,13 +50,38 @@ export function decideUpdate(local: LocalBuild, remote: RemoteVersion): UpdateKi
   return remote.build !== local.build ? 'optional' : 'none';
 }
 
+/** Result of one version check: the verdict plus the remote build it was based on (null on failure or 'none'). */
+export interface UpdateCheck {
+  kind: UpdateKind;
+  build: string | null;
+}
+
+/** Folds a fresh verdict into the pending one: required sticks, anything else (even 'none') replaces a stale answer. */
+export function mergeUpdate(pending: UpdateKind, fresh: UpdateKind): UpdateKind {
+  return pending === 'required' ? 'required' : fresh;
+}
+
+/** The optional-update banner is shown unless the user dismissed this very build; a newer build re-prompts. */
+export function shouldPrompt(dismissedBuild: string | null, remoteBuild: string | null): boolean {
+  return dismissedBuild === null || dismissedBuild !== remoteBuild;
+}
+
+/** URL to reload to: same page with a throwaway query so a stale CDN/HTTP-cached index.html cannot be served again. */
+export function reloadUrl(href: string, stamp: number): string {
+  const u = new URL(href);
+  u.searchParams.set('_u', String(stamp));
+  u.hash = '';
+  return u.href;
+}
+
 /** Fetches version.json and decides. Any failure (offline, bad JSON, timeout) means 'none': never block play. */
-export async function checkForUpdate(
+export async function fetchUpdate(
   local: LocalBuild,
   url: string,
   timeoutMs = 5000,
   fetchFn: typeof fetch = fetch,
-): Promise<UpdateKind> {
+): Promise<UpdateCheck> {
+  const none: UpdateCheck = { kind: 'none', build: null };
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -64,12 +89,23 @@ export async function checkForUpdate(
       cache: 'no-store',
       signal: ctl.signal,
     });
-    if (!res.ok) return 'none';
+    if (!res.ok) return none;
     const remote = parseRemote(await res.json());
-    return remote ? decideUpdate(local, remote) : 'none';
+    if (!remote) return none;
+    const kind = decideUpdate(local, remote);
+    return { kind, build: kind === 'none' ? null : remote.build };
   } catch {
-    return 'none';
+    return none;
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function checkForUpdate(
+  local: LocalBuild,
+  url: string,
+  timeoutMs = 5000,
+  fetchFn: typeof fetch = fetch,
+): Promise<UpdateKind> {
+  return (await fetchUpdate(local, url, timeoutMs, fetchFn)).kind;
 }
