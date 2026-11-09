@@ -312,6 +312,17 @@ console.log('Multi-storey view helpers');
   const deep = lightTarget(true, true);
   check(out.sun > 0 && under.sun === 0 && deep.sun === 0, 'sun is off under a deck');
   check(deep.sky < under.sky && under.sky < out.sky, 'underground is darker than covered, covered than outdoors');
+  const dusk = lightTarget(false, false, true);
+  check(
+    dusk.sun > 0 && dusk.sun < out.sun + 1 && dusk.hemi > under.hemi * 0.5,
+    'dusk is outdoor light, still bright enough to drive',
+  );
+  check(lightTarget(true, false, true).sun === 0, 'a deck still switches the sun off at dusk');
+  const themed = LEVELS.filter((l) => l.theme === 'dusk');
+  check(
+    themed.length >= 3 && LEVELS.some((l) => (l.arrows?.length ?? 0) > 0),
+    'dusk levels and one-way arrows are in use',
+  );
 }
 
 console.log('Floors and ramps');

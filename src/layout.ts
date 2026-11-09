@@ -53,6 +53,13 @@ export interface RampDef {
   l: number;
 }
 
+/** A painted road arrow pointing along `rot` (the same heading convention as a car). */
+export interface ArrowDef {
+  x: number;
+  z: number;
+  rot: number;
+}
+
 /** A parking bay. rot is the heading the car must face when parked. */
 export interface BayDef {
   x: number;
@@ -89,6 +96,10 @@ export interface LevelDef {
   bays?: BayDef[];
   /** Storeys. Omitted for a flat level: one floor at y = 0 covering the lot. */
   floors?: FloorDef[];
+  /** Lighting: `dusk` is a low orange sun, a dim sky and long shadows. Defaults to `day`. */
+  theme?: 'day' | 'dusk';
+  /** Painted one-way arrows on the asphalt (decorative: they show the way to drive, they do not block you). */
+  arrows?: ArrowDef[];
   /** Ramps joining floors. Their side kerbs and the floor-edge kerbs are generated. */
   ramps?: RampDef[];
 }
