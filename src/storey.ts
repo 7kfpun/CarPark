@@ -105,11 +105,14 @@ export interface LightTarget {
   sky: number;
 }
 
+/** Outdoor sun strength; softer than before since the HDR sky now supplies ambient light and fill. */
+export const SUN_OUTDOOR = 1.9;
+
 /** Outdoor sun, covered decks (sun off, flat indoor light), underground (darker still). */
 export function lightTarget(covered: boolean, underground: boolean): LightTarget {
   if (underground) return { sun: 0, hemi: 0.75, sky: 0.12 };
   if (covered) return { sun: 0, hemi: 1.25, sky: 0.45 };
-  return { sun: 2.2, hemi: 1.1, sky: 1 };
+  return { sun: SUN_OUTDOOR, hemi: 1.1, sky: 1 };
 }
 
 /** Whether a floor (height `y`) is drawn: floors above the car vanish in the top-down view. */

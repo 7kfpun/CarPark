@@ -32,6 +32,7 @@ import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
+import { ambientLevels } from '../src/lighting';
 import { loadingLabel, withTimeout } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
@@ -311,6 +312,14 @@ console.log('Multi-storey view helpers');
   const under = lightTarget(true, false);
   const deep = lightTarget(true, true);
   check(out.sun > 0 && under.sun === 0 && deep.sun === 0, 'sun is off under a deck');
+  const fallback = ambientLevels(out, false);
+  const withEnv = ambientLevels(out, true);
+  check(
+    fallback.hemi === out.hemi && fallback.env === 0,
+    'without an environment map the hemisphere light does all the ambient work',
+  );
+  check(withEnv.env > 0 && withEnv.hemi < fallback.hemi, 'with an environment map the hemisphere light only fills in');
+  check(ambientLevels(deep, true).env < withEnv.env, 'environment light follows the covered/underground dimming');
   check(deep.sky < under.sky && under.sky < out.sky, 'underground is darker than covered, covered than outdoors');
 }
 
