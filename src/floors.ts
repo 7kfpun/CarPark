@@ -1,10 +1,11 @@
 // Multi-storey geometry: which layer (floor or ramp) a point is on, how high
 // that surface is, and which obstacles the car can touch from there.
 // A flat level is one floor ('ground', y = 0), so it needs no description.
-import { pointInOBB, type OBB } from './collision';
+import { corners, pointInOBB, type OBB } from './collision';
 import { CAR_L, CAR_W, RAMP_MAX_SLOPE, WHEELBASE } from './config';
 import {
   allObstacles,
+  bayOBB,
   DEFAULT_FLOOR,
   obstacleOBB,
   type FloorDef,
@@ -19,6 +20,9 @@ const LAYER_REACH = 0.5;
 const KERB_H = 0.6;
 const KERB_T = 0.3;
 const EDGE_STEP = 0.25;
+/** A ramp must be this much wider than the car (m), and its ends this close to the floor outline (m). */
+const RAMP_MARGIN = 0.8;
+const END_TOL = 0.05;
 
 /** Local z (along the ramp, 'from' end at -l/2) and x of a point in a ramp's frame. */
 function rampLocal(r: RampDef, x: number, z: number): [number, number] {
@@ -207,8 +211,34 @@ export function floorProblems(def: LevelDef): string[] {
       if (s.floorHeight(end) === null) out.push(`ramp ${r.id} joins unknown floor ${end}`);
     if (s.rampSlope(r) > RAMP_MAX_SLOPE + 1e-9)
       out.push(`ramp ${r.id} is ${((s.rampSlope(r) * 180) / Math.PI).toFixed(1)} deg, over the limit`);
-    if (r.w < CAR_W || r.l < CAR_L + WHEELBASE) out.push(`ramp ${r.id} is too small for the car`);
+    if (r.w < CAR_W + RAMP_MARGIN) out.push(`ramp ${r.id} is too narrow for the car (needs ${CAR_W + RAMP_MARGIN} m)`);
+    if (r.l < CAR_L + WHEELBASE) out.push(`ramp ${r.id} is too short for the car`);
+    if (r.from === r.to) out.push(`ramp ${r.id} starts and ends on the same floor`);
+    else if (s.floorHeight(r.from) === s.floorHeight(r.to)) out.push(`ramp ${r.id} joins two floors of equal height`);
+    // Each end must sit on its floor, or the ramp leads to nowhere / floats above the deck.
+    for (const [end, floorId] of [
+      [-1, r.from],
+      [1, r.to],
+    ] as const) {
+      const floor = s.floors.find((f) => f.id === floorId);
+      if (!floor) continue;
+      const [sin, cos] = [Math.sin(r.rot), Math.cos(r.rot)];
+      const ex = r.x + sin * end * (r.l / 2);
+      const ez = r.z + cos * end * (r.l / 2);
+      const points = [-1, 0, 1].map((k): [number, number] => [ex + cos * k * (r.w / 2), ez - sin * k * r.w * 0.5]);
+      const grown = floor.area.map((a) => ({ ...a, hw: a.hw + END_TOL, hl: a.hl + END_TOL }));
+      if (!points.every(([px, pz]) => grown.some((a) => pointInOBB(px, pz, a))))
+        out.push(`ramp ${r.id} end does not meet floor ${floorId}`);
+    }
   }
+  const startArea = s.floors[0].area;
+  const sp = def.spawn;
+  if (def.floors && !startArea.some((a) => pointInOBB(sp.x, sp.z, a))) out.push('spawn is not on the first floor');
+  const bayFloor = s.floors.find((f) => f.id === (def.target.floor ?? s.startLayer));
+  if (bayFloor && !corners(bayOBB(def.target)).every(([x, z]) => bayFloor.area.some((a) => pointInOBB(x, z, a))))
+    out.push(`bay is not inside floor ${bayFloor.id}`);
+  if (def.target.floor !== undefined && s.floorHeight(def.target.floor) === null && ids.has(def.target.floor))
+    out.push('target bay is on a ramp');
   for (const o of def.obstacles) {
     if (o.floor !== undefined && !ids.has(o.floor)) out.push(`obstacle on unknown layer ${o.floor}`);
   }
