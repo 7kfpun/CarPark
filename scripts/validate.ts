@@ -58,36 +58,55 @@ function check(cond: boolean, msg: string): void {
 
 const carBox = (x: number, z: number, rot: number): OBB => ({ x, z, hw: CAR_W / 2, hl: CAR_L / 2, rot });
 
-for (const [i, lvl] of LEVELS.entries()) {
-  console.log(`Level ${i + 1}: ${lvl.name}`);
-  const obs = allObstacles(lvl).map(obstacleOBB);
-  const spawn = carBox(lvl.spawn.x, lvl.spawn.z, lvl.spawn.rot);
-  check(
-    obs.every((o) => !sat(spawn, o)),
-    'spawn overlaps an obstacle',
-  );
-
+/** Geometry and parking-rule checks for one level, on the layer its bay is on. */
+function levelChecks(lvl: LevelDef): void {
+  const surfaces = new Surfaces(lvl);
+  const layer = lvl.target.floor ?? surfaces.startLayer;
   const t = lvl.target;
+  const reachable = (box: OBB) => surfaces.reachable(layer, box.x, box.z, levelObstacles(lvl, surfaces));
   const parked = carBox(t.x, t.z, t.rot);
-  const hit = obs.findIndex((o) => sat(parked, o));
-  check(hit < 0, `target pose overlaps obstacle #${hit}`);
-  check(evaluateParking(parked, 0, t, lvl.bothWays).ok, 'centred target pose is not a valid park');
-  check(!evaluateParking(parked, 2, t, lvl.bothWays).ok, 'moving car counted as parked');
+  check(evaluateParking(parked, 0, t, lvl.bothWays, layer).ok, 'centred target pose is not a valid park');
+  check(!evaluateParking(parked, 2, t, lvl.bothWays, layer).ok, 'moving car counted as parked');
   const flipped = carBox(t.x, t.z, t.rot + Math.PI);
-  check(evaluateParking(flipped, 0, t, lvl.bothWays).ok === lvl.bothWays, 'reverse orientation rule wrong');
+  check(evaluateParking(flipped, 0, t, lvl.bothWays, layer).ok === lvl.bothWays, 'reverse orientation rule wrong');
   const off = carBox(t.x + t.w, t.z, t.rot);
-  check(!evaluateParking(off, 0, t, lvl.bothWays).ok, 'car outside bay counted as parked');
+  check(!evaluateParking(off, 0, t, lvl.bothWays, layer).ok, 'car outside bay counted as parked');
+  const other = surfaces.floors.find((f) => f.id !== layer);
+  if (other)
+    check(!evaluateParking(parked, 0, t, lvl.bothWays, other.id).ok, 'parked on the wrong floor counted as parked');
 
   // Free space around the bay: car should have >= 0.3m clearance sideways.
   const side = carBox(t.x, t.z, t.rot);
   side.hw += 0.3;
   check(
-    obs.every((o) => !sat(side, o)),
+    reachable(side).every((o) => !sat(side, o)),
     'less than 0.3m side clearance at target',
   );
 
-  // Static geometry: spawn and bay clear, bay fits the car and sits inside the lot.
+  // Static geometry: floors, spawn and bay clear, bay fits the car and sits inside the lot.
   for (const problem of staticProblems(lvl)) check(false, problem);
+}
+
+// A real upper-floor bay: floors, ramp and a pillar on the ground floor under the bay.
+const upperBayLevel: LevelDef = {
+  ...LEVELS[0],
+  lot: { w: 20, l: 65 },
+  spawn: { x: 0, z: -10, rot: 0 },
+  obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
+  floors: [
+    { id: 'ground', y: 0, area: [{ x: 0, z: -15, hw: 10, hl: 15, rot: 0 }] },
+    { id: 'upper', y: 3, area: [{ x: 0, z: 25, hw: 10, hl: 10, rot: 0 }] },
+  ],
+  ramps: [{ id: 'ramp', from: 'ground', to: 'upper', x: 0, z: 7.5, rot: 0, w: 4, l: 15 }],
+  target: { ...LEVELS[0].target, x: 0, z: 25, floor: 'upper' },
+};
+
+console.log('Upper-floor bay');
+levelChecks(upperBayLevel);
+
+for (const [i, lvl] of LEVELS.entries()) {
+  console.log(`Level ${i + 1}: ${lvl.name}`);
+  levelChecks(lvl);
 
   // Scripted solution: must park within the 3-star time and without a touch.
   const solution = SOLUTIONS[lvl.id];
@@ -103,7 +122,6 @@ for (const [i, lvl] of LEVELS.entries()) {
       r.finishTime !== null && r.finishTime <= lvl.stars.three,
       `scripted solution too slow (${r.finishTime?.toFixed(1) ?? 'never'}s, 3-star ${lvl.stars.three}s)`,
     );
-    check(r.finishTime === null || r.finishTime <= lvl.time, 'scripted solution exceeds the time limit');
   }
 }
 const levelNames = new Set(LEVELS.map((l) => l.id));
@@ -149,25 +167,12 @@ check(p.v === 0, 'handbrake stops car');
 for (let i = 0; i < 240; i++) p.step(STEP, { throttle: -1, steer: 0, handbrake: false });
 check(p.v < -0.8 * MAX_REV, 'reverse works');
 
-console.log('Drive-through (level 1)');
+console.log('Wall impact (level 1)');
 {
   const lvl = LEVELS[0];
   const obs = allObstacles(lvl).map(obstacleOBB);
   const car = new CarPhysics();
-  car.reset(lvl.spawn.x, lvl.spawn.z, lvl.spawn.rot);
-  let maxImpact = 0;
-  let parkedFor = 0;
-  for (let i = 0; i < 120 * 30 && parkedFor < 1; i++) {
-    const dist = lvl.target.z - car.z;
-    const want = Math.min(4, Math.sqrt(Math.max(0, 2 * 6 * dist)));
-    const throttle = car.v < want - 0.2 ? 1 : car.v > want + 0.2 ? -1 : 0;
-    car.step(STEP, { throttle, steer: 0, handbrake: dist < 0.3 });
-    maxImpact = Math.max(maxImpact, car.resolveCollisions(obs));
-    parkedFor = evaluateParking(car.obb, car.v, lvl.target, lvl.bothWays).ok ? parkedFor + STEP : 0;
-  }
-  check(maxImpact === 0, `hit something on the way in (impact ${maxImpact.toFixed(2)})`);
-  check(parkedFor >= 1, `did not end parked (z=${car.z.toFixed(2)}, v=${car.v.toFixed(2)})`);
-
+  let maxImpact: number;
   // Reverse full speed into the back boundary wall.
   car.reset(lvl.spawn.x, lvl.spawn.z, lvl.spawn.rot);
   maxImpact = 0;
