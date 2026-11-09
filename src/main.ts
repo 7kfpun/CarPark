@@ -31,10 +31,10 @@ import {
 import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
-import { evaluateParking } from './parking';
+import { evaluateParking, parkChecklist } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
 import { canRunGame } from './guards';
-import { loadSettings, SettingsPanel, type Settings } from './settings';
+import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
 import { checkForUpdate, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
@@ -103,8 +103,14 @@ const settingsPanel = new SettingsPanel(settings, (s, key) => {
   if (key === 'sound') sfx.muted = !s.sound;
   if (key === 'quality') gfx.setQuality(s.quality);
   if (key === 'wheel') applyWheelSide(s.wheel);
+  if (key === 'textSize') applyTextSize(s.textSize);
 });
 /** Put the steering wheel on the left or right of the touch cockpit (the pedals take the other side). */
+function applyTextSize(size: Settings['textSize']): void {
+  document.documentElement.style.setProperty('--ui-scale', String(TEXT_SCALE[size]));
+  document.documentElement.dataset.textSize = size;
+}
+
 function applyWheelSide(side: Settings['wheel']): void {
   document.getElementById('touch')!.classList.toggle('wheel-right', side === 'right');
 }
@@ -444,6 +450,7 @@ document.getElementById('btn-cam')!.addEventListener('click', (e) => {
 });
 input.bindTouch(document.getElementById('touch')!);
 applyWheelSide(settings.wheel);
+applyTextSize(settings.textSize);
 addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 // Backgrounded (home, app switch, call, screen lock): pause, silence audio and stop the loop.
 // On return the Pause screen is showing and the car doesn't move until the player taps Resume.
@@ -498,8 +505,8 @@ function step(dt: number): void {
       : !park.stopped
         ? 'Stop the car'
         : 'Hold still…';
-    hud.setPark(parkHold / PARK_HOLD, label);
-  } else hud.setPark(null, '');
+    hud.setPark(parkHold / PARK_HOLD, label, parkChecklist(park, def.bothWays));
+  } else hud.setPark(null, '', '');
   if (parkHold >= PARK_HOLD) return finish(true, '');
 
   // Parking sensor beeps when slow and close to something. The proximity test

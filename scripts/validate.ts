@@ -33,11 +33,11 @@ import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
-import { loadSettings } from '../src/settings';
+import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
 import { loadingLabel, withTimeout } from '../src/loading';
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
-import { evaluateParking } from '../src/parking';
+import { evaluateParking, parkChecklist } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { DEFAULT_VEHICLE, minTurnRadius, VEHICLES, vehicleOf, type VehicleDef } from '../src/vehicles';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
@@ -1563,6 +1563,22 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   );
   const fp = freePose(FREE_START, car);
   check(fp.py > car.y && fp.lx === car.x, 'free look orbits above, looking at the car');
+}
+
+console.log('Accessibility');
+{
+  check(
+    parseTextSize('large') === 'large' && parseTextSize('huge') === 'normal',
+    'text size parses, bad values fall back',
+  );
+  check(
+    TEXT_SIZES.every((t, i) => i === 0 || TEXT_SCALE[t] > TEXT_SCALE[TEXT_SIZES[i - 1]]) && TEXT_SCALE.normal === 1,
+    'each text size is larger than the last',
+  );
+  const base = { inside: true, aligned: true, stopped: true, onFloor: true, ok: true };
+  check(parkChecklist(base, false) === '✓ Facing right  ✓ Stopped', 'checklist: all good uses ticks');
+  const bad = parkChecklist({ ...base, aligned: false, stopped: false }, true);
+  check(bad === '✗ Straight  ✗ Stopped', 'checklist: failures use crosses, not just colour');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

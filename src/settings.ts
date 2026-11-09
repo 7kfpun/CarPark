@@ -1,6 +1,15 @@
 import { nextFocusIndex } from './focus';
 import { CAM_MODES, parseCamMode, type CamMode } from './views';
 
+export const TEXT_SIZES = ['normal', 'large', 'xlarge'] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+/** UI zoom factor for each text size. */
+export const TEXT_SCALE: Record<TextSize, number> = { normal: 1, large: 1.25, xlarge: 1.5 };
+
+export function parseTextSize(v: unknown, fallback: TextSize = 'normal'): TextSize {
+  return TEXT_SIZES.find((t) => t === v) ?? fallback;
+}
+
 export type QualitySetting = 'auto' | 'low' | 'high';
 
 export interface Settings {
@@ -11,6 +20,8 @@ export interface Settings {
   autoRear: boolean;
   mirror: boolean;
   wheel: 'left' | 'right';
+  /** Scale of the menus, HUD text and panels. */
+  textSize: TextSize;
 }
 
 const KEY = 'car-parking-3d:settings:v1';
@@ -23,6 +34,7 @@ export function loadSettings(): Settings {
     autoRear: false,
     mirror: true,
     wheel: 'left',
+    textSize: 'normal',
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -36,6 +48,7 @@ export function loadSettings(): Settings {
       autoRear: typeof s.autoRear === 'boolean' ? s.autoRear : fresh.autoRear,
       mirror: typeof s.mirror === 'boolean' ? s.mirror : fresh.mirror,
       wheel: s.wheel === 'right' || s.wheel === 'left' ? s.wheel : fresh.wheel,
+      textSize: parseTextSize(s.textSize, fresh.textSize),
     };
   } catch {
     return fresh;
@@ -62,6 +75,7 @@ export class SettingsPanel {
     { key: 'autoRear', values: [true, false] },
     { key: 'mirror', values: [true, false] },
     { key: 'wheel', values: ['left', 'right'] },
+    { key: 'textSize', values: [...TEXT_SIZES] },
   ];
   private onClose: (() => void) | null = null;
   private opener: HTMLElement | null = null;
