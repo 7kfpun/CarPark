@@ -11,9 +11,11 @@ import { PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
 import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
 import { Input } from './input';
 import { buildLevel, type BuiltLevel } from './level';
+import type { LevelDef } from './layout';
 import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { RearMirror } from './mirror';
+import { ceilingAbove, floorHud, lightTarget } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking } from './parking';
 import { bestFor, loadProgress, recordBest, recordWin, resumeIndex, saveProgress } from './progress';
@@ -29,7 +31,9 @@ const sky = new THREE.Color(0xa9cfee);
 scene.background = sky;
 scene.fog = new THREE.Fog(sky, 60, 160);
 
-scene.add(new THREE.HemisphereLight(0xdbeeff, 0x4a5a3a, 1.1));
+const hemi = new THREE.HemisphereLight(0xdbeeff, 0x4a5a3a, 1.1);
+scene.add(hemi);
+const SKY = sky.clone();
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -108,6 +112,7 @@ function loadLevel(i: number): void {
   level = buildLevel(LEVELS[i], i);
   scene.add(level.group);
   gfx.applyDecor(level.group);
+  rig.solids = level.solids;
   // Fit the shadow camera to the lot.
   const { w, l } = level.def.lot;
   const r = Math.max(w, l) / 2 + 8;
@@ -381,6 +386,29 @@ function step(dt: number): void {
   }
 }
 
+// --- Lighting -----------------------------------------------------------------
+// Outdoors: sun and sky. Under a deck the sun is off and the light is flat and
+// warmer (the strips under each slab are baked emissive, so no shadow maps or
+// point lights); underground it is darker still. Eased so crossing a ramp mouth isn't a pop.
+let lightMix: { sun: number; hemi: number; sky: number } = { sun: 2.2, hemi: 1.1, sky: 1 };
+function updateLighting(dt: number, def: LevelDef | null): void {
+  const car = player.physics;
+  const target =
+    def?.floors !== undefined
+      ? lightTarget(ceilingAbove(def, car.x, car.z, car.y) !== null, car.y < -1)
+      : lightTarget(false, false);
+  const k = 1 - Math.exp(-dt * 5);
+  lightMix = {
+    sun: lightMix.sun + (target.sun - lightMix.sun) * k,
+    hemi: lightMix.hemi + (target.hemi - lightMix.hemi) * k,
+    sky: lightMix.sky + (target.sky - lightMix.sky) * k,
+  };
+  sun.intensity = lightMix.sun;
+  hemi.intensity = lightMix.hemi;
+  sky.copy(SKY).multiplyScalar(lightMix.sky);
+  (scene.fog as THREE.Fog).color.copy(sky);
+}
+
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
 let rafId = 0;
@@ -409,7 +437,13 @@ function frame(now: number): void {
   player.sync(state === 'playing' ? dt : 0);
   if (level && !reducedMotion.matches) {
     level.marker.rotation.y += dt * 1.5;
-    level.marker.position.y = 3.2 + Math.sin(now / 400) * 0.25;
+    level.marker.position.y = level.markerY + Math.sin(now / 400) * 0.25;
+  }
+  if (level) {
+    const playing = state === 'playing';
+    level.setView(playing ? player.physics.y : 0, playing && rig.mode === 'top');
+    if (playing) hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
+    updateLighting(dt, playing ? level.def : null);
   }
 
   if (state === 'menu' && level) {

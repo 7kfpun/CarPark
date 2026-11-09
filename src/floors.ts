@@ -184,9 +184,12 @@ export class Surfaces {
 }
 
 /** Every obstacle of a level with its layer: the declared ones plus the generated kerbs (or the lot walls of a flat level). */
+export function levelObstacleDefs(def: LevelDef, surfaces: Surfaces): ObstacleDef[] {
+  return def.floors ? [...def.obstacles, ...surfaces.edgeWalls()] : allObstacles(def);
+}
+
 export function levelObstacles(def: LevelDef, surfaces: Surfaces): LayeredOBB[] {
-  const all = def.floors ? [...def.obstacles, ...surfaces.edgeWalls()] : allObstacles(def);
-  return all.map((o) => ({ ...obstacleOBB(o), layer: o.floor ?? surfaces.startLayer }));
+  return levelObstacleDefs(def, surfaces).map((o) => ({ ...obstacleOBB(o), layer: o.floor ?? surfaces.startLayer }));
 }
 
 /** Problems with a level's floors and ramps (empty when fine). */

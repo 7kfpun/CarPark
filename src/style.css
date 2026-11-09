@@ -100,7 +100,8 @@ button:focus-visible {
   backdrop-filter: blur(6px);
 }
 
-#hud-timer.warn {
+#hud-timer.warn,
+#hud-floor.warn {
   color: var(--bad);
 }
 

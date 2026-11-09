@@ -1,4 +1,5 @@
 import type { LevelDef } from './layout';
+import type { FloorHud } from './storey';
 import { bestFor, isUnlocked, starsFor, type Progress } from './progress';
 import { APP_VERSION } from './version';
 
@@ -38,6 +39,8 @@ export class Hud {
   private readonly touch = $('touch');
   private readonly level = $('hud-level');
   private readonly timer = $('hud-timer');
+  private readonly floor = $('hud-floor');
+  private floorText = '';
   private readonly gear = $('hud-gear');
   private readonly hint = $('hud-hint');
   private readonly meter = $('park-meter');
@@ -85,6 +88,8 @@ export class Hud {
     this.hud.classList.remove('hidden');
     this.touch.classList.toggle('hidden', !this.touchEnabled);
     this.level.textContent = `${index + 1}. ${def.name}`;
+    this.floor.classList.toggle('hidden', !def.floors);
+    this.floorText = '';
     this.setPark(null, '');
     this.showHint(`${def.hint} ${starRequirement(def)}`, 6);
     this.hideModal();
@@ -97,6 +102,15 @@ export class Hud {
     const kmh = Math.round(Math.abs(speed) * 3.6);
     this.gear.textContent = `${speed < -0.05 ? 'R' : 'D'} · ${kmh} km/h`;
     this.gear.classList.toggle('reverse', speed < -0.05);
+  }
+
+  /** The floor pill: current floor and, when the bay is on another floor, the way to go. */
+  setFloor(f: FloorHud): void {
+    const text = f.pill ? (f.hint ? `${f.pill} · ${f.hint}` : f.pill) : '';
+    if (text === this.floorText) return;
+    this.floorText = text;
+    this.floor.textContent = text;
+    this.floor.classList.toggle('warn', f.dir !== null);
   }
 
   tick(dt: number): void {
