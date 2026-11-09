@@ -65,6 +65,7 @@
       <div id="park-meter" class="hidden">
         <div class="bar" aria-hidden="true"><div id="park-fill"></div></div>
         <span id="park-label"></span>
+        <div id="park-checks" aria-hidden="true"></div>
       </div>
     </div>
 
@@ -200,6 +201,14 @@
           <div class="seg" role="group" aria-labelledby="lbl-wheel">
             <button data-setting="wheel" data-value="left">Left</button>
             <button data-setting="wheel" data-value="right">Right</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label" id="lbl-textsize">Text size</span>
+          <div class="seg" role="group" aria-labelledby="lbl-textsize">
+            <button data-setting="textSize" data-value="normal">Normal</button>
+            <button data-setting="textSize" data-value="large">Large</button>
+            <button data-setting="textSize" data-value="xlarge">Extra large</button>
           </div>
         </div>
         <button class="settings-done" id="settings-done">Done</button>

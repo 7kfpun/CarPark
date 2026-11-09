@@ -25,6 +25,10 @@ The lots, the sound effects (an engine hum that follows your speed, crash and fa
 
 Open the game with `?admin=1` (remembered for the session; `?admin=0` turns it off) to unlock every level, show an `ADMIN` badge, and skip levels with `]` (next) / `[` (back) the pause menu's **Skip level** button, or the **Prev** / **Next** touch buttons beside the `ADMIN` badge (tap the badge to hide or show them). Saved progress is never written while it is on. Code: `src/admin.ts`.
 
+### Accessibility
+
+Every menu and modal is keyboard-operable with a focus trap, buttons carry labels, and status changes are announced through a live region. Settings > **Text size** (Normal / Large / Extra large) scales panels, pills and HUD text. While parking, a ✓/✗ checklist (facing, stopped) sits under the meter, so the bay colour is never the only signal. Reduced motion stops the bay marker's spin and bob, makes camera switches instant and replaces the hit flash with a static one.
+
 ### Gamepad
 
 | Action                       | Button                                     |
