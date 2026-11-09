@@ -83,7 +83,21 @@
         </div>
       </div>
       <div class="touch-group pedal-group">
-        <button id="t-gear" class="gear-toggle" aria-label="Reverse gear" aria-pressed="false">D</button>
+        <div
+          id="t-gear"
+          role="slider"
+          tabindex="0"
+          aria-label="Gear"
+          aria-orientation="vertical"
+          aria-valuemin="0"
+          aria-valuemax="1"
+          aria-valuenow="0"
+          aria-valuetext="Drive"
+        >
+          <span class="gate-slot gate-d" aria-hidden="true">D</span>
+          <span class="gate-slot gate-r" aria-hidden="true">R</span>
+          <span class="gate-knob" aria-hidden="true"></span>
+        </div>
         <div id="t-brake" role="button" aria-label="Brake"><span aria-hidden="true">BRAKE</span></div>
         <div id="t-accel" role="button" aria-label="Accelerator"><span aria-hidden="true">GO</span></div>
       </div>

@@ -194,3 +194,44 @@ test('touch wheel and pedal hold through a pointercancel, then release after the
   await expect(page.locator('#t-accel')).not.toHaveClass(/active/);
   await context.close();
 });
+
+test('gear lever: tap a slot or use arrows to change gear, and a cancelled drag does not flip it', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await openGame(page, '?level=1');
+  const gear = page.locator('#t-gear');
+  await expect(gear).toHaveAttribute('aria-valuetext', 'Drive');
+  const box = (await gear.boundingBox())!;
+  const fire = (type: string, y: number) =>
+    page.evaluate(
+      ([t, cy, cx]) =>
+        document.querySelector('#t-gear')!.dispatchEvent(
+          new PointerEvent(t as string, {
+            pointerId: 9,
+            pointerType: 'touch',
+            clientX: cx as number,
+            clientY: cy as number,
+            bubbles: true,
+            cancelable: true,
+          }),
+        ),
+      [type, y, box.x + box.width / 2],
+    );
+  // Drag to the bottom, then the browser cancels: still Drive.
+  await fire('pointerdown', box.y + 20);
+  await fire('pointermove', box.y + box.height - 10);
+  await fire('pointercancel', box.y + box.height - 10);
+  await expect(gear).toHaveAttribute('aria-valuetext', 'Drive');
+  // Tap the bottom slot: Reverse.
+  await fire('pointerdown', box.y + box.height - 10);
+  await fire('pointerup', box.y + box.height - 10);
+  await expect(gear).toHaveAttribute('aria-valuetext', 'Reverse');
+  await expect(gear).toHaveClass(/reverse/);
+  // Keyboard: arrow up selects Drive.
+  await gear.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(gear).toHaveAttribute('aria-valuetext', 'Drive');
+  await context.close();
+});
