@@ -172,8 +172,10 @@ export class CarPhysics {
    * Only new contacts count: an obstacle touched within the last
    * CONTACT_MEMORY calls is a sustained scrape or push, whose approach speed
    * is just the kinematic model re-driving into it each step.
+   *
+   * Pass `surfaces` on multi-floor levels so y and pitch follow the push-out.
    */
-  resolveCollisions(obstacles: OBB[]): number {
+  resolveCollisions(obstacles: OBB[], surfaces?: Surfaces): number {
     let impact = 0;
     let yaw = 0;
     const call = ++this.calls;
@@ -275,6 +277,8 @@ export class CarPhysics {
       }
       if (!touched) break;
     }
+    // The push-out moved the car, so the height and pitch under the axles changed too.
+    this.settle(surfaces);
     return impact;
   }
 }

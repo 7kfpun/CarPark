@@ -234,6 +234,10 @@ export function floorProblems(def: LevelDef): string[] {
         out.push(`ramp ${r.id} end does not meet floor ${floorId}`);
     }
   }
+  const lot: OBB = { x: 0, z: 0, hw: def.lot.w / 2 + END_TOL, hl: def.lot.l / 2 + END_TOL, rot: 0 };
+  for (const f of s.floors)
+    if (!f.area.every((a) => corners(a).every(([x, z]) => pointInOBB(x, z, lot))))
+      out.push(`floor ${f.id} is not inside the lot`);
   const startArea = s.floors[0].area;
   const sp = def.spawn;
   if (def.floors && !startArea.some((a) => pointInOBB(sp.x, sp.z, a))) out.push('spawn is not on the first floor');
