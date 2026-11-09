@@ -549,13 +549,38 @@ h2 {
   display: none;
 }
 
+#world-back {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#world-back:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#world-back:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 #world-title {
   font-weight: 800;
+  text-align: center;
 }
 
 #world-stars {
   color: var(--accent);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .level-btn {
@@ -899,9 +924,9 @@ kbd {
   display: none;
 }
 #admin-bar button {
-  min-width: 48px;
-  min-height: 48px;
-  padding: 0 14px;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 0;
   border-radius: 12px;
   background: #d92b2b;
@@ -912,6 +937,19 @@ kbd {
   letter-spacing: 0.06em;
   touch-action: manipulation;
   cursor: pointer;
+}
+/* In the menu the bar tucks into the top edge so it never covers the title. */
+body:has(#menu:not(.hidden)) #admin-bar {
+  top: calc(2px + var(--safe-t));
+}
+body:has(#menu:not(.hidden)) #admin-bar button {
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+/* In a level the hint drops below the bar instead of running under it. */
+body:has(#admin-bar:not(.hidden)) #hud-hint {
+  top: calc(100px + var(--safe-t));
 }
 #admin-bar button:disabled {
   opacity: 0.4;

@@ -611,7 +611,7 @@ function step(dt: number): void {
   if (isTouch(car.resolveCollisions(nearby), TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
-    return finish(false, 'You hit something.');
+    return finish(false, 'You hit something. Ease off near cars, walls and cones.');
   }
 
   // Parking check.
