@@ -788,21 +788,37 @@ kbd {
   transition: width 0.15s;
 }
 
-#admin-badge {
+#admin-bar {
   position: fixed;
-  left: 8px;
-  bottom: 8px;
+  top: calc(60px + var(--safe-t));
+  left: calc(16px + var(--safe-l));
   z-index: 50;
-  padding: 2px 8px;
-  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#admin-bar.hidden,
+#admin-bar .hidden {
+  display: none;
+}
+#admin-bar button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
   background: #d92b2b;
   color: #fff;
   font:
-    700 12px/1.4 system-ui,
+    700 14px/1 system-ui,
     sans-serif;
-  letter-spacing: 0.08em;
-  pointer-events: none;
+  letter-spacing: 0.06em;
+  touch-action: manipulation;
+  cursor: pointer;
 }
-#admin-badge.hidden {
-  display: none;
+#admin-bar button:disabled {
+  opacity: 0.4;
+}
+#admin-bar button#admin-badge[aria-pressed='false'] {
+  background: #7a2a2a;
 }

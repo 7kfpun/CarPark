@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { reducedMotion } from './a11y';
-import { initAdmin, mayPersist, skipTarget, unlockAll } from './admin';
+import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
 import { Sfx } from './audio';
 import { CameraRig } from './camera';
 import { PlayerCar } from './car';
@@ -99,7 +99,29 @@ scene.add(player.model.root);
 const LEVEL_IDS = LEVELS.map((l) => l.id);
 // Admin mode (?admin=1): everything unlocked in memory, nothing written to saved progress.
 const ADMIN = initAdmin(location.search);
-if (ADMIN) document.getElementById('admin-badge')?.classList.remove('hidden');
+let adminControls = loadControls();
+const adminBar = document.getElementById('admin-bar')!;
+const adminBadge = document.getElementById('admin-badge')!;
+const adminPrev = document.getElementById('admin-prev') as HTMLButtonElement;
+const adminNext = document.getElementById('admin-next') as HTMLButtonElement;
+if (ADMIN) adminBar.classList.remove('hidden');
+/** Show the skip buttons only while a level is open; the badge stays as their toggle. */
+function syncAdminBar(): void {
+  if (!ADMIN) return;
+  const show = showSkipButtons(ADMIN, adminControls, state === 'playing' || state === 'paused');
+  adminPrev.classList.toggle('hidden', !show);
+  adminNext.classList.toggle('hidden', !show);
+  adminPrev.disabled = skipTarget(levelIndex, -1, LEVELS.length) === null;
+  adminNext.disabled = skipTarget(levelIndex, 1, LEVELS.length) === null;
+  adminBadge.setAttribute('aria-pressed', String(adminControls));
+}
+adminBadge.addEventListener('click', () => {
+  adminControls = !adminControls;
+  saveControls(adminControls);
+  syncAdminBar();
+});
+adminPrev.addEventListener('click', () => skipLevel(-1));
+adminNext.addEventListener('click', () => skipLevel(1));
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -209,16 +231,16 @@ function finish(win: boolean, reason: string): void {
     const hadBest = bestFor(progress, LEVEL_IDS[levelIndex]) > 0;
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     if (mayPersist(ADMIN)) saveProgress(progress);
-    const last = levelIndex === LEVELS.length - 1;
+    const isLastLevel = levelIndex === LEVELS.length - 1;
     const buttons: ModalButton[] = [
-      ...(last ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
+      ...(isLastLevel ? [] : [{ label: 'Next level', primary: true, onClick: () => startLevel(levelIndex + 1) }]),
       { label: 'Retry', onClick: () => startLevel(levelIndex) },
-      { label: 'Menu', primary: last, onClick: showMenu },
+      { label: 'Menu', primary: isLastLevel, onClick: showMenu },
     ];
     const next = nextStarTime(stars, def.stars);
     const tip = next === null ? '' : ` · ${stars + 1}★ needs ${next}s or less`;
     hud.showModal(
-      last ? 'All levels cleared!' : 'Parked!',
+      isLastLevel ? 'All levels cleared!' : 'Parked!',
       `${elapsed.toFixed(1)}s${newBest ? (hadBest ? ' · New best!' : '') : ` · Best ${bestLabel(bestFor(progress, LEVEL_IDS[levelIndex]))}`}${tip}`,
       stars,
       buttons,
@@ -461,6 +483,7 @@ function frame(now: number): void {
     hud.update(LEVELS[levelIndex].time - elapsed, player.physics.v);
     if (gfx.monitor(now - frameStart)) hud.showHint('Graphics set to Low for smoother play (change in ⚙ Settings)', 4);
     hud.tick(dt);
+    syncAdminBar();
   }
 
   player.sync(state === 'playing' ? dt : 0);
