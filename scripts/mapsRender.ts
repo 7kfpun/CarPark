@@ -98,6 +98,8 @@ export function floorMaps(def: LevelDef): FloorMap[] {
       if ((b.floor ?? first) !== floor.id) continue;
       parts.push(`<polyline class="bay" points="${bayPath(bayOBB(b))}"/>`);
     }
+    // Painted one-way arrows (single-floor levels only).
+    if (floor.id === first) for (const a of def.arrows ?? []) parts.push(arrow(a, 3, 'roadarrow'));
     // Ramps, arrow pointing uphill.
     for (const r of ramps) {
       const up = surfaces.floorHeight(r.to)! >= surfaces.floorHeight(r.from)!;
@@ -136,7 +138,7 @@ export function floorMaps(def: LevelDef): FloorMap[] {
       `.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}` +
       `.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}` +
       `.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}` +
-      `.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>\n` +
+      `.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>\n` +
       `<rect class="bg" x="${box[0]}" y="${box[1]}" width="${box[2]}" height="${box[3]}"/>\n` +
       parts.join('\n') +
       '\n</svg>\n';
