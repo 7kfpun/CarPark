@@ -4,6 +4,18 @@ import * as THREE from 'three';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
+import {
+  beatsGhost,
+  decodeFrames,
+  duration,
+  encodeFrames,
+  fitsCap,
+  MAX_FRAMES,
+  parseGhosts,
+  poseAt,
+  Recorder,
+  REPLAY_HZ,
+} from '../src/replay';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction } from '../src/guards';
@@ -1654,6 +1666,51 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   );
   const fp = freePose(FREE_START, car);
   check(fp.py > car.y && fp.lx === car.x, 'free look orbits above, looking at the car');
+}
+
+{
+  // Replay and ghost.
+  const rec = new Recorder(6);
+  for (let i = 0; i < 120; i++) rec.step({ x: i * 0.05, y: 0, z: -i * 0.02, heading: i * 0.01, pitch: 0 });
+  check(rec.frames.length === 20 && Math.abs(rec.frames[1].x - 0.3) < 1e-9, 'recorder keeps one pose every N steps');
+  const big = new Recorder(1);
+  for (let i = 0; i < MAX_FRAMES + 50; i++) big.step({ x: 0, y: 0, z: 0, heading: 0, pitch: 0 });
+  check(big.frames.length === MAX_FRAMES, 'recorder is capped');
+  const enc = encodeFrames(rec.frames);
+  const dec = decodeFrames(enc);
+  check(
+    !!dec &&
+      dec.length === 20 &&
+      Math.abs(dec[19].x - rec.frames[19].x) < 0.011 &&
+      Math.abs(dec[19].z - rec.frames[19].z) < 0.011,
+    'encode/decode round-trips within a centimetre',
+  );
+  check(fitsCap(enc), 'a 1 s run fits the storage cap');
+  check(
+    decodeFrames([1, 2, 3]) === null && decodeFrames([1.5, 0, 0, 0, 0]) === null && decodeFrames('x') === null,
+    'malformed recordings are rejected',
+  );
+  const frames = [
+    { x: 0, y: 0, z: 0, heading: 3.1, pitch: 0 },
+    { x: 2, y: 1, z: 4, heading: -3.1, pitch: 0.2 },
+  ];
+  const mid = poseAt(frames, 0.5 / REPLAY_HZ)!;
+  check(
+    mid.x === 1 && mid.z === 2 && Math.abs(Math.abs(mid.heading) - Math.PI) < 0.1,
+    'poseAt interpolates, turning the short way',
+  );
+  check(poseAt(frames, 99)!.x === 2 && poseAt(frames, -1)!.x === 0 && poseAt([], 1) === null, 'poseAt clamps');
+  check(duration(frames) === 1 / REPLAY_HZ, 'duration comes from the sample count');
+  check(
+    beatsGhost(undefined, 12) && beatsGhost({ time: 12, data: enc }, 11) && !beatsGhost({ time: 12, data: enc }, 12),
+    'only a faster run replaces the ghost',
+  );
+  check(!beatsGhost(undefined, 0) && !beatsGhost(undefined, NaN), 'a bad time never becomes a ghost');
+  const ghosts = parseGhosts(
+    { a: { time: 5, data: enc }, b: { time: 5, data: [1] }, zz: { time: 5, data: enc }, c: { time: -1, data: enc } },
+    ['a', 'b', 'c'],
+  );
+  check(Object.keys(ghosts).join() === 'a', 'stored ghosts are validated per known level');
 }
 
 console.log('Accessibility');
