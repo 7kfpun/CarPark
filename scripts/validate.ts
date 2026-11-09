@@ -29,7 +29,7 @@ import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
-import { loadingLabel } from '../src/loading';
+import { loadingLabel, withTimeout } from '../src/loading';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
@@ -778,6 +778,18 @@ check(loadingLabel(0, 0) === 'Loading…', 'loading: unknown total');
 check(loadingLabel(0, 7) === 'Loading… 0%', 'loading: start');
 check(loadingLabel(3, 7) === 'Loading… 43%', 'loading: partial');
 check(loadingLabel(9, 7) === 'Loading… 100%', 'loading: clamped');
+console.log('Load timeout');
+{
+  const slow = new Promise<string>((r) => setTimeout(() => r('late'), 200));
+  const out = await withTimeout(slow, 10, 'slow').then(
+    () => 'resolved',
+    (e: Error) => e.message,
+  );
+  check(out === 'slow timed out after 10 ms', 'withTimeout rejects a stalled promise');
+  check((await withTimeout(Promise.resolve(7), 50)) === 7, 'withTimeout passes a fast result through');
+  const rej = await withTimeout(Promise.reject(new Error('boom')), 50).catch((e: Error) => e.message);
+  check(rej === 'boom', 'withTimeout passes rejections through');
+}
 console.log('Build version');
 check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
 check(buildVersion('1.2.3', 'abc123\n') === '1.2.3+abc123', 'sha whitespace is trimmed');

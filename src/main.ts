@@ -487,8 +487,27 @@ function startLoop(): void {
   last = performance.now(); // no time jump after a long stay in the background
   rafId = requestAnimationFrame(frame);
 }
+let frameFailed = false;
+/** Log once and show the error banner; the loop keeps running so the page never freezes silently. */
+function reportFrameError(err: unknown): void {
+  if (frameFailed) return;
+  frameFailed = true;
+  console.error('Frame loop error', err);
+  const banner = document.getElementById('error-banner')!;
+  banner.classList.remove('hidden');
+  document.getElementById('error-reload')!.addEventListener('click', () => location.reload());
+}
 function frame(now: number): void {
   rafId = 0;
+  // Re-arm first so an exception below can't stop the loop.
+  if (!document.hidden) rafId = requestAnimationFrame(frame); // stops while hidden: no battery drain
+  try {
+    frameBody(now);
+  } catch (err) {
+    reportFrameError(err);
+  }
+}
+function frameBody(now: number): void {
   const frameStart = last;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -527,7 +546,6 @@ function frame(now: number): void {
   gfx.render(camera);
   mirror.visible = settings.mirror && state !== 'menu' && rig.mode === 'chase';
   if (gfx.renderer && !gfx.contextLost) mirror.render(gfx.renderer, scene, player.physics);
-  if (!document.hidden) rafId = requestAnimationFrame(frame); // stops while hidden: no battery drain
 }
 
 // ?level=N jumps straight into a level, ?cam=top starts top-down (handy for testing).

@@ -822,3 +822,23 @@ kbd {
 #admin-bar button#admin-badge[aria-pressed='false'] {
   background: #7a2a2a;
 }
+
+#error-banner {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(120, 20, 20, 0.95);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+#error-banner.hidden {
+  display: none;
+}
