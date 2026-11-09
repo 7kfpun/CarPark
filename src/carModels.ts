@@ -1,3 +1,4 @@
+import { MODEL_TIMEOUT_MS, withTimeout } from './loading';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -66,6 +67,7 @@ function toTemplate(scene: THREE.Object3D): CarTemplate {
 export async function loadCarModels(
   baseUrl = `${import.meta.env.BASE_URL}models/cars/`,
   onProgress?: (loaded: number, total: number) => void,
+  timeoutMs = MODEL_TIMEOUT_MS,
 ): Promise<void> {
   const manager = new THREE.LoadingManager();
   if (onProgress) manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
@@ -73,7 +75,7 @@ export async function loadCarModels(
   await Promise.all(
     ALL.map(async (name) => {
       try {
-        const gltf = await loader.loadAsync(`${baseUrl}${name}.glb`);
+        const gltf = await withTimeout(loader.loadAsync(`${baseUrl}${name}.glb`), timeoutMs, `Car model "${name}"`);
         templates.set(name, toTemplate(gltf.scene));
       } catch (err) {
         console.warn(`Car model "${name}" failed to load; using the box car.`, err);
