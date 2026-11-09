@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -440 680 880" width="680" height="880" role="img" aria-label="The Garage">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-440" width="680" height="880"/>
+<polygon class="floor" points="300,400 300,-400 -300,-400 -300,400"/>
+<polygon class="target" points="28,336 28,228 -28,228 -28,336"/>
+<polyline class="targetarrow" points="0,247 0,317"/><polygon class="targetarrowf" points="0,317 -12.6,297.4 12.6,297.4"/>
+<polygon class="wall" points="-30,340 -30,220 -36,220 -36,340"/>
+<polygon class="wall" points="36,340 36,220 30,220 30,340"/>
+<polygon class="wall" points="36,346 36,340 -36,340 -36,346"/>
+<polygon class="pillar" points="-72,128 -72,112 -88,112 -88,128"/>
+<polygon class="pillar" points="88,128 88,112 72,112 72,128"/>
+<polygon class="pillar" points="-72,-32 -72,-48 -88,-48 -88,-32"/>
+<polygon class="pillar" points="88,-32 88,-48 72,-48 72,-32"/>
+<polygon class="wall" points="312,412 312,400 -312,400 -312,412"/>
+<polygon class="wall" points="312,-400 312,-412 -312,-412 -312,-400"/>
+<polygon class="wall" points="312,400 312,-400 300,-400 300,400"/>
+<polygon class="wall" points="-300,400 -300,-400 -312,-400 -312,400"/>
+<polygon class="car" fill="#2e8b57" points="-81,302 -81,218 -119,218 -119,302"/><polyline class="glass" points="-116,284 -84,284"/>
+<polygon class="car" fill="#222428" points="81,218 81,302 119,302 119,218"/><polyline class="glass" points="116,236 84,236"/>
+<polygon class="car" fill="#7a4fd0" points="-201,302 -201,218 -239,218 -239,302"/><polyline class="glass" points="-236,284 -204,284"/>
+<polygon class="car" fill="#1fa3b5" points="239,302 239,218 201,218 201,302"/><polyline class="glass" points="204,284 236,284"/>
+<polygon class="start" points="-181,-238 -181,-322 -219,-322 -219,-238"/>
+<polyline class="startarrow" points="-200,-313.6 -200,-246.4"/><polygon class="startarrowf" points="-200,-246.4 -212.1,-265.22 -187.9,-265.22"/>
+</svg>
