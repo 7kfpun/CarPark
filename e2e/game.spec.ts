@@ -144,3 +144,53 @@ test('saved progress survives a reload', async ({ page }) => {
   await expect(buttons.first()).toHaveAttribute('aria-label', /3 of 3 stars/);
   await expect(buttons.nth(1)).toBeEnabled();
 });
+
+test('touch wheel and pedal hold through a pointercancel, then release after the grace period', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await openGame(page, '?level=1');
+  const rotation = () =>
+    page.evaluate(() => document.querySelector<HTMLElement>('#t-wheel .wheel-rot')!.style.transform);
+  const fire = (sel: string, type: string, x: number, y: number) =>
+    page.evaluate(
+      ([s, t, cx, cy]) => {
+        const el = document.querySelector(s as string)!;
+        el.dispatchEvent(
+          new PointerEvent(t as string, {
+            pointerId: 7,
+            pointerType: 'touch',
+            clientX: cx as number,
+            clientY: cy as number,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [sel, type, x, y],
+    );
+  const box = (await page.locator('#t-wheel').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await fire('#t-wheel', 'pointerdown', cx, cy - 60);
+  await fire('#t-wheel', 'pointermove', cx + 60, cy);
+  const turned = await rotation();
+  expect(turned).not.toBe('rotate(0deg)');
+  // The finger leaves the screen edge: the browser cancels the touch. The wheel must not snap back.
+  await fire('#t-wheel', 'pointercancel', cx + 60, cy);
+  await page.clock.runFor(100);
+  expect(await rotation()).toBe(turned);
+  await expect(page.locator('#t-wheel')).toHaveClass(/active/);
+  // No re-claim within the grace period: it lets go.
+  await page.clock.runFor(400);
+  expect(await rotation()).toBe('rotate(0deg)');
+
+  // Pedals hold the same way.
+  const pb = (await page.locator('#t-accel').boundingBox())!;
+  await fire('#t-accel', 'pointerdown', pb.x + 10, pb.y + 10);
+  await fire('#t-accel', 'pointercancel', pb.x + 10, pb.y + 10);
+  await page.clock.runFor(100);
+  await expect(page.locator('#t-accel')).toHaveClass(/active/);
+  await page.clock.runFor(400);
+  await expect(page.locator('#t-accel')).not.toHaveClass(/active/);
+  await context.close();
+});
