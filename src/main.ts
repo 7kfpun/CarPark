@@ -157,7 +157,9 @@ function showMenu(): void {
 }
 
 function pause(): void {
-  if (state !== 'playing') return;
+  // Also covers 'paused' with no modal (Settings opened from play, then a graphics reset):
+  // show the modal so touch players can resume.
+  if (state === 'paused' ? hud.modalOpen : state !== 'playing') return;
   state = 'paused';
   input.clear();
   hud.showModal('Paused', `${LEVELS[levelIndex].hint} ${starRequirement(LEVELS[levelIndex])}`, null, [
@@ -299,7 +301,7 @@ document.getElementById('btn-pause')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
   pause();
 });
-function openSettings(): void {
+function openSettings(opener: HTMLElement | null = null): void {
   sfx.click();
   const wasPlaying = state === 'playing';
   if (wasPlaying) {
@@ -308,13 +310,17 @@ function openSettings(): void {
   }
   settingsPanel.open(() => {
     if (wasPlaying && state === 'paused' && !hud.modalOpen && !gfx.contextLost) state = 'playing';
-  });
+  }, opener);
 }
+// Keyboard activation (detail 0) gets focus back on close; mouse clicks keep the blur above.
 document.getElementById('btn-settings')!.addEventListener('click', (e) => {
-  (e.currentTarget as HTMLElement).blur();
-  openSettings();
+  const btn = e.currentTarget as HTMLElement;
+  btn.blur();
+  openSettings(e.detail === 0 ? btn : null);
 });
-document.getElementById('btn-settings-menu')!.addEventListener('click', openSettings);
+document.getElementById('btn-settings-menu')!.addEventListener('click', (e) => {
+  openSettings(e.detail === 0 ? (e.currentTarget as HTMLElement) : null);
+});
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
   if (state === 'playing') hud.showHint(toggleCamera(), 1.2);

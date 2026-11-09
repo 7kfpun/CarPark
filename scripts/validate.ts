@@ -2,6 +2,7 @@
 import { mayPersist, resolveAdmin, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
+import { nextFocusIndex } from '../src/focus';
 import { deadzone, pickNeighbor, steerFromOffset, strongest } from '../src/input';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
@@ -760,6 +761,7 @@ check(
   'hung server times out without blocking',
 );
 
+<<<<<<< HEAD
 console.log('Admin mode');
 {
   check(resolveAdmin('1', null) && !resolveAdmin('0', '1'), '?admin=1 turns on, ?admin=0 turns off');
@@ -777,6 +779,12 @@ console.log('Admin mode');
   check(skipTarget(0, -1, 5) === null && skipTarget(4, 1, 5) === null, 'skip stops at the first and last level');
   check(skipTarget(2, 1, 5) === 3 && skipTarget(2, -1, 5) === 1, 'skip moves to the next/previous level');
 }
+=======
+check(nextFocusIndex(3, 0, 1) === 1 && nextFocusIndex(3, 2, 1) === 0, 'focus cycle wraps forward');
+check(nextFocusIndex(3, 0, -1) === 2 && nextFocusIndex(3, 2, -1) === 1, 'focus cycle wraps backward');
+check(nextFocusIndex(3, -1, 1) === 0 && nextFocusIndex(3, -1, -1) === 2, 'focus enters at the ends when none focused');
+check(nextFocusIndex(0, -1, 1) === -1, 'focus cycle with no items');
+>>>>>>> origin/main
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
