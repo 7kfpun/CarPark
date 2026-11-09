@@ -15,6 +15,17 @@ import {
   type Pose,
   type ViewTarget,
 } from './views';
+import {
+  applyOrbit,
+  clampOrbit,
+  dragOrbit,
+  isOffCentre,
+  orbitCentre,
+  startReset,
+  stepReset,
+  type Orbit,
+  type ResetAnim,
+} from './orbit';
 import { vehicleOf, type VehicleDef } from './vehicles';
 
 export type { CamMode } from './views';
@@ -44,6 +55,9 @@ export class CameraRig {
   private blend = 1;
   private reversing = false;
   private free: FreeLook | null = null;
+  /** The player's drag-to-orbit offset on top of the current view (centre = the view's own pose). */
+  private offset: Orbit = orbitCentre();
+  private resetAnim: ResetAnim | null = null;
   private orbitT = 0;
   private readonly ray = new THREE.Raycaster();
   private readonly origin = new THREE.Vector3();
@@ -64,6 +78,8 @@ export class CameraRig {
   set mode(m: CamMode) {
     if (m === this._mode) return;
     this._mode = m;
+    this.offset = orbitCentre(); // each view keeps its own centre
+    this.resetAnim = null;
     this.fromPos.copy(this.camera.position);
     this.fromLook.copy(this.lastLook);
     this.blend = this.reduced() ? 1 : 0;
@@ -95,6 +111,31 @@ export class CameraRig {
     }
   }
 
+  /** True while the view is turned away from its centre (the Reset view button highlights). */
+  get orbited(): boolean {
+    return isOffCentre(this.offset);
+  }
+
+  /** Turn / tilt / zoom the driving view (yaw, pitch in radians, zoom as a factor). */
+  orbitBy(dyaw: number, dpitch: number, zoomFactor = 1): void {
+    this.resetAnim = null;
+    this.offset = dragOrbit(this.offset, this._mode, dyaw, dpitch, zoomFactor);
+  }
+
+  /** Ease back to the centre view (instant with reduced motion). */
+  resetView(): void {
+    if (!this.orbited) return;
+    this.resetAnim = startReset(this.offset);
+    if (this.reduced()) this.stepOffset(0);
+  }
+
+  private stepOffset(dt: number): void {
+    if (!this.resetAnim) return;
+    const r = stepReset(this.resetAnim, dt, this.reduced());
+    this.offset = clampOrbit(r.orbit, this._mode);
+    if (r.done) this.resetAnim = null;
+  }
+
   dragFree(dyaw: number, dpitch: number, ddist = 0): void {
     if (this.free) this.free = dragFreeLook(this.free, dyaw, dpitch, ddist);
   }
@@ -108,7 +149,9 @@ export class CameraRig {
       pitch: t.pitch,
       steer: t.steer,
     };
-    const p: Pose = this.free ? freePose(this.free, t) : viewPose(this._mode, vt, this.reversing, this.vehicle);
+    const p: Pose = this.free
+      ? freePose(this.free, t)
+      : applyOrbit(viewPose(this._mode, vt, this.reversing, this.vehicle), this.offset, this._mode, t);
     this.pos.set(p.px, p.py, p.pz);
     this.look.set(p.lx, p.ly, p.lz);
   }
@@ -150,6 +193,8 @@ export class CameraRig {
     this.camHeading = t.heading;
     this.reversing = false;
     this.free = null;
+    this.offset = orbitCentre();
+    this.resetAnim = null;
     this.blend = 1;
     this.desired(t);
     this.clear(t, this.pos);
@@ -164,6 +209,7 @@ export class CameraRig {
     this.camHeading += wrapAngle(t.heading - this.camHeading) * (1 - Math.exp(-dt * 3.5));
     this.reversing = reverseHold(this.reversing, t.v);
     this.blend = advanceBlend(this.blend, dt, this.reduced());
+    this.stepOffset(dt);
     this.desired(t);
     this.clear(t, this.pos);
     if (isRigid(this._mode) && !this.free) this.cur.copy(this.pos);

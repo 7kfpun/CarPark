@@ -28,6 +28,7 @@ import {
   nextCamMode,
   reverseHold,
 } from './views';
+import { isDoubleTap, pinchFactor, wheelFactor } from './orbit';
 import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
@@ -722,6 +723,77 @@ addEventListener(
   { passive: true },
 );
 
+// Drive-time orbit (FOX-241): drag the empty game area to look around the car, pinch or scroll to
+// zoom, double-tap or V / the Reset view button to come back. Touches that start on the wheel,
+// pedals, gear lever or HUD buttons are never tracked, so they keep steering and driving.
+const ORBIT_IGNORE = '#touch, #hud button, #admin-bar, #mirror, .panel, button, a, input, select';
+const orbitPtrs = new Map<number, { x: number; y: number }>();
+let lastTap: { t: number; x: number; y: number } | null = null;
+let tapStart: { id: number; t: number; x: number; y: number; moved: boolean } | null = null;
+function canDriveOrbit(): boolean {
+  return state === 'playing' && !settingsPanel.isOpen && !gfx.contextLost;
+}
+function resetView(): void {
+  rig.resetView();
+}
+addEventListener('pointerdown', (e) => {
+  if (!canDriveOrbit() || (e.target as Element | null)?.closest(ORBIT_IGNORE)) return;
+  if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
+  orbitPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  tapStart =
+    orbitPtrs.size === 1 ? { id: e.pointerId, t: e.timeStamp, x: e.clientX, y: e.clientY, moved: false } : null;
+});
+addEventListener('pointermove', (e) => {
+  const prev = orbitPtrs.get(e.pointerId);
+  if (!prev) return;
+  if (!canDriveOrbit()) return void orbitPtrs.clear();
+  if (tapStart && tapStart.id === e.pointerId && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > 10) {
+    tapStart.moved = true;
+  }
+  if (orbitPtrs.size === 1) {
+    rig.orbitBy(-(e.clientX - prev.x) * 0.008, (e.clientY - prev.y) * 0.008);
+  } else if (orbitPtrs.size === 2) {
+    const other = [...orbitPtrs.entries()].find(([id]) => id !== e.pointerId)![1];
+    const before = Math.hypot(prev.x - other.x, prev.y - other.y);
+    const now = Math.hypot(e.clientX - other.x, e.clientY - other.y);
+    rig.orbitBy(0, 0, pinchFactor(before, now));
+  }
+  prev.x = e.clientX;
+  prev.y = e.clientY;
+});
+// A cancelled touch (finger off the edge, system gesture) just stops tracking: the view stays where it is.
+const endOrbit = (e: PointerEvent): void => {
+  if (!orbitPtrs.delete(e.pointerId)) return;
+  if (e.type === 'pointerup' && tapStart && tapStart.id === e.pointerId && !tapStart.moved) {
+    if (lastTap && isDoubleTap(e.timeStamp - lastTap.t, Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y))) {
+      resetView();
+      lastTap = null;
+    } else lastTap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+  }
+  tapStart = null;
+};
+addEventListener('pointerup', endOrbit);
+addEventListener('pointercancel', endOrbit);
+addEventListener(
+  'wheel',
+  (e) => {
+    if (canDriveOrbit() && !(e.target as Element | null)?.closest(ORBIT_IGNORE))
+      rig.orbitBy(0, 0, wheelFactor(e.deltaY));
+  },
+  { passive: true },
+);
+addEventListener('contextmenu', (e) => {
+  if (state === 'playing' && (e.target as Element | null)?.id === 'game') e.preventDefault();
+});
+input.on('KeyV', () => {
+  if (state === 'playing') resetView();
+});
+const resetBtn = document.getElementById('btn-reset-view')!;
+resetBtn.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
+  if (state === 'playing') resetView();
+});
+
 // --- Main loop ---------------------------------------------------------------
 let last = performance.now();
 let rafId = 0;
@@ -795,7 +867,7 @@ function frameBody(now: number): void {
     const orbiting = rig.freeLook && (state === 'paused' || state === 'done');
     level.setView(
       playing || orbiting ? player.physics.y : 0,
-      (playing || orbiting) && hidesCeilings(rig.mode, orbiting),
+      (playing || orbiting) && hidesCeilings(rig.mode, orbiting || rig.orbited),
     );
     if (playing) hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
     updateLighting(dt, playing ? level.def : null);
@@ -810,6 +882,7 @@ function frameBody(now: number): void {
     rig.mode = viewMode();
     syncFov();
     rig.update(dt, camTarget());
+    resetBtn.classList.toggle('off-centre', rig.orbited);
     const inside = bodyHidden(rig.mode, rig.progress);
     player.model.body.visible = !inside;
     cockpit.visible = inside;

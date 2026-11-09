@@ -63,6 +63,17 @@ import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { MODEL_SHARED, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
+import {
+  applyOrbit,
+  clampOrbit,
+  dragOrbit,
+  isDoubleTap,
+  isOffCentre,
+  orbitCentre,
+  pinchFactor,
+  startReset,
+  stepReset,
+} from '../src/orbit';
 import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
@@ -1769,6 +1780,63 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   );
   const fp = freePose(FREE_START, car);
   check(fp.py > car.y && fp.lx === car.x, 'free look orbits above, looking at the car');
+}
+
+{
+  // Drag-to-orbit offset (FOX-241): clamps, exact reset, per-view limits, pose offsets.
+  const car = { x: 3, y: 0, z: -2, heading: 0.4, pitch: 0, steer: 0 };
+  const base = viewPose('chase', car);
+  check(applyOrbit(base, orbitCentre(), 'chase', car) === base, 'a centred orbit leaves the pose untouched');
+  const far = dragOrbit(orbitCentre(), 'chase', 1, 10, 100);
+  check(far.pitch <= 0.9 && far.zoom === 2, 'orbit pitch and zoom are clamped');
+  check(dragOrbit(orbitCentre(), 'chase', 0, -10, 0.001).pitch >= -0.7, 'orbit pitch is clamped below');
+  check(Math.abs(dragOrbit(orbitCentre(), 'top', 7, 0).yaw) <= Math.PI, 'orbit yaw wraps within one turn');
+  const head = dragOrbit(orbitCentre(), 'cockpit', 5, 5, 3);
+  check(
+    Math.abs(head.yaw - (100 * Math.PI) / 180) < 1e-9 &&
+      Math.abs(head.pitch - (35 * Math.PI) / 180) < 1e-9 &&
+      head.zoom === 1,
+    'cockpit look-around is limited to +-100 deg yaw, +-35 deg pitch, no zoom',
+  );
+  check(clampOrbit({ yaw: 3, pitch: 0, zoom: 1 }, 'cockpit').yaw < 2, 'switching to cockpit pulls a wide yaw in');
+  for (const mode of CAM_MODES) {
+    const p = viewPose(mode, car);
+    const o = applyOrbit(p, { yaw: 1.2, pitch: -0.7, zoom: 0.5 }, mode, car);
+    check(
+      ([o.px, o.py, o.pz, o.lx, o.ly, o.lz].every(Number.isFinite) && o.py >= car.y + 0.39) ||
+        mode === 'cockpit' ||
+        mode === 'hood',
+      `${mode}: an orbited camera stays above the floor`,
+    );
+  }
+  const swung = applyOrbit(base, { yaw: Math.PI, pitch: 0, zoom: 1 }, 'chase', car);
+  check(
+    Math.hypot(swung.px - car.x, swung.pz - car.z) > 1 && swung.pz - car.z > 0 === base.pz - car.z < 0,
+    'a half-turn yaw puts the chase camera in front of the car',
+  );
+  const turned = applyOrbit(viewPose('cockpit', car), { yaw: 0.5, pitch: 0, zoom: 1 }, 'cockpit', car);
+  const eye = viewPose('cockpit', car);
+  check(
+    turned.px === eye.px && turned.pz === eye.pz && turned.lx !== eye.lx,
+    'a head turn moves the look, not the eye',
+  );
+  const zoomed = applyOrbit(base, { yaw: 0, pitch: 0, zoom: 2 }, 'chase', car);
+  check(
+    Math.hypot(zoomed.px - car.x, zoomed.pz - car.z) > Math.hypot(base.px - car.x, base.pz - car.z),
+    'zoom 2 moves the camera further out',
+  );
+  const anim = startReset({ yaw: 2, pitch: 0.5, zoom: 1.7 });
+  const mid = stepReset(anim, 0.15, false);
+  check(!mid.done && mid.orbit.yaw < 2 && mid.orbit.yaw > 0, 'reset eases part way after half the time');
+  const end = stepReset(anim, 0.2, false);
+  check(
+    end.done && end.orbit.yaw === 0 && end.orbit.pitch === 0 && end.orbit.zoom === 1 && !isOffCentre(end.orbit),
+    'reset returns exactly to the centre',
+  );
+  check(stepReset(startReset({ yaw: 2, pitch: 0, zoom: 1 }), 0, true).done, 'reset is instant with reduced motion');
+  check(!isOffCentre(orbitCentre()) && isOffCentre({ yaw: 0, pitch: 0, zoom: 1.2 }), 'off-centre detection');
+  check(pinchFactor(100, 200) < 1 && pinchFactor(200, 100) > 1 && pinchFactor(0, 100) === 1, 'pinch zoom direction');
+  check(isDoubleTap(200, 5) && !isDoubleTap(500, 5) && !isDoubleTap(200, 80), 'double-tap detection');
 }
 
 {

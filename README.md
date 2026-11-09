@@ -11,17 +11,19 @@ The lots, the sound effects (an engine hum that follows your speed, crash and fa
 
 ## Controls
 
-| Action               | Keyboard          | Touch                                 |
-| -------------------- | ----------------- | ------------------------------------- |
-| Accelerate           | `W` / `↑`         | Accelerator pedal                     |
-| Brake / reverse      | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
-| Steer                | `A` `D` / `←` `→` | Drag the steering wheel round         |
-| Handbrake            | `Space`           | Brake pedal                           |
-| Cycle camera view    | `C`               | 🎥 button                             |
-| Look around (paused) | Drag              | Drag the backdrop                     |
-| Restart level        | `R`               |                                       |
-| Pause / resume       | `Esc` / `P`       | ⏸ button                              |
-| Mute                 | `M`               |                                       |
+| Action                | Keyboard          | Touch                                 |
+| --------------------- | ----------------- | ------------------------------------- |
+| Accelerate            | `W` / `↑`         | Accelerator pedal                     |
+| Brake / reverse       | `S` / `↓`         | Brake pedal; R / D toggle for reverse |
+| Steer                 | `A` `D` / `←` `→` | Drag the steering wheel round         |
+| Handbrake             | `Space`           | Brake pedal                           |
+| Cycle camera view     | `C`               | 🎥 button                             |
+| Look around (driving) | Left / right drag | Drag the empty game area; pinch zooms |
+| Reset view            | `V`               | Reset view button, or double-tap      |
+| Look around (paused)  | Drag              | Drag the backdrop                     |
+| Restart level         | `R`               |                                       |
+| Pause / resume        | `Esc` / `P`       | ⏸ button                              |
+| Mute                  | `M`               |                                       |
 
 ### Admin mode (testing)
 
@@ -87,7 +89,7 @@ You can combine them: `?level=6&cam=top`.
 
 ### Camera views
 
-`C` (or the 🎥 button) cycles chase, cockpit, hood, top-down and corner views, blending over 0.3 s (instantly with reduced motion); the choice is saved, and Settings shows it too. Cockpit hides the body and draws a dashboard, steering wheel (turns with the steering) and pillars in code; the rear mirror stays on in chase, cockpit and hood (High quality only: it is hidden on Low, including after the slow-frame auto downgrade). Top-down and corner hide decks above the car. The corner view is a close view of the front corner on the side the wheel is turned to, or a rear camera while reversing; Settings > Rear view when reversing (off by default) switches to it automatically when reversing in chase, cockpit or hood. While paused or after a level, drag the backdrop to orbit the car (mouse wheel zooms); resuming returns to the chosen view. Cameras never affect physics, collisions or star times. Pure view logic: `src/views.ts`; the interior: `src/cockpit.ts`.
+`C` (or the 🎥 button) cycles chase, cockpit, hood, top-down and corner views, blending over 0.3 s (instantly with reduced motion); the choice is saved, and Settings shows it too. Cockpit hides the body and draws a dashboard, steering wheel (turns with the steering) and pillars in code; the rear mirror stays on in chase, cockpit and hood (High quality only: it is hidden on Low, including after the slow-frame auto downgrade). Top-down and corner hide decks above the car. The corner view is a close view of the front corner on the side the wheel is turned to, or a rear camera while reversing; Settings > Rear view when reversing (off by default) switches to it automatically when reversing in chase, cockpit or hood. While paused or after a level, drag the backdrop to orbit the car (mouse wheel zooms); resuming returns to the chosen view. While driving, drag the empty game area (mouse: left or right drag; touch: one finger, never on the wheel, pedals, gear lever or buttons) to orbit and tilt the camera, and scroll or pinch to zoom; cockpit and hood turn the head within about ±100° / ±35°. The offset rides on top of the view, so the camera keeps following the car. `V`, the target-icon Reset view button (highlighted only when off-centre) or a double-tap eases back to the centre (instantly with reduced motion); a level start, restart or view switch resets it too. Pure logic: `src/orbit.ts`. Cameras never affect physics, collisions or star times. Pure view logic: `src/views.ts`; the interior: `src/cockpit.ts`.
 
 ## Project structure
 
@@ -118,6 +120,7 @@ src/level.ts            builds the three.js scene for a level (ground, lines, ba
 src/car.ts              car mesh construction and the player car (physics + model)
 src/carModels.ts        loads and places the Kenney car models
 src/loading.ts          loading-screen text and the model-load timeout
+src/orbit.ts            pure drag-to-orbit offset: clamps, zoom, reset easing
 src/camera.ts           chase and top-down camera rig
 src/mirror.ts           rear-view mirror rendered to an offscreen target
 src/graphics.ts         low/high quality presets (pixel ratio, shadows)
