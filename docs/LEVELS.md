@@ -96,3 +96,93 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x -12, z -15, heading 90° |
 
 ![Rush Hour](maps/rush-hour.svg)
+
+## 7. Angle of Attack
+
+> The bays are slanted. Swing wide, then turn in and line up with the arrow.
+
+| | |
+| --- | --- |
+| Id | `angle-of-attack` |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 21 s, 2 stars ≤ 32 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 3 × 5.6 m, facing 50° (nose must point that way) |
+| Start pose | x -9, z -14, heading 0° |
+
+![Angle of Attack](maps/angle-of-attack.svg)
+
+## 8. Reverse Gate
+
+> Pass the wall, then back through the narrow gate into the bay.
+
+| | |
+| --- | --- |
+| Id | `reverse-gate` |
+| Lot | 28 × 40 m |
+| Time limit | 70 s |
+| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
+| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x 8, z 12, heading 180° |
+
+![Reverse Gate](maps/reverse-gate.svg)
+
+## 9. Tight Squeeze
+
+> Only a sliver of room either side. Line up early and creep in.
+
+| | |
+| --- | --- |
+| Id | `tight-squeeze` |
+| Lot | 30 × 40 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
+| Start pose | x -10, z -12, heading 90° |
+
+![Tight Squeeze](maps/tight-squeeze.svg)
+
+## 10. Curb Side
+
+> A long space between two cars. Reverse in at an angle, then straighten up.
+
+| | |
+| --- | --- |
+| Id | `curb-side` |
+| Lot | 40 × 26 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 90° (either direction) |
+| Start pose | x -16, z 2, heading 90° |
+
+![Curb Side](maps/curb-side.svg)
+
+## 11. Slalom Reverse
+
+> Weave through the cones, then reverse into the free bay on the right.
+
+| | |
+| --- | --- |
+| Id | `slalom-reverse` |
+| Lot | 30 × 60 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
+| Target bay | x 12, z 18, 2.8 × 5.6 m, facing 270° (nose must point that way) |
+| Start pose | x 0, z -26, heading 0° |
+
+![Slalom Reverse](maps/slalom-reverse.svg)
+
+## 12. The Finale
+
+> Pillars, a wall and a walled-in bay with almost no room. Take it slow.
+
+| | |
+| --- | --- |
+| Id | `the-finale` |
+| Lot | 30 × 40 m |
+| Time limit | 100 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
+| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
+| Start pose | x -11, z -15, heading 90° |
+
+![The Finale](maps/the-finale.svg)
