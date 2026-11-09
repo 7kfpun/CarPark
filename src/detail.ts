@@ -43,10 +43,15 @@ export function rng(seed: number): () => number {
   };
 }
 
+/** Closest a light pole may stand to the car's spawn point (m). */
+export const POLE_CLEAR = 14;
+
 export interface DetailInput {
   lot: { w: number; l: number };
   bays?: BayDef[];
   arrows?: ArrowDef[];
+  /** Where the car starts: light poles keep clear of the chase camera behind it. */
+  spawn?: { x: number; z: number };
 }
 
 /** Trees around the lot (same placement as before the instancing change). */
@@ -142,6 +147,9 @@ export function detailLayout(def: DetailInput, index: number, flat: boolean): De
     d.poles.push({ x: px, z, rot: -Math.PI / 2 }, { x: -px, z, rot: Math.PI / 2 });
   }
   if (w >= 24) d.poles.push({ x: 0, z: pz, rot: Math.PI }, { x: 0, z: -pz, rot: 0 });
+  // The chase camera starts behind the spawn, so no pole stands within POLE_CLEAR of it (a pole there fills the view).
+  const sp = def.spawn;
+  if (sp) d.poles = d.poles.filter((q) => Math.hypot(q.x - sp.x, q.z - sp.z) >= POLE_CLEAR);
   // Bollards at the lot corners, on the apron.
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) d.bollards.push({ x: sx * px, z: sz * pz, rot: 0 });
   // Drains along the two long walls, just inside the lot.
