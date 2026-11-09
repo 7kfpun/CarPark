@@ -7,11 +7,17 @@ export class Sfx {
   unlock(): void {
     try {
       this.ctx ??= new AudioContext();
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      this.recover();
     } catch {
       this.ctx = null;
       this.crashBuf = null;
     }
+  }
+
+  /** iOS reports 'interrupted' after a call or lock screen; anything not running or closed is resumable. */
+  private recover(): void {
+    const ctx = this.ctx;
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') void ctx.resume();
   }
 
   /** Silence everything while the app is in the background. */
@@ -26,7 +32,7 @@ export class Sfx {
   /** Undo suspend() when the app returns to the foreground. */
   resume(): void {
     try {
-      if (this.ctx?.state === 'suspended') void this.ctx.resume();
+      this.recover();
     } catch {
       /* ignore */
     }
@@ -34,7 +40,7 @@ export class Sfx {
 
   private tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, endFreq?: number): void {
     const ctx = this.ctx;
-    if (!ctx || this.muted) return;
+    if (!ctx || this.muted || ctx.state !== 'running') return;
     const t = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -59,7 +65,7 @@ export class Sfx {
 
   crash(): void {
     const ctx = this.ctx;
-    if (!ctx || this.muted) return;
+    if (!ctx || this.muted || ctx.state !== 'running') return;
     if (!this.crashBuf || this.crashBuf.sampleRate !== ctx.sampleRate) {
       const len = Math.floor(ctx.sampleRate * 0.25);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
