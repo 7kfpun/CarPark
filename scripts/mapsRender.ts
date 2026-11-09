@@ -3,7 +3,7 @@
 import { corners, type OBB } from '../src/collision';
 import { CAR_L, CAR_W } from '../src/config';
 import { levelObstacleDefs, rampOBB, Surfaces } from '../src/floors';
-import { bayOBB, obstacleOBB, type LevelDef, type ObstacleDef } from '../src/layout';
+import { bayOBB, obstacleOBB, type FloorDef, type LevelDef, type ObstacleDef } from '../src/layout';
 
 const SCALE = 20; // px per metre
 const MARGIN = 2; // metres around the lot
@@ -78,12 +78,21 @@ export function floorMaps(def: LevelDef): FloorMap[] {
   const obstacles = levelObstacleDefs(def, surfaces);
   const first = floors[0].id;
   const out: FloorMap[] = [];
-  for (const [fi, floor] of floors.entries()) {
-    const ramps = surfaces.ramps.filter((r) => r.from === floor.id || r.to === floor.id);
-    const layers = new Set([floor.id, ...ramps.map((r) => r.id)]);
+  // Landings between the segments of a curved ramp are drawn on the map of the storey the ramp climbs from.
+  const storeys = floors.filter((f) => !f.landing);
+  const landingsOf = (storey: FloorDef): FloorDef[] => {
+    const above = storeys.filter((f) => f.y > storey.y).map((f) => f.y);
+    const top = above.length ? Math.min(...above) : Infinity;
+    return floors.filter((f) => f.landing && f.y > storey.y && f.y < top);
+  };
+  for (const [fi, floor] of storeys.entries()) {
+    const group = [floor, ...landingsOf(floor)];
+    const ids = new Set(group.map((f) => f.id));
+    const ramps = surfaces.ramps.filter((r) => ids.has(r.from) || ids.has(r.to));
+    const layers = new Set([...ids, ...ramps.map((r) => r.id)]);
     const parts: string[] = [];
     // Floor outline.
-    for (const a of floor.area) parts.push(`<polygon class="floor" points="${poly(a)}"/>`);
+    for (const f of group) for (const a of f.area) parts.push(`<polygon class="floor" points="${poly(a)}"/>`);
     // Painted bays.
     for (const b of def.bays ?? []) {
       if ((b.floor ?? first) !== floor.id) continue;
@@ -92,7 +101,7 @@ export function floorMaps(def: LevelDef): FloorMap[] {
     // Ramps, arrow pointing uphill.
     for (const r of ramps) {
       const up = surfaces.floorHeight(r.to)! >= surfaces.floorHeight(r.from)!;
-      const climbs = up ? r.from === floor.id : r.to === floor.id;
+      const climbs = up ? ids.has(r.from) : ids.has(r.to);
       parts.push(`<polygon class="ramp" points="${poly(rampOBB(r))}"/>`);
       const dir = climbs ? r.rot : r.rot + Math.PI;
       parts.push(arrow({ x: r.x, z: r.z, rot: dir }, r.l * 0.7, 'ramparrow'));
@@ -120,9 +129,9 @@ export function floorMaps(def: LevelDef): FloorMap[] {
       );
     }
     // A multi-storey lot's floors can reach outside lot.w x lot.l, so frame the union.
-    const box = viewBox(def, floor.area);
+    const box = viewBox(def, [...group.flatMap((f) => f.area), ...ramps.map(rampOBB)]);
     const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.join(' ')}" width="${box[2]}" height="${box[3]}" role="img" aria-label="${esc(def.name)}${floors.length > 1 ? ` ${esc(floor.id)} floor` : ''}">\n` +
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.join(' ')}" width="${box[2]}" height="${box[3]}" role="img" aria-label="${esc(def.name)}${storeys.length > 1 ? ` ${esc(floor.id)} floor` : ''}">\n` +
       `<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}` +
       `.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}` +
       `.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}` +
@@ -132,8 +141,8 @@ export function floorMaps(def: LevelDef): FloorMap[] {
       parts.join('\n') +
       '\n</svg>\n';
     out.push({
-      file: floors.length > 1 ? `${def.id}-${floor.id}` : def.id,
-      label: floors.length > 1 ? floor.id : null,
+      file: storeys.length > 1 ? `${def.id}-${floor.id}` : def.id,
+      label: storeys.length > 1 ? floor.id : null,
       svg,
     });
   }

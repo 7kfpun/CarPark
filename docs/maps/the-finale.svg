@@ -16,10 +16,10 @@
 <polygon class="wall" points="312,-400 312,-412 -312,-412 -312,-400"/>
 <polygon class="wall" points="312,400 312,-400 300,-400 300,400"/>
 <polygon class="wall" points="-300,400 -300,-400 -312,-400 -312,400"/>
-<polygon class="car" fill="#c8322b" points="-81,322 -81,238 -119,238 -119,322"/><polyline class="glass" points="-116,304 -84,304"/>
-<polygon class="car" fill="#2e8b57" points="81,238 81,322 119,322 119,238"/><polyline class="glass" points="116,256 84,256"/>
-<polygon class="car" fill="#222428" points="-201,322 -201,238 -239,238 -239,322"/><polyline class="glass" points="-236,304 -204,304"/>
-<polygon class="car" fill="#7a4fd0" points="239,322 239,238 201,238 201,322"/><polyline class="glass" points="204,304 236,304"/>
+<polygon class="car" fill="#222428" points="-81,322 -81,238 -119,238 -119,322"/><polyline class="glass" points="-116,304 -84,304"/>
+<polygon class="car" fill="#7a4fd0" points="81,238 81,322 119,322 119,238"/><polyline class="glass" points="116,256 84,256"/>
+<polygon class="car" fill="#1fa3b5" points="-201,322 -201,238 -239,238 -239,322"/><polyline class="glass" points="-236,304 -204,304"/>
+<polygon class="car" fill="#2f6fde" points="239,322 239,238 201,238 201,322"/><polyline class="glass" points="204,304 236,304"/>
 <polygon class="start" points="-178,-319 -262,-319 -262,-281 -178,-281"/>
 <polyline class="startarrow" points="-253.6,-300 -186.4,-300"/><polygon class="startarrowf" points="-186.4,-300 -205.22,-287.9 -205.22,-312.1"/>
 </svg>

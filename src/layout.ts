@@ -31,6 +31,11 @@ export interface FloorDef {
   id: string;
   y: number;
   area: OBB[];
+  /**
+   * A landing joins two ramp segments of a curved ramp (a spiral): a surface to
+   * stand on, but not a storey the player counts, so it gets no floor number.
+   */
+  landing?: boolean;
 }
 
 /**

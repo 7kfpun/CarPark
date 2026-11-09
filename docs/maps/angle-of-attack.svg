@@ -13,10 +13,10 @@
 <polygon class="wall" points="312,-400 312,-412 -312,-412 -312,-400"/>
 <polygon class="wall" points="312,400 312,-400 300,-400 300,400"/>
 <polygon class="wall" points="-300,400 -300,-400 -312,-400 -312,400"/>
-<polygon class="car" fill="#8a8f98" points="-147.61,252.44 -211.96,198.45 -236.39,227.56 -172.04,281.55"/><polyline class="glass" points="-183.9,267.68 -163.33,243.17"/>
-<polygon class="car" fill="#c8322b" points="-51.61,252.44 -115.96,198.45 -140.39,227.56 -76.04,281.55"/><polyline class="glass" points="-87.9,267.68 -67.33,243.17"/>
-<polygon class="car" fill="#2e8b57" points="140.39,252.44 76.04,198.45 51.61,227.56 115.96,281.55"/><polyline class="glass" points="104.1,267.68 124.67,243.17"/>
-<polygon class="car" fill="#222428" points="236.39,252.44 172.04,198.45 147.61,227.56 211.96,281.55"/><polyline class="glass" points="200.1,267.68 220.67,243.17"/>
+<polygon class="car" fill="#2e8b57" points="-147.61,252.44 -211.96,198.45 -236.39,227.56 -172.04,281.55"/><polyline class="glass" points="-183.9,267.68 -163.33,243.17"/>
+<polygon class="car" fill="#222428" points="-51.61,252.44 -115.96,198.45 -140.39,227.56 -76.04,281.55"/><polyline class="glass" points="-87.9,267.68 -67.33,243.17"/>
+<polygon class="car" fill="#7a4fd0" points="140.39,252.44 76.04,198.45 51.61,227.56 115.96,281.55"/><polyline class="glass" points="104.1,267.68 124.67,243.17"/>
+<polygon class="car" fill="#1fa3b5" points="236.39,252.44 172.04,198.45 147.61,227.56 211.96,281.55"/><polyline class="glass" points="200.1,267.68 220.67,243.17"/>
 <polygon class="start" points="-161,-238 -161,-322 -199,-322 -199,-238"/>
 <polyline class="startarrow" points="-180,-313.6 -180,-246.4"/><polygon class="startarrowf" points="-180,-246.4 -192.1,-265.22 -167.9,-265.22"/>
 </svg>
