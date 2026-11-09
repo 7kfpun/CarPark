@@ -17,7 +17,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 30 × 40 m |
 | Time limit | 60 s |
-| Star times | 3 stars ≤ 20 s, 2 stars ≤ 32 s, 1 star within 60 s |
+| Star times | 3 stars ≤ 15 s, 2 stars ≤ 21 s, 1 star within 60 s |
 | Target bay | x 0, z 12, 3 × 5.6 m, facing 0° (either direction) |
 | Start pose | x 0, z -12, heading 0° |
 
@@ -33,7 +33,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 32 × 40 m |
 | Time limit | 75 s |
-| Star times | 3 stars ≤ 35 s, 2 stars ≤ 52 s, 1 star within 75 s |
+| Star times | 3 stars ≤ 23 s, 2 stars ≤ 32 s, 1 star within 75 s |
 | Target bay | x 4.5, z 13, 3 × 5.6 m, facing 180° (nose must point that way) |
 | Start pose | x -12, z -4, heading 90° |
 
@@ -49,7 +49,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 24 × 50 m |
 | Time limit | 90 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 62 s, 1 star within 90 s |
+| Star times | 3 stars ≤ 22 s, 2 stars ≤ 30 s, 1 star within 90 s |
 | Target bay | x 8.1, z -0.6, 2.4 × 6.4 m, facing 0° (either direction) |
 | Start pose | x 2, z -18, heading 0° |
 
@@ -65,7 +65,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 30 × 70 m |
 | Time limit | 90 s |
-| Star times | 3 stars ≤ 45 s, 2 stars ≤ 66 s, 1 star within 90 s |
+| Star times | 3 stars ≤ 36 s, 2 stars ≤ 49 s, 1 star within 90 s |
 | Target bay | x 3, z 28, 3 × 5.6 m, facing 0° (either direction) |
 | Start pose | x 0, z -30, heading 0° |
 
@@ -81,7 +81,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 30 × 40 m |
 | Time limit | 75 s |
-| Star times | 3 stars ≤ 35 s, 2 stars ≤ 52 s, 1 star within 75 s |
+| Star times | 3 stars ≤ 18 s, 2 stars ≤ 25 s, 1 star within 75 s |
 | Target bay | x 0, z 14.1, 2.8 × 5.4 m, facing 0° (either direction) |
 | Start pose | x -10, z -14, heading 0° |
 
@@ -97,7 +97,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 34 × 44 m |
 | Time limit | 120 s |
-| Star times | 3 stars ≤ 60 s, 2 stars ≤ 88 s, 1 star within 120 s |
+| Star times | 3 stars ≤ 46 s, 2 stars ≤ 63 s, 1 star within 120 s |
 | Target bay | x -3, z 18, 2.8 × 5.6 m, facing 180° (nose must point that way) |
 | Start pose | x -12, z -15, heading 90° |
 
@@ -177,7 +177,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 20 × 66 m |
 | Time limit | 75 s |
-| Star times | 3 stars ≤ 36 s, 2 stars ≤ 55 s, 1 star within 75 s |
+| Star times | 3 stars ≤ 29 s, 2 stars ≤ 40 s, 1 star within 75 s |
 | Target bay | x 3, z 26, 3 × 5.6 m, facing 0°, floor `upper` (nose must point that way) |
 | Start pose | x 0, z -28, heading 0° |
 
@@ -195,7 +195,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 20 × 66 m |
 | Time limit | 105 s |
-| Star times | 3 stars ≤ 52 s, 2 stars ≤ 80 s, 1 star within 105 s |
+| Star times | 3 stars ≤ 41 s, 2 stars ≤ 57 s, 1 star within 105 s |
 | Target bay | x 1, z 29, 3 × 5.6 m, facing 180°, floor `basement` (nose must point that way) |
 | Start pose | x 0, z -28, heading 0° |
 

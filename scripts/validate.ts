@@ -1136,6 +1136,15 @@ for (const lvl of LEVELS) {
     0 < three && three < two && two < lvl.time,
     `${lvl.id}: stars need 0 < three (${three}) < two (${two}) < time (${lvl.time})`,
   );
+  // Tuned against the recorded solution: a human plays ~1.3-1.6x it, so three stays within 1.2-2x.
+  const sol = SOLUTIONS[lvl.id];
+  const best = sol ? replaySolution(lvl, sol).finishTime : null;
+  if (best !== null) {
+    check(
+      three >= best * 1.2 && three <= best * 2,
+      `${lvl.id}: three-star ${three}s should be 1.2-2x the solution (${best.toFixed(1)}s)`,
+    );
+  }
 }
 {
   const t = { three: 20, two: 30 };

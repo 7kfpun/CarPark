@@ -147,7 +147,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 0, z: 12, rot: 0, w: 3, l: 5.6 },
     bothWays: true,
     time: 60,
-    stars: { three: 20, two: 32 },
+    stars: { three: 15, two: 21 },
     bays: bayRow(row7, 12, 0),
     obstacles: [car(-3, 12, 0), car(3, 12, PI), car(-9, 12, PI), car(6, 12, 0)],
   },
@@ -160,7 +160,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 4.5, z: 13, rot: PI, w: 3, l: 5.6 },
     bothWays: false,
     time: 75,
-    stars: { three: 35, two: 52 },
+    stars: { three: 23, two: 32 },
     bays: [...bayRow(row8, 13, 0), ...bayRow(row8, -13, PI)],
     obstacles: [...carRow(row8, 13, [4.5, -7.5]), ...carRow(row8, -13, [-4.5, 7.5])],
   },
@@ -173,7 +173,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 8.1, z: -0.6, rot: 0, w: 2.4, l: 6.4 },
     bothWays: true,
     time: 90,
-    stars: { three: 40, two: 62 },
+    stars: { three: 22, two: 30 },
     obstacles: [
       { kind: 'wall', x: 9.6, z: 0, w: 0.4, l: 46, h: 0.25 },
       car(8.1, -17, 0),
@@ -198,7 +198,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 3, z: 28, rot: 0, w: 3, l: 5.6 },
     bothWays: true,
     time: 90,
-    stars: { three: 45, two: 66 },
+    stars: { three: 36, two: 49 },
     bays: bayRow([-6, -3, 0, 3, 6], 28, 0),
     obstacles: [
       ...coneLine(-14.4, 14.4, -18, -6, 4.5),
@@ -220,7 +220,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 0, z: 14.1, rot: 0, w: 2.8, l: 5.4 },
     bothWays: true,
     time: 75,
-    stars: { three: 35, two: 52 },
+    stars: { three: 18, two: 25 },
     obstacles: [
       { kind: 'wall', x: -1.65, z: 14, w: 0.3, l: 6, h: 2.4 },
       { kind: 'wall', x: 1.65, z: 14, w: 0.3, l: 6, h: 2.4 },
@@ -244,7 +244,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: -3, z: 18, rot: PI, w: 2.8, l: 5.6 },
     bothWays: false,
     time: 120,
-    stars: { three: 60, two: 88 },
+    stars: { three: 46, two: 63 },
     bays: bayRow(row9, 18, 0, 2.8),
     obstacles: [
       { kind: 'wall', x: -5, z: -6, w: 24, l: 0.4, h: 1.2 },
@@ -267,7 +267,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 3, z: 26, rot: 0, w: 3, l: 5.6, floor: 'upper' },
     bothWays: false,
     time: 75,
-    stars: { three: 36, two: 55 },
+    stars: { three: 29, two: 40 },
     floors: [
       { id: 'ground', y: 0, area: [{ x: 0, z: -18, hw: 10, hl: 15, rot: 0 }] },
       { id: 'upper', y: 3, area: [{ x: 0, z: 23, hw: 10, hl: 10, rot: 0 }] },
@@ -291,7 +291,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 1, z: 29, rot: PI, w: 3, l: 5.6, floor: 'basement' },
     bothWays: false,
     time: 105,
-    stars: { three: 52, two: 80 },
+    stars: { three: 41, two: 57 },
     floors: [
       // The ground floor is the street, the ramp's sides and the roof of the basement.
       {
