@@ -36,6 +36,10 @@ scene.fog = new THREE.Fog(sky, 60, 160);
 const hemi = new THREE.HemisphereLight(0xdbeeff, 0x4a5a3a, 1.1);
 scene.add(hemi);
 const SKY = sky.clone();
+const DAY_SKY = 0xa9cfee;
+const DUSK_SKY = 0x7a6a9c;
+const DAY_SUN = 0xfff1dc;
+const DUSK_SUN = 0xff8a4a;
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -156,7 +160,13 @@ function loadLevel(i: number): void {
   sc.near = 1;
   sc.far = 200;
   sc.updateProjectionMatrix();
-  sun.position.set(-30, 50, -20);
+  const dusk = level.def.theme === 'dusk';
+  SKY.set(dusk ? DUSK_SKY : DAY_SKY);
+  sun.color.set(dusk ? DUSK_SUN : DAY_SUN);
+  hemi.color.set(dusk ? 0xb8b0e0 : 0xdbeeff);
+  // A low sun throws long shadows.
+  if (dusk) sun.position.set(-50, 25, -20);
+  else sun.position.set(-30, 50, -20);
   sun.target.position.set(0, 0, 0);
 }
 
@@ -465,8 +475,8 @@ function updateLighting(dt: number, def: LevelDef | null): void {
   const car = player.physics;
   const target =
     def?.floors !== undefined
-      ? lightTarget(ceilingAbove(def, car.x, car.z, car.y) !== null, car.y < -1)
-      : lightTarget(false, false);
+      ? lightTarget(ceilingAbove(def, car.x, car.z, car.y) !== null, car.y < -1, def.theme === 'dusk')
+      : lightTarget(false, false, def?.theme === 'dusk');
   const k = 1 - Math.exp(-dt * 5);
   lightMix = {
     sun: lightMix.sun + (target.sun - lightMix.sun) * k,
