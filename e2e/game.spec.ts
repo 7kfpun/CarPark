@@ -303,3 +303,85 @@ test('camera: a drag orbits, Reset view and V restore it, and a drag that starts
   await expect(reset).not.toHaveClass(/off-centre/);
   await context.close();
 });
+
+// FOX-240 quality pass: HUD clarity on the smallest phones, and robustness to resize and missing storage.
+const HUD_PARTS = ['#hud-level', '#hud-timer', '#btn-cam', '#btn-pause', '#btn-settings', '#hud-gear', '#t-wheel'];
+
+for (const [name, viewport] of [
+  ['portrait 360x640', { width: 360, height: 640 }],
+  ['landscape 844x390', { width: 844, height: 390 }],
+] as const) {
+  test(`HUD, ${name}: no HUD element overlaps another or leaves the screen`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
+    const page = await context.newPage();
+    const errors = collectErrors(page);
+    await openGame(page, '?level=1');
+    await run(page, 0.5);
+    const boxes: { id: string; x: number; y: number; w: number; h: number }[] = [];
+    for (const id of HUD_PARTS) {
+      const el = page.locator(id);
+      if (!(await el.isVisible())) continue;
+      const b = (await el.boundingBox())!;
+      expect(b.x, `${id} left`).toBeGreaterThanOrEqual(0);
+      expect(b.y, `${id} top`).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width, `${id} right`).toBeLessThanOrEqual(viewport.width);
+      expect(b.y + b.height, `${id} bottom`).toBeLessThanOrEqual(viewport.height);
+      boxes.push({ id, x: b.x, y: b.y, w: b.width, h: b.height });
+    }
+    expect(boxes.length).toBeGreaterThanOrEqual(5);
+    for (const [i, a] of boxes.entries()) {
+      for (const b of boxes.slice(i + 1)) {
+        const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+        expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+      }
+    }
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+}
+
+test('resizing and rotating mid-level keeps the game running with no errors', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page, '?level=1');
+  await run(page, 1);
+  const t0 = await timer(page);
+  for (const size of [
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 360, height: 640 },
+  ]) {
+    await page.setViewportSize(size);
+    await run(page, 0.5);
+    const box = (await page.locator('#game').boundingBox())!;
+    expect(Math.round(box.width)).toBe(size.width);
+    expect(Math.round(box.height)).toBe(size.height);
+  }
+  await expect(page.locator('#hud')).toBeVisible();
+  expect(await timer(page)).not.toBe(t0);
+  expect(errors).toEqual([]);
+});
+
+test('the game plays with localStorage unavailable and logs no errors', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.addInitScript(() => {
+    const fail = () => {
+      throw new DOMException('denied', 'SecurityError');
+    };
+    Object.defineProperty(window, 'localStorage', { get: fail });
+  });
+  await page.clock.install({ time: 0 });
+  await page.goto('/?level=1');
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator('#hud')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('hiding the tab pauses the level', async ({ page }) => {
+  await openGame(page, '?level=1');
+  await run(page, 1);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.locator('#modal-title')).toHaveText('Paused');
+});
