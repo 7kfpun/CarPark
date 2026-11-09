@@ -1,5 +1,6 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import * as THREE from 'three';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import { CAR_L, CAR_W, MAX_FWD, MAX_REV, RAMP_MAX_SLOPE, STEP, TOUCH_MIN_SPEED } from '../src/config';
@@ -35,6 +36,7 @@ import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
 import { loadingLabel, withTimeout } from '../src/loading';
+import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
 import { evaluateParking } from '../src/parking';
 import { CarPhysics } from '../src/physics';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
@@ -1232,6 +1234,67 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   sfx.beep();
   check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
   g.AudioContext = prev;
+}
+
+// --- Materials (FOX-237) ---
+{
+  const N = 64;
+  for (const kind of ['asphalt', 'concrete'] as const) {
+    const px = surfacePixels(kind, N);
+    check(
+      px.color.length === N * N * 4 && px.normal.length === N * N * 4 && px.rough.length === N * N * 4,
+      `${kind} maps are N x N RGBA`,
+    );
+    let nzMin = 255;
+    let rMin = 255;
+    let rMax = 0;
+    let colMin = 255;
+    let colMax = 0;
+    for (let i = 0; i < N * N; i++) {
+      nzMin = Math.min(nzMin, px.normal[i * 4 + 2]);
+      rMin = Math.min(rMin, px.rough[i * 4 + 1]);
+      rMax = Math.max(rMax, px.rough[i * 4 + 1]);
+      colMin = Math.min(colMin, px.color[i * 4]);
+      colMax = Math.max(colMax, px.color[i * 4]);
+    }
+    check(nzMin >= 128, `${kind} normals all point out of the surface`);
+    check(rMax - rMin > 8 && rMin > 0.5 * 255, `${kind} roughness varies a little but stays matte`);
+    check(colMax - colMin > 10, `${kind} colour has grain`);
+    const again = surfacePixels(kind, N);
+    check(
+      again.color.every((v, i) => v === px.color[i]),
+      `${kind} texture is deterministic`,
+    );
+  }
+  // Tileable: the normal map is built from wrapped neighbours, so a constant field gives a flat normal and
+  // a field that is symmetric across the seam gives the same slope on both sides of it.
+  const flat = normalFromHeight(new Float32Array(16).fill(0.5), 4, 5);
+  check(flat[0] === 128 && flat[1] === 128 && flat[2] === 255, 'flat height gives the straight-up normal');
+  const ramp = new Float32Array(16);
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) ramp[y * 4 + x] = x / 3;
+  const rn = normalFromHeight(ramp, 4, 2);
+  check(rn[4 * 1] < 128 && rn[4 * 2] < 128, 'a slope rising along +x tilts the normal towards -x');
+  check(rn[0] > 128 || rn[0] === rn[4 * 3] || rn[0] > rn[4 * 1], 'the seam column wraps to its neighbours');
+  const uvGeo = new THREE.BoxGeometry(12, 3, 6);
+  tileBoxUV(uvGeo, 6);
+  const uvs = uvGeo.attributes.uv as THREE.BufferAttribute;
+  check(
+    Math.max(...Array.from({ length: 4 }, (_, i) => uvs.getX(8 + i))) === 2,
+    'box top UVs repeat once per tile width',
+  );
+  check(
+    Math.max(...Array.from({ length: 4 }, (_, i) => uvs.getY(8 + i))) === 1,
+    'box top UVs repeat once per tile length',
+  );
+  check(classifyTexel(58, 58, 62).kind === 'rubber', 'dark palette texel is rubber');
+  check(classifyTexel(215, 232, 252).kind === 'glass', 'pale blue palette texel is glass');
+  check(classifyTexel(255, 184, 28).kind === 'paint', 'yellow palette texel is paint');
+  check(classifyTexel(96, 144, 208).kind === 'paint', 'mid blue palette texel is paint, not glass');
+  check(classifyTexel(255, 255, 255).kind === 'paint', 'pure white is paint, not glass');
+  const ctl = paintControlPixels([58, 58, 62, 255, 215, 232, 252, 255, 255, 184, 28, 255]);
+  check(ctl[0] === 0 && ctl[1] > 200, 'rubber: no clear-coat, rough');
+  check(ctl[4] === 255 && ctl[5] < 20, 'glass: full clear-coat, almost mirror smooth');
+  check(ctl[8] === 255 && ctl[9] > 60 && ctl[9] < 160, 'paint: clear-coat over a semi-gloss base');
 }
 
 // Camera views (FOX-272): cycle order, saved-value parsing, blending, poses.

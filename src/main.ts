@@ -124,6 +124,7 @@ const mirror = new RearMirror();
 const cockpit = new Cockpit();
 player.model.root.add(cockpit.group);
 scene.add(player.model.root);
+gfx.applyDecor(player.model.root);
 let reversing = false;
 
 const LEVEL_IDS = LEVELS.map((l) => l.id);
