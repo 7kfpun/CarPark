@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-400 -400 800 800" width="800" height="800" role="img" aria-label="Pillar Hall">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-400" y="-400" width="800" height="800"/>
+<polygon class="floor" points="360,360 360,-360 -360,-360 -360,360"/>
+<polyline class="bay" points="-166,316 -166,204 -218,204 -218,316"/>
+<polyline class="bay" points="-102,316 -102,204 -154,204 -154,316"/>
+<polyline class="bay" points="-38,316 -38,204 -90,204 -90,316"/>
+<polyline class="bay" points="26,316 26,204 -26,204 -26,316"/>
+<polyline class="bay" points="90,316 90,204 38,204 38,316"/>
+<polyline class="bay" points="154,316 154,204 102,204 102,316"/>
+<polyline class="bay" points="218,316 218,204 166,204 166,316"/>
+<polygon class="target" points="-26,204 -26,316 26,316 26,204"/>
+<polyline class="targetarrow" points="0,295 0,225"/><polygon class="targetarrowf" points="0,225 12.6,244.6 -12.6,244.6"/>
+<polygon class="pillar" points="-172,-172 -172,-188 -188,-188 -188,-172"/>
+<polygon class="pillar" points="-52,-172 -52,-188 -68,-188 -68,-172"/>
+<polygon class="pillar" points="68,-172 68,-188 52,-188 52,-172"/>
+<polygon class="pillar" points="188,-172 188,-188 172,-188 172,-172"/>
+<polygon class="pillar" points="-112,8 -112,-8 -128,-8 -128,8"/>
+<polygon class="pillar" points="8,8 8,-8 -8,-8 -8,8"/>
+<polygon class="pillar" points="128,8 128,-8 112,-8 112,8"/>
+<polygon class="pillar" points="48,268 48,252 32,252 32,268"/>
+<polygon class="wall" points="372,372 372,360 -372,360 -372,372"/>
+<polygon class="wall" points="372,-360 372,-372 -372,-372 -372,-360"/>
+<polygon class="wall" points="372,360 372,-360 360,-360 360,360"/>
+<polygon class="wall" points="-360,360 -360,-360 -372,-360 -372,360"/>
+<polygon class="car" fill="#c8322b" points="-83,218 -83,302 -45,302 -45,218"/><polyline class="glass" points="-48,236 -80,236"/>
+<polygon class="car" fill="#2e8b57" points="-109,302 -109,218 -147,218 -147,302"/><polyline class="glass" points="-144,284 -112,284"/>
+<polygon class="car" fill="#222428" points="-211,218 -211,302 -173,302 -173,218"/><polyline class="glass" points="-176,236 -208,236"/>
+<polygon class="car" fill="#7a4fd0" points="99,302 99,218 61,218 61,302"/><polyline class="glass" points="64,284 96,284"/>
+<polygon class="car" fill="#1fa3b5" points="125,218 125,302 163,302 163,218"/><polyline class="glass" points="160,236 128,236"/>
+<polygon class="car" fill="#2f6fde" points="227,302 227,218 189,218 189,302"/><polyline class="glass" points="192,284 224,284"/>
+<polygon class="start" points="-238,-299 -322,-299 -322,-261 -238,-261"/>
+<polyline class="startarrow" points="-313.6,-280 -246.4,-280"/><polygon class="startarrowf" points="-246.4,-280 -265.22,-267.9 -265.22,-292.1"/>
+</svg>

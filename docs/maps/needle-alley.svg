@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -480 680 960" width="680" height="960" role="img" aria-label="Needle Alley">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-480" width="680" height="960"/>
+<polygon class="floor" points="300,440 300,-440 -300,-440 -300,440"/>
+<polygon class="target" points="202,-246 90,-246 90,-194 202,-194"/>
+<polyline class="targetarrow" points="111,-220 181,-220"/><polygon class="targetarrowf" points="181,-220 161.4,-207.4 161.4,-232.6"/>
+<polygon class="wall" points="-88,300 -88,-440 -96,-440 -96,300"/>
+<polygon class="wall" points="96,-292 96,-440 88,-440 88,-292"/>
+<polygon class="wall" points="96,300 96,-148 88,-148 88,300"/>
+<polygon class="wall" points="96,308 96,300 -96,300 -96,308"/>
+<polygon class="wall" points="216,-148 216,-292 208,-292 208,-148"/>
+<polygon class="wall" points="312,452 312,440 -312,440 -312,452"/>
+<polygon class="wall" points="312,-440 312,-452 -312,-452 -312,-440"/>
+<polygon class="wall" points="312,440 312,-440 300,-440 300,440"/>
+<polygon class="wall" points="-300,440 -300,-440 -312,-440 -312,440"/>
+<polygon class="car" fill="#e8e8e8" points="188,-283 104,-283 104,-245 188,-245"/><polyline class="glass" points="170,-248 170,-280"/>
+<polygon class="car" fill="#8a8f98" points="188,-195 104,-195 104,-157 188,-157"/><polyline class="glass" points="170,-160 170,-192"/>
+<polygon class="start" points="18.5,247 18.5,153 -18.5,153 -18.5,247"/>
+<polyline class="startarrow" points="0,162.4 0,237.6"/><polygon class="startarrowf" points="0,237.6 -13.54,216.54 13.54,216.54"/>
+</svg>

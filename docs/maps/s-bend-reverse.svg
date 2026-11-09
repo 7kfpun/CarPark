@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -500 680 1000" width="680" height="1000" role="img" aria-label="S-Bend Reverse">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-500" width="680" height="1000"/>
+<polygon class="floor" points="300,460 300,-460 -300,-460 -300,460"/>
+<polygon class="target" points="-88,-284 -88,-396 -152,-396 -152,-284"/>
+<polyline class="targetarrow" points="-120,-375 -120,-305"/><polygon class="targetarrowf" points="-120,-305 -132.6,-324.6 -107.4,-324.6"/>
+<polygon class="wall" points="-168,-140 -168,-408 -176,-408 -176,-140"/>
+<polygon class="wall" points="-64,-140 -64,-408 -72,-408 -72,-140"/>
+<polygon class="wall" points="96.57,166.42 -169.46,-143.95 -175.53,-138.74 90.5,171.63"/>
+<polygon class="wall" points="175.53,98.74 -90.5,-211.63 -96.57,-206.42 169.46,103.95"/>
+<polygon class="wall" points="72,408 72,100 64,100 64,408"/>
+<polygon class="wall" points="176,408 176,100 168,100 168,408"/>
+<polygon class="wall" points="-64,-412 -64,-420 -176,-420 -176,-412"/>
+<polygon class="wall" points="176,420 176,412 64,412 64,420"/>
+<polygon class="wall" points="312,472 312,460 -312,460 -312,472"/>
+<polygon class="wall" points="312,-460 312,-472 -312,-472 -312,-460"/>
+<polygon class="wall" points="312,460 312,-460 300,-460 300,460"/>
+<polygon class="wall" points="-300,460 -300,-460 -312,-460 -312,460"/>
+<polygon class="start" points="138.5,407 138.5,313 101.5,313 101.5,407"/>
+<polyline class="startarrow" points="120,322.4 120,397.6"/><polygon class="startarrowf" points="120,397.6 106.46,376.54 133.54,376.54"/>
+</svg>

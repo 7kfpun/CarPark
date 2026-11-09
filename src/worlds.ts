@@ -2,7 +2,7 @@ import type { LevelDef, LocationId } from './layout';
 import { isUnlocked, starsFor, type Progress } from './progress';
 
 /** Worlds in play order: finish one to open the next. */
-export const LOCATIONS: LocationId[] = ['open-air', 'multi-storey', 'industrial', 'twilight'];
+export const LOCATIONS: LocationId[] = ['open-air', 'multi-storey', 'industrial', 'twilight', 'proving'];
 
 export interface WorldInfo {
   id: LocationId;
@@ -41,6 +41,13 @@ export const WORLDS: Record<LocationId, WorldInfo> = {
     blurb: 'Dusk light, one-way lanes and tight finishes.',
     icon: '🌆',
     color: '#9d4edd',
+  },
+  proving: {
+    id: 'proving',
+    name: 'Proving Ground',
+    blurb: 'Turn-arounds, winding lanes and tight bays.',
+    icon: '🧪',
+    color: '#2ec4b6',
   },
 };
 

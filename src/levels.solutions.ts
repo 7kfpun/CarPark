@@ -537,3 +537,178 @@ SOLUTIONS['minibus-parallel'] = [
   S(1.5, 1, -0.5),
   S(0.5, 0, -0.25, true),
 ];
+
+// Proving Ground: found by searching the physics with 0.15-0.2 m of clearance, replayed by validate.
+
+// Drive-through: straight down the kerbed lane and stop in the bay before the barrier.
+SOLUTIONS['drive-through'] = [S(10.5, 1, 0), S(0.5, -1, 0), S(0.5, 0, 0, true)];
+
+// Chevron bays: drive past the free slanted bay, then reverse in at its angle.
+SOLUTIONS['chevron-bays'] = [
+  S(1.5, 1, -1),
+  S(0.5, 1, -0.5),
+  S(1, 1, 1),
+  S(0.5, 1, 0),
+  S(1.5, 1, 1),
+  S(0.5, 1, 0),
+  S(0.5, 1, -0.5),
+  S(1.5, 1, -1),
+  S(0.5, 0, 0, true),
+  S(3.5, -1, 1),
+  S(1.5, -1, -1),
+  S(0.5, 0, 0, true),
+  S(1, 1, 1),
+  S(0.5, 0, 0, true),
+];
+
+// Dead end: back out of the alley, then swing nose-first into the side bay.
+SOLUTIONS['dead-end-turn'] = [
+  S(1.5, -1, 1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0.5),
+  S(1, -1, -1),
+  S(1, -1, 0),
+  S(1, -1, -0.5),
+  S(0.5, -1, 0),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0),
+  S(1, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(3, -1, 1),
+  S(2.5, 1, -1),
+  S(0.5, 0, 0, true),
+  S(1, -1, 1),
+  S(1.5, 1, -1),
+  S(0.5, 1, -0.5),
+  S(0.5, 1, 0),
+  S(0.5, -1, 0),
+  S(0.5, 0, 0, true),
+];
+
+// S-bend: reverse the whole winding lane with small steering inputs.
+SOLUTIONS['s-bend-reverse'] = [
+  S(5.5, -1, 0),
+  S(2, -1, 1),
+  S(0.5, -1, 0),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, 0),
+  S(1, -1, 0.5),
+  S(2.5, -1, 0),
+  S(1, -1, 0.5),
+  S(3, -1, -1),
+  S(0.5, -1, 0),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, -1),
+  S(0.5, -1, 0.5),
+  S(2, -1, 0),
+  S(0.5, 0, 0, true),
+];
+
+// Double parallel: pull alongside the first lorry, then reverse in between the two.
+SOLUTIONS['double-parallel'] = [
+  S(4.5, 1, 0),
+  S(1, 1, -1),
+  S(0.5, 1, 0.5),
+  S(0.5, 1, 1),
+  S(0.5, 1, 0),
+  S(0.5, 1, 0.5),
+  S(0.5, 1, 1),
+  S(0.5, -1, 1),
+  S(0.5, 1, -1),
+  S(2, -1, -1),
+  S(0.5, -1, 0),
+  S(1.5, -1, 1),
+  S(0.5, 1, 1),
+  S(1, -1, 1),
+  S(1, 1, -1),
+  S(0.5, 1, 0),
+  S(0.5, 0, 0, true),
+];
+
+// Pillar hall: weave the pillars, then reverse into the bay beside the pillar.
+SOLUTIONS['pillar-hall'] = [
+  S(0.5, 1, 0),
+  S(0.5, 1, 1),
+  S(0.5, 1, -1),
+  S(0.5, 1, -0.5),
+  S(0.5, 1, 0.5),
+  S(0.5, 1, 0),
+  S(2.5, 1, 0.5),
+  S(0.5, 1, -0.5),
+  S(1, 1, 0),
+  S(0.5, 1, 0.5),
+  S(0.5, 1, 0),
+  S(2, 1, 0.5),
+  S(1, 1, 1),
+  S(0.5, -1, 1),
+  S(1, 1, 1),
+  S(0.5, -1, 1),
+  S(3.5, 1, 1),
+  S(0.5, -1, 1),
+  S(3, -1, -1),
+  S(0.5, 1, -1),
+  S(1, -1, -1),
+  S(0.5, -1, 0),
+  S(1, -1, 1),
+  S(0.5, 0, 0, true),
+];
+
+// Delivery alley: round the corner and past the loading bay, then reverse into it.
+SOLUTIONS['delivery-alley'] = [
+  S(1, 1, 0),
+  S(1.5, 1, 0.5),
+  S(0.5, 1, -1),
+  S(0.5, 1, 0),
+  S(0.5, 1, -0.5),
+  S(1, 1, -1),
+  S(0.5, 1, 0),
+  S(1.5, 1, -1),
+  S(0.5, 1, -0.5),
+  S(1, 1, -1),
+  S(1.5, 1, -0.5),
+  S(1, 1, -1),
+  S(0.5, 1, 0),
+  S(1, 1, 1),
+  S(0.5, 1, 0.5),
+  S(1, 1, 1),
+  S(0.5, -1, 1),
+  S(3.5, -1, -1),
+  S(0.5, 0, 0, true),
+  S(1, 1, 1),
+  S(1.5, -1, -1),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, -1),
+  S(1, -1, 0),
+  S(0.5, 0, 0, true),
+];
+
+// Needle alley: back out of the dead end, line up and drive nose-first into the tight bay.
+SOLUTIONS['needle-alley'] = [
+  S(1.5, -1, 1),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, -1),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, 0),
+  S(1, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 0),
+  S(0.5, -1, -1),
+  S(1, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(0.5, -1, 0),
+  S(0.5, -1, -0.5),
+  S(0.5, -1, 0.5),
+  S(2.5, -1, 1),
+  S(2.5, 1, -1),
+  S(0.5, 0, 0, true),
+  S(1, -1, 1),
+  S(0.5, 0, 0, true),
+  S(0.5, 1, -0.5),
+  S(0.5, 1, -1),
+  S(1, 1, 0),
+  S(0.5, -1, 1),
+  S(0.5, 1, 0.5),
+  S(1, 1, 0),
+  S(0.5, 0, 0, true),
+];

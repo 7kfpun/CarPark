@@ -78,7 +78,7 @@ export interface StarTimes {
 }
 
 /** The themed location (world) a level belongs to; see src/worlds.ts. */
-export type LocationId = 'open-air' | 'multi-storey' | 'industrial' | 'twilight';
+export type LocationId = 'open-air' | 'multi-storey' | 'industrial' | 'twilight' | 'proving';
 
 export interface LevelDef {
   /** Permanent id (kebab-case). Saved progress is keyed by it, so never change or reuse one. */
