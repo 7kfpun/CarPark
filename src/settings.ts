@@ -91,6 +91,7 @@ export class SettingsPanel {
     { key: 'wheel', values: ['left', 'right'] },
     { key: 'textSize', values: [...TEXT_SIZES] },
   ];
+  private readonly tabs = [...this.root.querySelectorAll<HTMLButtonElement>('[data-tab]')];
   private onClose: (() => void) | null = null;
   private opener: HTMLElement | null = null;
 
@@ -104,6 +105,18 @@ export class SettingsPanel {
       }
     }
     document.getElementById('settings-done')!.addEventListener('click', () => this.close());
+    this.tabs.forEach((tab) => {
+      tab.addEventListener('click', () => this.showTab(tab.dataset.tab!));
+      tab.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const i = this.tabs.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : -1);
+        const next = this.tabs[(i + this.tabs.length) % this.tabs.length];
+        this.showTab(next.dataset.tab!);
+        next.focus();
+        e.preventDefault();
+      });
+    });
+    this.showTab(this.tabs[0].dataset.tab!);
     // While open, keys don't reach the game's own actions; Escape closes the panel.
     addEventListener(
       'keydown',
@@ -124,12 +137,22 @@ export class SettingsPanel {
 
   /** Keep Tab / Shift+Tab inside the dialog's buttons. */
   private trapTab(e: KeyboardEvent): void {
-    const btns = [...this.root.querySelectorAll<HTMLButtonElement>('button')];
+    const btns = [...this.root.querySelectorAll<HTMLButtonElement>('button')].filter((b) => !b.closest('[hidden]'));
     if (!btns.length) return;
     e.preventDefault();
     btns[
       nextFocusIndex(btns.length, btns.indexOf(document.activeElement as HTMLButtonElement), e.shiftKey ? -1 : 1)
     ].focus();
+  }
+
+  /** Show one section; only the selected tab is in the Tab order. */
+  private showTab(name: string): void {
+    for (const tab of this.tabs) {
+      const on = tab.dataset.tab === name;
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;
+      this.root.querySelector<HTMLElement>(`[data-pane="${tab.dataset.tab}"]`)!.hidden = !on;
+    }
   }
 
   private button(key: keyof Settings, v: Settings[keyof Settings]): HTMLButtonElement | null {
@@ -161,7 +184,7 @@ export class SettingsPanel {
     this.opener = opener;
     this.refresh();
     this.root.classList.remove('hidden');
-    this.root.querySelector<HTMLButtonElement>('button.on')?.focus();
+    this.root.querySelector<HTMLButtonElement>('[data-tab][aria-selected="true"]')?.focus();
   }
 
   close(): void {

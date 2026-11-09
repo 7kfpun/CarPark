@@ -1104,3 +1104,31 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
     bottom: calc(40px + var(--safe-b));
   }
 }
+
+/* Settings sections */
+.settings-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.settings-tabs button {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+.settings-tabs button[aria-selected='true'] {
+  background: #2d7ff9;
+  color: #fff;
+}
+.settings-tabs button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.settings-pane[hidden] {
+  display: none;
+}

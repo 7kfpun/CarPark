@@ -171,81 +171,98 @@
     <div id="settings" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="panel small">
         <h2 id="settings-title">Settings</h2>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-sound">Sound</span>
-          <div class="seg" role="group" aria-labelledby="lbl-sound">
-            <button data-setting="sound" data-value="true">On</button>
-            <button data-setting="sound" data-value="false">Off</button>
+        <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+          <button role="tab" id="tab-sound" aria-controls="pane-sound" data-tab="sound">Sound</button>
+          <button role="tab" id="tab-display" aria-controls="pane-display" data-tab="display">Display</button>
+          <button role="tab" id="tab-controls" aria-controls="pane-controls" data-tab="controls">Controls</button>
+        </div>
+        <div class="settings-pane" role="tabpanel" id="pane-sound" aria-labelledby="tab-sound" data-pane="sound">
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-sound">Sound</span>
+            <div class="seg" role="group" aria-labelledby="lbl-sound">
+              <button data-setting="sound" data-value="true">On</button>
+              <button data-setting="sound" data-value="false">Off</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-sfxvol">Effects volume</span>
+            <div class="seg" role="group" aria-labelledby="lbl-sfxvol">
+              <button data-setting="sfxVol" data-value="0">Low</button>
+              <button data-setting="sfxVol" data-value="1">Med</button>
+              <button data-setting="sfxVol" data-value="2">High</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-music">Music</span>
+            <div class="seg" role="group" aria-labelledby="lbl-music">
+              <button data-setting="music" data-value="true">On</button>
+              <button data-setting="music" data-value="false">Off</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-musicvol">Music volume</span>
+            <div class="seg" role="group" aria-labelledby="lbl-musicvol">
+              <button data-setting="musicVol" data-value="0">Low</button>
+              <button data-setting="musicVol" data-value="1">Med</button>
+              <button data-setting="musicVol" data-value="2">High</button>
+            </div>
           </div>
         </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-sfxvol">Effects volume</span>
-          <div class="seg" role="group" aria-labelledby="lbl-sfxvol">
-            <button data-setting="sfxVol" data-value="0">Low</button>
-            <button data-setting="sfxVol" data-value="1">Med</button>
-            <button data-setting="sfxVol" data-value="2">High</button>
+        <div class="settings-pane" role="tabpanel" id="pane-display" aria-labelledby="tab-display" data-pane="display">
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-quality">Graphics</span>
+            <div class="seg" role="group" aria-labelledby="lbl-quality">
+              <button data-setting="quality" data-value="low">Low</button>
+              <button data-setting="quality" data-value="high">High</button>
+              <button data-setting="quality" data-value="auto">Auto</button>
+            </div>
+          </div>
+          <div class="setting-row wrap">
+            <span class="setting-label" id="lbl-camera">Camera</span>
+            <div class="seg wrap" role="group" aria-labelledby="lbl-camera">
+              <button data-setting="camera" data-value="chase">Chase</button>
+              <button data-setting="camera" data-value="cockpit">Cockpit</button>
+              <button data-setting="camera" data-value="hood">Hood</button>
+              <button data-setting="camera" data-value="top">Top</button>
+              <button data-setting="camera" data-value="corner">Corner</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-autorear">Rear view when reversing</span>
+            <div class="seg" role="group" aria-labelledby="lbl-autorear">
+              <button data-setting="autoRear" data-value="true">On</button>
+              <button data-setting="autoRear" data-value="false">Off</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-mirror">Rear mirror</span>
+            <div class="seg" role="group" aria-labelledby="lbl-mirror">
+              <button data-setting="mirror" data-value="true">On</button>
+              <button data-setting="mirror" data-value="false">Off</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-textsize">Text size</span>
+            <div class="seg" role="group" aria-labelledby="lbl-textsize">
+              <button data-setting="textSize" data-value="normal">Normal</button>
+              <button data-setting="textSize" data-value="large">Large</button>
+              <button data-setting="textSize" data-value="xlarge">Extra large</button>
+            </div>
           </div>
         </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-music">Music</span>
-          <div class="seg" role="group" aria-labelledby="lbl-music">
-            <button data-setting="music" data-value="true">On</button>
-            <button data-setting="music" data-value="false">Off</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-musicvol">Music volume</span>
-          <div class="seg" role="group" aria-labelledby="lbl-musicvol">
-            <button data-setting="musicVol" data-value="0">Low</button>
-            <button data-setting="musicVol" data-value="1">Med</button>
-            <button data-setting="musicVol" data-value="2">High</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-quality">Graphics</span>
-          <div class="seg" role="group" aria-labelledby="lbl-quality">
-            <button data-setting="quality" data-value="low">Low</button>
-            <button data-setting="quality" data-value="high">High</button>
-            <button data-setting="quality" data-value="auto">Auto</button>
-          </div>
-        </div>
-        <div class="setting-row wrap">
-          <span class="setting-label" id="lbl-camera">Camera</span>
-          <div class="seg wrap" role="group" aria-labelledby="lbl-camera">
-            <button data-setting="camera" data-value="chase">Chase</button>
-            <button data-setting="camera" data-value="cockpit">Cockpit</button>
-            <button data-setting="camera" data-value="hood">Hood</button>
-            <button data-setting="camera" data-value="top">Top</button>
-            <button data-setting="camera" data-value="corner">Corner</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-autorear">Rear view when reversing</span>
-          <div class="seg" role="group" aria-labelledby="lbl-autorear">
-            <button data-setting="autoRear" data-value="true">On</button>
-            <button data-setting="autoRear" data-value="false">Off</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-mirror">Rear mirror</span>
-          <div class="seg" role="group" aria-labelledby="lbl-mirror">
-            <button data-setting="mirror" data-value="true">On</button>
-            <button data-setting="mirror" data-value="false">Off</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-wheel">Wheel side</span>
-          <div class="seg" role="group" aria-labelledby="lbl-wheel">
-            <button data-setting="wheel" data-value="left">Left</button>
-            <button data-setting="wheel" data-value="right">Right</button>
-          </div>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label" id="lbl-textsize">Text size</span>
-          <div class="seg" role="group" aria-labelledby="lbl-textsize">
-            <button data-setting="textSize" data-value="normal">Normal</button>
-            <button data-setting="textSize" data-value="large">Large</button>
-            <button data-setting="textSize" data-value="xlarge">Extra large</button>
+        <div
+          class="settings-pane"
+          role="tabpanel"
+          id="pane-controls"
+          aria-labelledby="tab-controls"
+          data-pane="controls"
+        >
+          <div class="setting-row">
+            <span class="setting-label" id="lbl-wheel">Wheel side</span>
+            <div class="seg" role="group" aria-labelledby="lbl-wheel">
+              <button data-setting="wheel" data-value="left">Left</button>
+              <button data-setting="wheel" data-value="right">Right</button>
+            </div>
           </div>
         </div>
         <button class="settings-done" id="settings-done">Done</button>
