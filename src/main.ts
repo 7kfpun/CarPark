@@ -52,7 +52,8 @@ import {
   type Pose,
 } from './replay';
 import { activateUpdate, initPwa } from './pwa';
-import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
+import { recoverNow } from './recovery';
+import { fetchUpdate, mergeUpdate, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -81,8 +82,9 @@ scene.add(sun, sun.target);
 // Created before the renderer so the first frame uses the saved quality.
 const settings = loadSettings();
 const gfx = new Graphics(canvas, scene, sun, {
-  onLost: () => pause(),
-  onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+  onLost: () => holdForContextLoss(),
+  onRestored: () => pause(), // three.js re-uploads everything lazily; show the pause dialog now that the overlay is gone
+  onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
 gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
@@ -424,6 +426,15 @@ function showMenu(): void {
   applyUpdate();
 }
 
+/** Context lost: halt the run without opening the pause dialog under the graphics overlay (it is shown on restore). */
+function holdForContextLoss(): void {
+  if (state !== 'playing') return;
+  state = 'paused';
+  sfx.stopEngine();
+  syncAdminBar();
+  input.clear();
+}
+
 function pause(): void {
   // Also covers 'paused' with no modal (Settings opened from play, then a graphics reset):
   // show the modal so touch players can resume.
@@ -529,9 +540,9 @@ let pendingBuild: string | null = null;
 let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
 let swUpdateReady = false;
-// With a waiting service worker, activating it reloads the page onto the new build; otherwise reload past the HTTP cache.
+// With a waiting service worker, activating it reloads the page onto the new build; otherwise recover (cache-busted reload).
 const reloadPage = (): void => {
-  if (!activateUpdate()) location.replace(reloadUrl(location.href, Date.now()));
+  if (!activateUpdate()) recoverNow();
 };
 
 function applyUpdate(): void {
@@ -897,7 +908,7 @@ function reportFrameError(err: unknown): void {
   console.error('Frame loop error', err);
   const banner = document.getElementById('error-banner')!;
   banner.classList.remove('hidden');
-  document.getElementById('error-reload')!.addEventListener('click', () => location.reload());
+  document.getElementById('error-reload')!.addEventListener('click', recoverNow);
 }
 function frame(now: number): void {
   rafId = 0;

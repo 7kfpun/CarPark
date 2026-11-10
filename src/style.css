@@ -1014,6 +1014,11 @@ kbd {
   overflow: hidden;
 }
 
+#loading-reload,
+.gfx-overlay button {
+  margin-top: 14px;
+}
+
 #loading-fill {
   height: 100%;
   width: 0;
