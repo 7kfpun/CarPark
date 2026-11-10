@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FIRST_RUN_TIP, FIRST_RUN_TIP_SECONDS, markTipSeen, shouldShowTip } from './onboarding';
 import './style.css';
 import { reducedMotion } from './a11y';
 import { initAdmin, loadControls, mayPersist, saveControls, showSkipButtons, skipTarget, unlockAll } from './admin';
@@ -356,6 +357,10 @@ function startLevel(i: number): boolean {
   rig.snap(camTarget());
   syncFov();
   hud.startLevel(i, def);
+  if (levelIndex === 0 && shouldShowTip()) {
+    hud.showHint(FIRST_RUN_TIP, FIRST_RUN_TIP_SECONDS);
+    markTipSeen();
+  }
   gfx.startProbe();
   state = 'playing';
   syncAdminBar();
