@@ -40,9 +40,39 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Probe the live site over HTTPS once the publish reports success. Pages can take
+  # a short while to serve the new build, so retry before failing the workflow.
+  health:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live site
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          url="${PAGE_URL:-https://carpark.wahthefox.com/}"
+          case "$url" in
+            https://*) ;;
+            *) echo "::error::Deployed URL is not HTTPS: $url"; exit 1 ;;
+          esac
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -sS -L --proto '=https' --proto-redir '=https' --max-time 20 \
+              -o body.html -w '%{http_code}' "$url" || true)
+            if [ "$code" = "200" ] && grep -q '<title>Park It 3D</title>' body.html; then
+              echo "Healthy: $url returned $code"
+              exit 0
+            fi
+            echo "Attempt $attempt: HTTP ${code:-none} from $url, retrying in 20s"
+            sleep 20
+          done
+          echo "::error::Live site $url failed its HTTPS health check"
+          exit 1
