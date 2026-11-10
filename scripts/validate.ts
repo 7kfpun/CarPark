@@ -1518,16 +1518,26 @@ console.log('Worlds');
 
   // Proving Ground is appended after the older worlds, so nobody who finished them is locked out again.
   const proving = worldLevels(LEVELS, 'proving');
-  check(LOCATIONS[LOCATIONS.length - 1] === 'proving' && proving.length === 8, 'Proving Ground is last, with 8 levels');
+  check(LOCATIONS[LOCATIONS.length - 2] === 'proving' && proving.length === 8, 'Proving Ground has 8 levels');
   check(
-    LEVELS.slice(-8).every((l) => l.location === 'proving'),
-    'the 8 new levels are the last in play order',
+    LEVELS.slice(-13, -5).every((l) => l.location === 'proving'),
+    'the 8 Proving Ground levels sit right before Master Class',
+  );
+  // Master Class is the newest world and sits after Proving Ground.
+  const master = worldLevels(LEVELS, 'master-class');
+  check(
+    LOCATIONS[LOCATIONS.length - 1] === 'master-class' && master.length === 5,
+    'Master Class is last, with 5 levels',
+  );
+  check(
+    LEVELS.slice(-5).every((l) => l.location === 'master-class'),
+    'the 5 newest levels are the last in play order',
   );
   check(new Set(LEVELS.map((l) => l.name)).size === LEVELS.length, 'every level has a unique name');
   check(new Set(LEVELS.map((l) => l.hint)).size === LEVELS.length, 'every level has a unique hint');
   // Margin: no route may rely on scraping past things. The recorded solution keeps 0.1 m clear of every obstacle
   // (the search that found it asked for 0.15-0.2 m).
-  for (const l of proving) {
+  for (const l of [...proving, ...master]) {
     const r = replaySolution(l, SOLUTIONS[l.id], 0.1);
     check(
       r.parked && r.tight === 0,

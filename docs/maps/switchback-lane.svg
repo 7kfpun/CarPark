@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-340 -480 680 960" width="680" height="960" role="img" aria-label="Switchback Lane">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-340" y="-480" width="680" height="960"/>
+<polygon class="floor" points="300,440 300,-440 -300,-440 -300,440"/>
+<polyline class="roadarrow" points="-160,-270 -160,-210"/><polygon class="roadarrowf" points="-160,-210 -170.8,-226.8 -149.2,-226.8"/>
+<polyline class="roadarrow" points="-160,-190 -160,-130"/><polygon class="roadarrowf" points="-160,-130 -170.8,-146.8 -149.2,-146.8"/>
+<polyline class="roadarrow" points="-70,-100 -10,-100"/><polygon class="roadarrowf" points="-10,-100 -26.8,-89.2 -26.8,-110.8"/>
+<polyline class="roadarrow" points="30,-100 90,-100"/><polygon class="roadarrowf" points="90,-100 73.2,-89.2 73.2,-110.8"/>
+<polyline class="roadarrow" points="140,10 140,70"/><polygon class="roadarrowf" points="140,70 129.2,53.2 150.8,53.2"/>
+<polyline class="roadarrow" points="140,70 140,130"/><polygon class="roadarrowf" points="140,130 129.2,113.2 150.8,113.2"/>
+<polyline class="roadarrow" points="140,130 140,190"/><polygon class="roadarrowf" points="140,190 129.2,173.2 150.8,173.2"/>
+<polygon class="target" points="170,360 170,248 110,248 110,360"/>
+<polyline class="targetarrow" points="140,269 140,339"/><polygon class="targetarrowf" points="140,339 127.4,319.4 152.6,319.4"/>
+<polygon class="wall" points="-204,-52 -204,-420 -212,-420 -212,-52"/>
+<polygon class="wall" points="-104,-148 -104,-420 -112,-420 -112,-148"/>
+<polygon class="wall" points="188,-152 -108,-152 -108,-144 188,-144"/>
+<polygon class="wall" points="92,-56 -208,-56 -208,-48 92,-48"/>
+<polygon class="wall" points="96,388 96,-52 88,-52 88,388"/>
+<polygon class="wall" points="192,388 192,-148 184,-148 184,388"/>
+<polygon class="wall" points="188,384 92,384 92,392 188,392"/>
+<polygon class="wall" points="312,452 312,440 -312,440 -312,452"/>
+<polygon class="wall" points="312,-440 312,-452 -312,-452 -312,-440"/>
+<polygon class="wall" points="312,440 312,-440 300,-440 300,440"/>
+<polygon class="wall" points="-300,440 -300,-440 -312,-440 -312,440"/>
+<polygon class="start" points="-140,-313 -140,-407 -180,-407 -180,-313"/>
+<polyline class="startarrow" points="-160,-397.6 -160,-322.4"/><polygon class="startarrowf" points="-160,-322.4 -173.54,-343.46 -146.46,-343.46"/>
+</svg>
