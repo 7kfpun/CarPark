@@ -34,6 +34,7 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { applyDamage, crashDamage, loadHealth, saveHealth } from './health';
 import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
 import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
 import type { Missions } from './missions';
@@ -208,6 +209,7 @@ adminBadge.addEventListener('click', () => {
 });
 adminPrev.addEventListener('click', () => skipLevel(-1));
 adminNext.addEventListener('click', () => skipLevel(1));
+const health = loadHealth();
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -754,10 +756,14 @@ function step(dt: number): void {
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
-  if (isTouch(car.resolveCollisions(nearby, level.surfaces), TOUCH_MIN_SPEED)) {
+  const impact = car.resolveCollisions(nearby, level.surfaces);
+  if (isTouch(impact, TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
-    return finish(false, 'You hit something. Ease off near cars, walls and cones.');
+    const damage = crashDamage(impact);
+    const left = applyDamage(health, vehicleOf(def.vehicle).id, damage);
+    if (mayPersist(ADMIN)) saveHealth(health);
+    return finish(false, `You hit something: -${damage} HP, ${left} left. Ease off near cars, walls and cones.`);
   }
   // Record the resolved pose, so frames never show the car inside an obstacle.
   recorder.step(car);
