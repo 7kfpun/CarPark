@@ -28,7 +28,7 @@ import {
 } from '../src/replay';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
-import { canRunGame, padConfirmAction } from '../src/guards';
+import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
 import {
   angleDelta,
   deadzone,
@@ -1520,6 +1520,20 @@ check(
   !canRunGame(true, false) && !canRunGame(false, true) && !canRunGame(true, true),
   'Settings or a lost context blocks the game',
 );
+{
+  let used = false;
+  let blocked = true;
+  const act = (): boolean => !blocked;
+  used = runModalAction(used, act);
+  check(!used, 'a blocked modal action leaves the button live');
+  blocked = false;
+  used = runModalAction(used, act);
+  check(used, 'the retried modal action runs and marks the button used');
+  let calls = 0;
+  runModalAction(used, () => void calls++);
+  check(calls === 0, 'a used modal button does not fire twice');
+  check(runModalAction(false, () => void calls++) && calls === 1, 'a void action counts as run');
+}
 check(padConfirmAction(true, false) === 'click', 'pad A clicks a focused nav button even with actions off');
 check(padConfirmAction(false, true) === 'enter', 'pad A runs Enter when actions are on');
 check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Settings');
