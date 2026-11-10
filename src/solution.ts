@@ -88,9 +88,66 @@ function lotProblems(def: LevelDef, startLayer: string, lot: OBB): string[] {
       // Wall runs may meet at corners and T-joints (neither centre lies inside the other); crossing, stacked or
       // heavily overlapping walls have a centre inside the other, and count like any other overlap.
       const walls = def.obstacles[i].kind === 'wall' && def.obstacles[j].kind === 'wall';
-      if (!walls || pointInOBB(a.x, a.z, b) || pointInOBB(b.x, b.z, a)) out.push(`obstacles #${i} and #${j} overlap`);
+      if (!walls || wallsOverlap(a, b)) out.push(`obstacles #${i} and #${j} overlap`);
     }
   return out;
+}
+
+type Pt = [number, number];
+
+/** Clip convex polygon `poly` to the box `box` (Sutherland-Hodgman, orientation independent). */
+function clipToBox(poly: Pt[], box: OBB): Pt[] {
+  const c = corners(box) as Pt[];
+  const mid: Pt = [box.x, box.z];
+  let out = poly;
+  for (let k = 0; k < c.length && out.length; k++) {
+    const p = c[k];
+    const q = c[(k + 1) % c.length];
+    const side = (v: Pt) => {
+      const d = (q[0] - p[0]) * (v[1] - p[1]) - (q[1] - p[1]) * (v[0] - p[0]);
+      const m = (q[0] - p[0]) * (mid[1] - p[1]) - (q[1] - p[1]) * (mid[0] - p[0]);
+      return d * Math.sign(m);
+    };
+    const next: Pt[] = [];
+    for (let n = 0; n < out.length; n++) {
+      const u = out[n];
+      const v = out[(n + 1) % out.length];
+      const su = side(u);
+      const sv = side(v);
+      if (su >= 0) next.push(u);
+      if (su >= 0 !== sv >= 0) {
+        const t = su / (su - sv);
+        next.push([u[0] + (v[0] - u[0]) * t, u[1] + (v[1] - u[1]) * t]);
+      }
+    }
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * Whether two touching wall boxes overlap more than a joint does. Legal joints: corners and T-joints, where the
+ * overlap sits at the end of a wall (laneWalls extends corners by 1 m), and butt joints (a sliver along the run).
+ * Illegal: near-parallel walls sharing more than 0.15 m of run, and crossings whose overlap is over 2 m from an
+ * end of both walls.
+ */
+function wallsOverlap(a: OBB, b: OBB): boolean {
+  const poly = clipToBox(corners(a) as Pt[], b);
+  if (poly.length < 3) return false;
+  // Long axis, half length and the overlap's extent along it, per wall.
+  const along = (w: OBB) => {
+    const [ux, uz] = w.hw >= w.hl ? [Math.cos(w.rot), -Math.sin(w.rot)] : [Math.sin(w.rot), Math.cos(w.rot)];
+    const half = Math.max(w.hw, w.hl);
+    const t = poly.map(([x, z]) => (x - w.x) * ux + (z - w.z) * uz);
+    const lo = Math.min(...t);
+    const hi = Math.max(...t);
+    return { ux, uz, run: hi - lo, endGap: Math.min(lo + half, half - hi) };
+  };
+  const pa = along(a);
+  const pb = along(b);
+  const parallel = Math.abs(pa.ux * pb.uz - pa.uz * pb.ux) < 0.1;
+  if (parallel) return pa.run > 0.15;
+  return pa.endGap > 2 && pb.endGap > 2;
 }
 
 /**

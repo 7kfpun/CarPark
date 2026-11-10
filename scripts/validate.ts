@@ -900,6 +900,20 @@ console.log('Floors and ramps');
   );
   check(
     at([
+      { kind: 'wall', x: 0, z: -20, w: 10, l: 0.4 },
+      { kind: 'wall', x: 2, z: -18, w: 0.4, l: 10 },
+    ]).includes('overlap'),
+    'offset crossing walls not detected',
+  );
+  check(
+    at([
+      { kind: 'wall', x: -3, z: -20, w: 6, l: 0.4 },
+      { kind: 'wall', x: 1.5, z: -20, w: 6, l: 0.4 },
+    ]).includes('overlap'),
+    'collinear overlapping walls not detected',
+  );
+  check(
+    at([
       { kind: 'wall', x: 0, z: -20, w: 4, l: 0.4 },
       { kind: 'wall', x: 1.8, z: -18, w: 0.4, l: 4 },
     ]) === '',
