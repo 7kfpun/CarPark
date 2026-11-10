@@ -19,6 +19,7 @@ import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
+import { buyCar, driveVehicleId, loadGarage, repairCar, repairCostFor, saveGarage, selectCar, SHOP } from './garage';
 import {
   assistMode,
   bodyHidden,
@@ -34,7 +35,7 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
-import { applyDamage, crashDamage, loadHealth, saveHealth } from './health';
+import { applyDamage, crashDamage, hpFor, loadHealth, saveHealth } from './health';
 import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
 import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
 import type { Missions } from './missions';
@@ -209,6 +210,10 @@ adminBadge.addEventListener('click', () => {
 });
 adminPrev.addEventListener('click', () => skipLevel(-1));
 adminNext.addEventListener('click', () => skipLevel(1));
+const garage = loadGarage();
+/** The vehicle for a level: its own if it sets one, otherwise the player's selected car. */
+const vehicleFor = (def: LevelDef): VehicleDef => vehicleOf(driveVehicleId(def.vehicle, garage));
+let garageOpen = false;
 const health = loadHealth();
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
@@ -315,7 +320,7 @@ function onModelsLoaded(): void {
   }
   // The menu shows no ghost (the next startLevel makes one); otherwise put it where the run is.
   if (wasGhost && ghostFrames && state !== 'menu') {
-    ghostCar = ghostFor(vehicleOf(LEVELS[levelIndex].vehicle));
+    ghostCar = ghostFor(vehicleFor(LEVELS[levelIndex]));
     updateGhost(elapsed);
   }
   // Never rebuild the lot under a run: it comes up at the next menu or level start.
@@ -369,12 +374,12 @@ function canRun(): boolean {
 }
 
 function startLevel(i: number): boolean {
-  if (!canRun()) return false;
+  if (!canRun() || garageOpen) return false;
   sfx.unlock();
   sfx.startMusic();
   if (!level || levelIndex !== i || levelStale) loadLevel(i);
   const def = LEVELS[i];
-  const vehicle = vehicleOf(def.vehicle);
+  const vehicle = vehicleFor(def);
   const previous = player.model.root;
   if (player.use(vehicle)) swapPlayerModel(previous);
   replay = null;
@@ -399,7 +404,7 @@ function startLevel(i: number): boolean {
   rig.setFreeLook(false);
   rig.snap(camTarget());
   syncFov();
-  hud.startLevel(i, def);
+  hud.startLevel(i, { ...def, vehicle: vehicle.id });
   if (levelIndex === 0 && shouldShowTip()) {
     hud.showHint(FIRST_RUN_TIP, FIRST_RUN_TIP_SECONDS);
     markTipSeen();
@@ -681,6 +686,7 @@ input.on('Escape', () => {
   if (state === 'playing') pause();
   else if (state === 'paused') resume();
   else if (state === 'done') showMenu();
+  else if (state === 'menu' && garageOpen) closeGarage();
 });
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
@@ -716,6 +722,88 @@ document.getElementById('btn-settings')!.addEventListener('click', (e) => {
 document.getElementById('btn-settings-menu')!.addEventListener('click', (e) => {
   openSettings(e.detail === 0 ? (e.currentTarget as HTMLElement) : null);
 });
+function openGarage(note = ''): void {
+  garageOpen = true;
+  const persist = mayPersist(ADMIN);
+  const buttons = SHOP.map((c) => {
+    const name = vehicleOf(c.id).name;
+    const owned = garage.owned.includes(c.id);
+    const hp = hpFor(health, c.id);
+    const hpTag = owned ? ` · ${hp} HP${hp === 0 ? ' wrecked' : ''}` : '';
+    const label =
+      garage.selected === c.id
+        ? `✓ ${name} (driving${hpTag})`
+        : owned
+          ? `Drive ${name}${hpTag}`
+          : `Buy ${name}: ${c.price} coins`;
+    return {
+      label,
+      primary: false,
+      onClick: () => {
+        if (owned) selectCar(garage, c.id);
+        else {
+          const purse = { money: wallet.money };
+          if (buyCar(garage, purse, c.id, health) !== 'bought') {
+            openGarage('Not enough coins for that car.');
+            return;
+          }
+          wallet = { ...wallet, money: purse.money };
+          if (persist) {
+            // Garage and health first, the wallet last: a failed write must not keep the charge and drop the car.
+            saveGarage(garage);
+            saveHealth(health);
+            saveWallet(wallet);
+          }
+          sfx.click();
+          showMissions();
+          openGarage();
+          return;
+        }
+        if (persist) saveGarage(garage);
+        sfx.click();
+        openGarage();
+      },
+    };
+  });
+  const cost = repairCostFor(health, garage.selected);
+  if (cost > 0) {
+    buttons.push({
+      label: `Repair ${vehicleOf(garage.selected).name}: ${cost} coins`,
+      primary: false,
+      onClick: () => {
+        const purse = { money: wallet.money };
+        if (repairCar(health, purse, garage.selected) !== 'repaired') {
+          openGarage('Not enough coins to repair. Buy or drive another car instead.');
+          return;
+        }
+        wallet = { ...wallet, money: purse.money };
+        if (persist) {
+          saveHealth(health);
+          saveWallet(wallet);
+        }
+        sfx.click();
+        showMissions();
+        openGarage();
+      },
+    });
+  }
+  buttons.push({
+    label: 'Done',
+    primary: true,
+    onClick: closeGarage,
+  });
+  hud.showModal(
+    'Garage',
+    `${note ? `${note} ` : ''}You have ${wallet.money} coins. Levels with their own vehicle keep it; the rest use your car.`,
+    null,
+    buttons,
+  );
+}
+function closeGarage(): void {
+  garageOpen = false;
+  hud.hideModal();
+}
+document.getElementById('btn-garage')!.addEventListener('click', () => openGarage());
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
   if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
@@ -752,7 +840,7 @@ function step(dt: number): void {
   if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controlsFor(car.v), level.surfaces);
-  sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
+  sfx.setEngine(car.v, player.vehicle.maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
@@ -761,7 +849,7 @@ function step(dt: number): void {
     sfx.crash();
     hud.flashHit();
     const damage = crashDamage(impact);
-    const left = applyDamage(health, vehicleOf(def.vehicle).id, damage);
+    const left = applyDamage(health, vehicleFor(def).id, damage);
     if (mayPersist(ADMIN)) saveHealth(health);
     return finish(false, `You hit something: -${damage} HP, ${left} left. Ease off near cars, walls and cones.`);
   }

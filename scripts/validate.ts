@@ -39,6 +39,16 @@ import {
   Recorder,
   REPLAY_HZ,
 } from '../src/replay';
+import {
+  buyCar,
+  driveVehicleId,
+  freshGarage,
+  parseGarage,
+  repairCar,
+  repairCostFor,
+  selectCar,
+  SHOP,
+} from '../src/garage';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import {
   COINS_PER_HOUR,
@@ -2627,6 +2637,81 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+}
+
+// --- Garage (buy / choose a car, spending the shared wallet) ---------------------
+console.log('Garage');
+{
+  const g = freshGarage();
+  const w = { money: 500 };
+  check(g.owned.length === 1 && g.selected === 'hatchback', 'a fresh garage owns the starter car');
+  check(
+    SHOP.every((c) => VEHICLES.some((v) => v.id === c.id)),
+    'every shop car is a known vehicle',
+  );
+  check(SHOP[0].price === 0 && SHOP.every((c) => c.price >= 0), 'the starter car is free and no price is negative');
+  check(buyCar(g, w, 'nope') === 'unknown' && w.money === 500, 'an unknown car cannot be bought');
+  check(buyCar(g, w, 'hatchback') === 'owned' && w.money === 500, 'an owned car is not charged again');
+  check(
+    buyCar(g, w, 'suv') === 'bought' && w.money === 0 && g.selected === 'suv',
+    'buying spends wallet coins and selects the car',
+  );
+  check(
+    buyCar(g, w, 'sedan') === 'poor' && !g.owned.includes('sedan') && w.money === 0,
+    'a car you cannot afford changes nothing',
+  );
+  check(selectCar(g, 'hatchback') && g.selected === 'hatchback', 'an owned car can be selected');
+  check(!selectCar(g, 'sedan') && g.selected === 'hatchback', 'an unowned car cannot be selected');
+  check(
+    driveVehicleId('van', g) === 'van' && driveVehicleId(undefined, g) === 'hatchback',
+    'levels with their own vehicle keep it',
+  );
+  const junk = parseGarage({ coins: 99, owned: ['suv', 'suv', 'tank', 7], selected: 'sedan' });
+  check(
+    junk.owned.join() === 'hatchback,suv' && junk.selected === 'hatchback' && !('coins' in junk),
+    'junk storage is cleaned up and the old placeholder coins are dropped',
+  );
+  check(parseGarage(null).owned.join() === 'hatchback', 'missing storage gives the starter garage');
+  check(parseGarage({ owned: ['sedan'], selected: 'sedan' }).selected === 'sedan', 'a saved owned selection is kept');
+  // HP / repair: a wrecked car is repaired with wallet coins, or the player switches to another car.
+  const h = freshHealth();
+  const w2 = { money: 100 };
+  applyDamage(h, 'hatchback', 100);
+  check(
+    hpFor(h, 'hatchback') === 0 && repairCostFor(h, 'hatchback') === 100 * COST_PER_HP,
+    'a wreck costs full repair price',
+  );
+  check(
+    repairCar(h, w2, 'hatchback') === 'poor' && hpFor(h, 'hatchback') === 0 && w2.money === 100,
+    'too poor to repair changes nothing',
+  );
+  const g2 = freshGarage();
+  const w3 = { money: 300 };
+  check(
+    buyCar(g2, w3, 'sedan') === 'bought' && g2.selected === 'sedan' && hpFor(h, g2.selected) === 100,
+    'after a wreck you can buy a different car, which comes at full HP',
+  );
+  // A forced-vehicle level can wreck a car before it is owned; buying it must not inherit that damage.
+  const g3 = freshGarage();
+  const h3 = freshHealth();
+  applyDamage(h3, 'suv', 100);
+  const w4 = { money: 500 };
+  check(
+    buyCar(g3, w4, 'suv', h3) === 'bought' && hpFor(h3, 'suv') === 100 && !('suv' in h3.hp) && w4.money === 0,
+    'a car bought after being wrecked as a level vehicle is at full HP',
+  );
+  applyDamage(h3, 'hatchback', 40);
+  check(
+    buyCar(g3, w4, 'hatchback', h3) === 'owned' && hpFor(h3, 'hatchback') === 60 && w4.money === 0,
+    'buying a car you already own leaves its HP',
+  );
+  w3.money = 250;
+  applyDamage(h, 'sedan', 50);
+  check(
+    repairCar(h, w3, 'sedan') === 'repaired' && hpFor(h, 'sedan') === 100 && w3.money === 150,
+    'repair spends wallet coins',
+  );
+  check(repairCar(h, w3, 'sedan') === 'full' && w3.money === 150, 'a full-HP car is not charged');
 }
 
 // --- Car HP and crash damage ---------------------------------------------------
