@@ -189,6 +189,11 @@ button:focus-visible {
     visibility 0s 0.6s;
 }
 
+/* An emptied hint disappears on the same frame instead of fading its bare pill out. */
+#hud-hint.fade:empty {
+  transition: none;
+}
+
 #park-meter {
   position: absolute;
   bottom: calc(22% + var(--safe-b));
