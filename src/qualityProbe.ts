@@ -20,20 +20,29 @@ export function probeQuality(avgMs: number, frames: number, fallback: Quality): 
 }
 
 const KEY = 'car-parking-3d:auto-quality:v1';
+/** A saved Low expires after this long: a 30 fps cap (iOS Low Power Mode) looks like a slow device, and must not stick forever. */
+export const LOW_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** The remembered result of an earlier probe (or slow-frame downgrade), or null on first run. */
-export function loadDetected(): Quality | null {
+/** Parse a stored value: `high`, or `low:<savedAtMs>`. A Low without a timestamp (older builds) or past its TTL is dropped so Auto probes again. */
+export function parseDetected(raw: string | null, now: number): Quality | null {
+  if (raw === 'high') return 'high';
+  if (!raw?.startsWith('low:')) return null;
+  const at = Number(raw.slice(4));
+  return Number.isFinite(at) && now - at >= 0 && now - at < LOW_TTL_MS ? 'low' : null;
+}
+
+/** The remembered result of an earlier probe (or slow-frame downgrade), or null on first run or when a saved Low has expired. */
+export function loadDetected(now = Date.now()): Quality | null {
   try {
-    const v = localStorage.getItem(KEY);
-    return v === 'low' || v === 'high' ? v : null;
+    return parseDetected(localStorage.getItem(KEY), now);
   } catch {
     return null;
   }
 }
 
-export function saveDetected(q: Quality): void {
+export function saveDetected(q: Quality, now = Date.now()): void {
   try {
-    localStorage.setItem(KEY, q);
+    localStorage.setItem(KEY, q === 'low' ? `low:${now}` : q);
   } catch {
     // storage unavailable: the probe just runs again next visit
   }
