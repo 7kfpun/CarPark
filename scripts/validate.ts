@@ -137,6 +137,7 @@ import { FAST_MS, LOW_TTL_MS, SLOW_MS, parseDetected, probeQuality } from '../sr
 import { budgetProblems, chunkName, makeBudget, sizeTable, withHeadroom, type Chunk } from './sizeReport';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
+import { WHATS_NEW } from '../src/whatsnew';
 import {
   bestFor,
   loadProgress,
@@ -2191,6 +2192,45 @@ console.log('Performance budget');
   const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
   check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
+
+  // Storefront: every icon / preview the page and manifest point at exists, with the right size.
+  const html = readFileSync('index.html', 'utf8');
+  const pngSize = (f: string): string => {
+    const b = readFileSync(`public/${f}`);
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    return b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 ? `${dv.getUint32(16)}x${dv.getUint32(20)}` : 'not a png';
+  };
+  check(pngSize('apple-touch-icon.png') === '180x180', 'storefront: apple-touch-icon is a 180x180 png');
+  check(pngSize('og-image.png') === '1200x630', 'storefront: og-image is a 1200x630 png');
+  check(pngSize('favicon-32.png') === '32x32', 'storefront: favicon-32 is a 32x32 png');
+  check(existsSync('public/favicon.svg'), 'storefront: favicon.svg exists');
+  const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8')) as {
+    icons: { src: string; sizes: string }[];
+  };
+  for (const ic of manifest.icons) {
+    check(
+      ic.sizes === 'any' ? existsSync(`public/${ic.src}`) : pngSize(ic.src) === ic.sizes,
+      `storefront: manifest icon ${ic.src} exists at ${ic.sizes}`,
+    );
+  }
+  check(
+    manifest.icons.some((i) => i.sizes === '192x192') && manifest.icons.some((i) => i.sizes === '512x512'),
+    'storefront: manifest has 192 and 512 png icons',
+  );
+  for (const tag of ['og:title', 'og:description', 'og:image', 'og:url', 'og:site_name', 'twitter:image']) {
+    check(html.includes(`"${tag}"`), `storefront: index.html has ${tag}`);
+  }
+  check(
+    ['href="/favicon.svg"', 'href="/favicon-32.png"', 'href="/apple-touch-icon.png"', 'rel="canonical"'].every((t) =>
+      html.includes(t),
+    ),
+    'storefront: index.html links the favicons, apple-touch-icon and canonical',
+  );
+  check(
+    html.includes('"twitter:image:alt"') && html.includes('id="whats-new"'),
+    "storefront: index.html has twitter:image:alt and the what's-new slot",
+  );
+  check(WHATS_NEW.length > 0 && WHATS_NEW.length <= 120, "storefront: what's-new note is short and not empty");
 }
 
 // CARP-134: touches on or just around the wheel / pedals are never a camera drag.

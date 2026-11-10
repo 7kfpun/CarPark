@@ -7,6 +7,7 @@ import { levelPlayable, LOCATIONS, WORLDS, worldLevels, worldStars, worldUnlocke
 import type { LocationId } from './layout';
 import { vehicleOf } from './vehicles';
 import { APP_VERSION } from './version';
+import { WHATS_NEW } from './whatsnew';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -130,6 +131,7 @@ export class Hud {
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
     $('menu-version').textContent = `v${APP_VERSION}`;
+    $('whats-new').textContent = WHATS_NEW;
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');
