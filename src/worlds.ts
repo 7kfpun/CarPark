@@ -2,14 +2,7 @@ import type { LevelDef, LocationId } from './layout';
 import { isUnlocked, starsFor, type Progress } from './progress';
 
 /** Worlds in play order: finish one to open the next. */
-export const LOCATIONS: LocationId[] = [
-  'open-air',
-  'multi-storey',
-  'industrial',
-  'twilight',
-  'proving',
-  'master-class',
-];
+export const LOCATIONS: LocationId[] = ['open-air', 'multi-storey', 'industrial', 'proving', 'master-class'];
 
 export interface WorldInfo {
   id: LocationId;
@@ -41,13 +34,6 @@ export const WORLDS: Record<LocationId, WorldInfo> = {
     blurb: 'Vans, buses and trucks need room.',
     icon: '🏭',
     color: '#e76f51',
-  },
-  twilight: {
-    id: 'twilight',
-    name: 'Twilight District',
-    blurb: 'Dusk light, one-way lanes and tight finishes.',
-    icon: '🌆',
-    color: '#9d4edd',
   },
   proving: {
     id: 'proving',

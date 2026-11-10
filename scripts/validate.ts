@@ -16,6 +16,7 @@ import {
 } from '../src/config';
 import {
   beatsGhost,
+  nextGhost,
   decodeFrames,
   duration,
   encodeFrames,
@@ -28,6 +29,8 @@ import {
   Recorder,
   REPLAY_HZ,
 } from '../src/replay';
+import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
+import { isUpdateWaiting } from '../src/pwa';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -67,12 +70,13 @@ import {
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { MODEL_SHARED, toTemplate } from '../src/carModels';
+import { MODEL_SHARED, loadCarModels, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
 import {
   applyOrbit,
   clampOrbit,
   dragOrbit,
+  inControlZone,
   isDoubleTap,
   isOffCentre,
   orbitCentre,
@@ -84,7 +88,7 @@ import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
-import { loadingLabel, withTimeout } from '../src/loading';
+import { backoffMs, loadingLabel, mapLimit, retry, withTimeout } from '../src/loading';
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
 import { evaluateParking, parkChecklist } from '../src/parking';
 import { CarPhysics } from '../src/physics';
@@ -143,6 +147,7 @@ import { FAST_MS, LOW_TTL_MS, SLOW_MS, parseDetected, probeQuality } from '../sr
 import { budgetProblems, chunkName, makeBudget, sizeTable, withHeadroom, type Chunk } from './sizeReport';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
+import { WHATS_NEW } from '../src/whatsnew';
 import {
   bestFor,
   loadProgress,
@@ -570,10 +575,10 @@ console.log('Multi-storey view helpers');
     'dusk is outdoor light, still bright enough to drive',
   );
   check(lightTarget(true, false, true).sun === 0, 'a deck still switches the sun off at dusk');
-  const themed = LEVELS.filter((l) => l.theme === 'dusk');
+  // Twilight District is gone (CARP-135); the dusk lighting stays, and other worlds keep using it.
   check(
-    themed.length >= 3 && LEVELS.some((l) => (l.arrows?.length ?? 0) > 0),
-    'dusk levels and one-way arrows are in use',
+    LEVELS.some((l) => l.theme === 'dusk') && LEVELS.some((l) => (l.arrows?.length ?? 0) > 0),
+    'dusk lighting and one-way arrows are still in use',
   );
 }
 
@@ -1267,6 +1272,54 @@ console.log('Load timeout');
   check((await withTimeout(Promise.resolve(7), 50)) === 7, 'withTimeout passes a fast result through');
   const rej = await withTimeout(Promise.reject(new Error('boom')), 50).catch((e: Error) => e.message);
   check(rej === 'boom', 'withTimeout passes rejections through');
+  let timedOut = false;
+  await withTimeout(new Promise<void>(() => undefined), 5, 'x', () => (timedOut = true)).catch(() => undefined);
+  check(timedOut, 'withTimeout calls onTimeout so the caller can abort the work');
+  // A stalled download must be aborted so the next attempt issues a new request (three.js would
+  // otherwise dedupe it onto the hung one).
+  (globalThis as { __APP_BUILD__?: string }).__APP_BUILD__ = 'validate'; // normally injected by Vite
+  const realFetch = globalThis.fetch;
+  let hits = 0;
+  let aborted = false;
+  globalThis.fetch = ((input: Request) => {
+    hits++;
+    if (hits > 1) return Promise.resolve(new Response(null, { status: 404 }));
+    // First request never answers; it only ends when aborted.
+    return new Promise<Response>((_res, rej) =>
+      input.signal.addEventListener('abort', () => {
+        aborted = true;
+        rej(new DOMException('aborted', 'AbortError'));
+      }),
+    );
+  }) as typeof fetch;
+  const warn = console.warn;
+  console.warn = () => undefined;
+  await loadCarModels(['__stall_test__'], undefined, 80, 'http://models.test/', 2, 1);
+  console.warn = warn;
+  globalThis.fetch = realFetch;
+  check(aborted, 'a timed-out download is aborted');
+  check(hits === 2, `a second attempt issues a new request after the first times out (saw ${hits})`);
+}
+console.log('Model load retry and concurrency');
+{
+  let active = 0;
+  let peak = 0;
+  const done: number[] = [];
+  await mapLimit([1, 2, 3, 4, 5, 6], 2, async (n) => {
+    peak = Math.max(peak, ++active);
+    await new Promise((r) => setTimeout(r, 5));
+    active--;
+    done.push(n);
+  });
+  check(peak === 2 && done.length === 6, 'mapLimit runs every item with at most `limit` in flight');
+  let calls = 0;
+  const v = await retry(() => (++calls < 3 ? Promise.reject(new Error('flaky')) : Promise.resolve('ok')), 3, 1);
+  check(v === 'ok' && calls === 3, 'retry succeeds after transient failures');
+  let calls2 = 0;
+  const msg = await retry(() => (++calls2, Promise.reject(new Error('down'))), 2, 1).catch((e: Error) => e.message);
+  check(msg === 'down' && calls2 === 2, 'retry gives up after the attempt limit with the last error');
+  check(backoffMs(0, 100, 1000) === 100 && backoffMs(2, 100, 1000) === 400, 'backoff doubles');
+  check(backoffMs(10, 100, 1000) === 1000, 'backoff is capped');
 }
 console.log('Build version');
 check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
@@ -1519,6 +1572,24 @@ console.log('Worlds');
   check(
     lv('basement').location === 'multi-storey' && lv('van-garage').location === 'industrial',
     'levels sit in the right worlds',
+  );
+
+  check(
+    !LEVELS.some((l) => (l.location as string) === 'twilight') && !('twilight' in WORLDS),
+    'Twilight District is removed',
+  );
+  check(
+    [
+      'reverse-gate',
+      'tight-squeeze',
+      'slalom-reverse',
+      'the-finale',
+      'dusk-gate',
+      'twilight-squeeze',
+      'dusk-slalom',
+      'night-finale',
+    ].every((id) => !LEVELS.some((l) => l.id === id)),
+    'no Twilight District stage is in the level list',
   );
 
   // Proving Ground is appended after the older worlds, so nobody who finished them is locked out again.
@@ -2031,6 +2102,15 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
     beatsGhost(undefined, 12) && beatsGhost({ time: 12, data: enc }, 11) && !beatsGhost({ time: 12, data: enc }, 12),
     'only a faster run replaces the ghost',
   );
+  const huge = Array.from({ length: 20_000 }, () => 123456);
+  const old = { time: 12, data: enc };
+  check(
+    nextGhost(old, 11, enc)?.time === 11 &&
+      nextGhost(old, 12, enc) === old &&
+      nextGhost(undefined, 5, huge) === undefined,
+    'nextGhost keeps the faster ghost',
+  );
+  check(nextGhost(old, 11, huge) === undefined, 'a faster run too big to store drops the stale slower ghost');
   check(!beatsGhost(undefined, 0) && !beatsGhost(undefined, NaN), 'a bad time never becomes a ghost');
   const ghosts = parseGhosts(
     { a: { time: 5, data: enc }, b: { time: 5, data: [1] }, zz: { time: 5, data: enc }, c: { time: -1, data: enc } },
@@ -2122,6 +2202,90 @@ console.log('Performance budget');
   const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
   check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
+
+  // Storefront: every icon / preview the page and manifest point at exists, with the right size.
+  const html = readFileSync('index.html', 'utf8');
+  const pngSize = (f: string): string => {
+    const b = readFileSync(`public/${f}`);
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    return b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 ? `${dv.getUint32(16)}x${dv.getUint32(20)}` : 'not a png';
+  };
+  check(pngSize('apple-touch-icon.png') === '180x180', 'storefront: apple-touch-icon is a 180x180 png');
+  check(pngSize('og-image.png') === '1200x630', 'storefront: og-image is a 1200x630 png');
+  check(pngSize('favicon-32.png') === '32x32', 'storefront: favicon-32 is a 32x32 png');
+  check(existsSync('public/favicon.svg'), 'storefront: favicon.svg exists');
+  const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8')) as {
+    icons: { src: string; sizes: string }[];
+  };
+  for (const ic of manifest.icons) {
+    check(
+      ic.sizes === 'any' ? existsSync(`public/${ic.src}`) : pngSize(ic.src) === ic.sizes,
+      `storefront: manifest icon ${ic.src} exists at ${ic.sizes}`,
+    );
+  }
+  check(
+    manifest.icons.some((i) => i.sizes === '192x192') && manifest.icons.some((i) => i.sizes === '512x512'),
+    'storefront: manifest has 192 and 512 png icons',
+  );
+  for (const tag of ['og:title', 'og:description', 'og:image', 'og:url', 'og:site_name', 'twitter:image']) {
+    check(html.includes(`"${tag}"`), `storefront: index.html has ${tag}`);
+  }
+  check(
+    ['href="/favicon.svg"', 'href="/favicon-32.png"', 'href="/apple-touch-icon.png"', 'rel="canonical"'].every((t) =>
+      html.includes(t),
+    ),
+    'storefront: index.html links the favicons, apple-touch-icon and canonical',
+  );
+  check(
+    html.includes('"twitter:image:alt"') && html.includes('id="whats-new"'),
+    "storefront: index.html has twitter:image:alt and the what's-new slot",
+  );
+  check(WHATS_NEW.length > 0 && WHATS_NEW.length <= 120, "storefront: what's-new note is short and not empty");
+}
+
+// CARP-134: touches on or just around the wheel / pedals are never a camera drag.
+{
+  const zones = [
+    { left: 16, top: 200, right: 156, bottom: 340 },
+    { left: 700, top: 220, right: 800, bottom: 340 },
+  ];
+  check(inControlZone(80, 270, zones), 'control zone: the wheel itself is guarded');
+  check(inControlZone(160, 270, zones), 'control zone: just outside the wheel is guarded');
+  check(inControlZone(750, 200, zones), 'control zone: just above a pedal is guarded');
+  check(!inControlZone(400, 100, zones), 'control zone: the open game area still orbits');
+  check(!inControlZone(400, 270, zones), 'control zone: far between the groups still orbits');
+  check(!inControlZone(80, 270, []), 'control zone: no controls, no guard');
+}
+
+{
+  const list = precacheList(
+    ['index.html', 'assets/a-1.js', 'sw.js', 'version.json', 'CNAME', 'assets/a.js.map'],
+    ['manifest.webmanifest'],
+  );
+  check(
+    list.join() === './,assets/a-1.js,index.html,manifest.webmanifest',
+    'precache keeps the shell and drops sw.js, version.json, maps',
+  );
+  const src = serviceWorkerSource('abc1234', list);
+  check(src.includes(JSON.stringify(cacheName('abc1234'))), 'service worker cache is named after the build');
+  check(
+    src.includes("'SKIP_WAITING'") && !/\n\s*self\.skipWaiting\(\);/.test(src.split("'message'")[0]),
+    'service worker waits for the page before taking over',
+  );
+  check(
+    src.includes("req.mode === 'navigate'") && src.includes('index.html'),
+    'service worker serves the cached shell for offline navigation',
+  );
+  try {
+    new Function(src);
+  } catch {
+    check(false, 'generated service worker is valid JavaScript');
+  }
+  check(!isUpdateWaiting({ waiting: {} as ServiceWorker }, false), 'a first install is not an update');
+  check(
+    isUpdateWaiting({ waiting: {} as ServiceWorker }, true) && !isUpdateWaiting({ waiting: null }, true),
+    'a waiting worker under a controller is an update',
+  );
 }
 
 // --- CARP-121: Reload always recovers; no synchronous GPU readbacks ------------------

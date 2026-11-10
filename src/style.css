@@ -581,7 +581,7 @@ h2 {
 
 .tagline {
   color: var(--muted);
-  margin: 6px 0 clamp(12px, 4vmin, 22px);
+  margin: 6px 0 4px;
   font-size: clamp(14px, 3.8vmin, 16px);
 }
 
@@ -1201,5 +1201,15 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   outline-offset: 2px;
 }
 .settings-pane[hidden] {
+  display: none;
+}
+
+.whats-new {
+  margin: 4px 0 clamp(12px, 4vmin, 22px);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.whats-new:empty {
   display: none;
 }
