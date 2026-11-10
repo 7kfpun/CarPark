@@ -2029,8 +2029,10 @@ console.log('Accessibility');
   const css = readFileSync('src/style.css', 'utf8');
   const rule = (sel: string): string => css.match(new RegExp(`^${sel} \\{([^}]*)\\}`, 'm'))?.[1] ?? '';
   check(
-    /touch-action:\s*none/.test(rule('#modal')) && /touch-action:\s*pan-y/.test(rule('#modal \\.panel')),
-    'pause/finish backdrop is touch-action none (orbit drag), its panel scrolls itself',
+    /touch-action:\s*none/.test(rule('#modal-backdrop')) &&
+      !/touch-action:\s*none/.test(rule('#modal')) &&
+      /touch-action:\s*pan-y/.test(rule('#modal \\.panel')),
+    'only the modal backdrop surface is touch-action none (orbit drag); #modal and the panel allow pan-y',
   );
   check(
     parseTextSize('large') === 'large' && parseTextSize('huge') === 'normal',
