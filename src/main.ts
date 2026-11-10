@@ -321,8 +321,8 @@ function canRun(): boolean {
   return canRunGame(settingsPanel.isOpen, gfx.contextLost);
 }
 
-function startLevel(i: number): void {
-  if (!canRun()) return;
+function startLevel(i: number): boolean {
+  if (!canRun()) return false;
   sfx.unlock();
   sfx.startMusic();
   if (!level || levelIndex !== i) loadLevel(i);
@@ -363,6 +363,7 @@ function startLevel(i: number): void {
   state = 'playing';
   syncAdminBar();
   hud.hideUpdateBanner(); // never interrupt a level; it comes back at the next menu
+  return true;
 }
 
 function showMenu(): void {
@@ -416,13 +417,14 @@ function skipLevel(dir: 1 | -1): void {
   startLevel(t);
 }
 
-function resume(): void {
-  if (state !== 'paused' || !canRun()) return;
+function resume(): boolean {
+  if (state !== 'paused' || !canRun()) return false;
   hud.hideModal();
   input.clear(); // drop keys pressed/held while the modal was open
   rig.setFreeLook(false);
   state = 'playing';
   syncAdminBar();
+  return true;
 }
 
 function finish(win: boolean, reason: string): void {
@@ -570,6 +572,7 @@ function openSettings(opener: HTMLElement | null = null): void {
   const wasPlaying = state === 'playing';
   if (wasPlaying) {
     state = 'paused';
+    sfx.stopEngine();
     input.clear();
   }
   settingsPanel.open(() => {

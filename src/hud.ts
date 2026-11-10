@@ -1,4 +1,5 @@
 import { nextFocusIndex } from './focus';
+import { runModalAction } from './guards';
 import type { LevelDef } from './layout';
 import type { FloorHud } from './storey';
 import { bestFor, starsFor, type Progress } from './progress';
@@ -16,7 +17,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
 export interface ModalButton {
   label: string;
   primary?: boolean;
-  onClick: () => void;
+  /** Return false when the action was blocked (it did not run): the button stays usable. */
+  onClick: () => boolean | void;
 }
 
 function starString(n: number, total = 3): string {
@@ -225,9 +227,7 @@ export class Hud {
       el.textContent = b.label;
       if (b.primary) el.classList.add('primary');
       el.addEventListener('click', () => {
-        if (used) return;
-        used = true;
-        b.onClick();
+        used = runModalAction(used, b.onClick);
       });
       row.appendChild(el);
     }
