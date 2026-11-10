@@ -1198,6 +1198,24 @@ for (const lvl of LEVELS) {
       three >= best * 1.2 && three <= best * 2,
       `${lvl.id}: three-star ${three}s should be 1.2-2x the solution (${best.toFixed(1)}s)`,
     );
+    // Touch and trackpad drivers pay for every forward/reverse change: a lever drag (or a trackpad click on it), the
+    // reverse delay and the eased-in pull, none of which the scripted solution has. Keep the stars reachable for them.
+    let changes = 0;
+    let last = 0;
+    for (const seg of sol ?? []) {
+      const dir = Math.sign(seg.throttle);
+      if (dir === 0) continue;
+      if (last !== 0 && dir !== last) changes++;
+      last = dir;
+    }
+    check(
+      three >= best * 1.3 + changes * 0.6,
+      `${lvl.id}: three-star ${three}s too tight for touch (needs ${(best * 1.3 + changes * 0.6).toFixed(0)}s: solution ${best.toFixed(1)}s, ${changes} gear changes)`,
+    );
+    check(
+      two >= best * 1.7 + changes * 0.8,
+      `${lvl.id}: two-star ${two}s too tight for touch (needs ${(best * 1.7 + changes * 0.8).toFixed(0)}s: solution ${best.toFixed(1)}s, ${changes} gear changes)`,
+    );
   }
 }
 {

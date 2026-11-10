@@ -501,7 +501,7 @@ const VEHICLE_LEVELS: RawLevel[] = [
     target: { x: 0, z: 13, rot: PI, w: 3.4, l: 6.4 },
     bothWays: false,
     time: 120,
-    stars: { three: 40, two: 60 },
+    stars: { three: 40, two: 52 },
     bays: bayRow([-10.2, -6.8, -3.4, 0, 3.4, 6.8, 10.2], 13, 0, 3.4, 6.4),
     obstacles: [
       car(-3.4, 13, 0),
@@ -525,7 +525,7 @@ const VEHICLE_LEVELS: RawLevel[] = [
     target: { x: 8, z: 0, rot: 0, w: 4.2, l: 12.4 },
     bothWays: false,
     time: 130,
-    stars: { three: 42, two: 63 },
+    stars: { three: 42, two: 54 },
     obstacles: [
       { kind: 'wall', x: 10.3, z: 0, w: 0.5, l: 58, h: 0.3 },
       { kind: 'wall', x: 8, z: -14.25, w: 2.55, l: 10.5, h: 3 },
@@ -542,7 +542,7 @@ const VEHICLE_LEVELS: RawLevel[] = [
     target: { x: 0, z: 15.8, rot: PI, w: 3.4, l: 8.4 },
     bothWays: false,
     time: 160,
-    stars: { three: 56, two: 84 },
+    stars: { three: 56, two: 72 },
     obstacles: [
       { kind: 'wall', x: -1.95, z: 15.8, w: 0.3, l: 8.4, h: 2.6 },
       { kind: 'wall', x: 1.95, z: 15.8, w: 0.3, l: 8.4, h: 2.6 },
@@ -562,7 +562,7 @@ const VEHICLE_LEVELS: RawLevel[] = [
     target: { x: 8.1, z: 0, rot: 0, w: 3, l: 8.2 },
     bothWays: true,
     time: 120,
-    stars: { three: 36, two: 54 },
+    stars: { three: 36, two: 48 },
     obstacles: [
       { kind: 'wall', x: 9.8, z: 0, w: 0.4, l: 46, h: 0.25 },
       car(8.1, -6.6, 0),
@@ -800,7 +800,7 @@ const MASTER_LEVELS: RawLevel[] = [
     target: { x: -7, z: 27.8, rot: PI, w: 2.6, l: 5.6, floor: 'upper' },
     bothWays: false,
     time: 79,
-    stars: { three: 34, two: 46 },
+    stars: { three: 39, two: 53 },
     floors: [
       { id: 'ground', y: 0, area: [{ x: 0, z: -18, hw: 12, hl: 13, rot: 0 }] },
       { id: 'upper', y: 3, area: [{ x: 0, z: 21, hw: 12, hl: 10, rot: 0 }] },
@@ -825,7 +825,7 @@ const MASTER_LEVELS: RawLevel[] = [
     target: { x: 0, z: 11, rot: PI, w: 2.5, l: 5.6 },
     bothWays: false,
     time: 51,
-    stars: { three: 22, two: 30 },
+    stars: { three: 29, two: 40 },
     bays: [
       ...bayRow([-12.4, -9.7, -7, -4.4], 11, PI, 2.5),
       // Painted no wider than the 2.2 m centre spacing, so neighbouring stalls do not overlap.
@@ -847,7 +847,7 @@ const MASTER_LEVELS: RawLevel[] = [
     target: { x: 7, z: 15.2, rot: 0, w: 3, l: 5.6 },
     bothWays: false,
     time: 90,
-    stars: { three: 39, two: 53 },
+    stars: { three: 54, two: 73 },
     arrows: [
       ...arrowLine(-8, -12, -8, -8, 0, 4),
       ...arrowLine(-2, -5, 3, -5, PI / 2, 5),
@@ -874,7 +874,7 @@ const MASTER_LEVELS: RawLevel[] = [
     target: { x: 10, z: 16.8, rot: PI, w: 2.8, l: 5.6 },
     bothWays: false,
     time: 111,
-    stars: { three: 48, two: 65 },
+    stars: { three: 58, two: 78 },
     arrows: arrowLine(-9, -15, -9, -11, 0, 4),
     obstacles: [
       ...gateRow(-10, -9, 3.4, -18, 18),
@@ -893,8 +893,8 @@ const MASTER_LEVELS: RawLevel[] = [
     spawn: { x: -14, z: -16, rot: 0 },
     target: { x: 8, z: 15.4, rot: PI, w: 3.4, l: 8.4 },
     bothWays: false,
-    time: 152,
-    stars: { three: 79, two: 106 },
+    time: 175,
+    stars: { three: 103, two: 140 },
     obstacles: [
       { kind: 'wall', x: 4.9, z: 15.4, w: 1.4, l: 8.4, h: 3 },
       { kind: 'wall', x: 11.1, z: 15.4, w: 1.4, l: 8.4, h: 3 },
