@@ -1,7 +1,7 @@
 import { corners, expand, pointInOBB, sat, type OBB } from './collision';
 import { holdComplete, TOUCH_MIN_SPEED, STEP } from './config';
 import { floorProblems, levelObstacles, Surfaces } from './floors';
-import { bayOBB, type LevelDef } from './layout';
+import { bayOBB, obstacleOBB, type LevelDef } from './layout';
 import { evaluateParking } from './parking';
 import { isTouch } from './rules';
 import { CarPhysics, type Controls } from './physics';
@@ -61,6 +61,31 @@ export function staticProblems(def: LevelDef): string[] {
   if (!corners(bayOBB(t)).every(([x, z]) => pointInOBB(x, z, lot))) out.push('bay is not inside the lot');
   if (!corners(carBox(veh, def.spawn.x, def.spawn.z, def.spawn.rot)).every(([x, z]) => pointInOBB(x, z, lot)))
     out.push('spawn is not inside the lot');
+  out.push(...lotProblems(def, surfaces.startLayer, lot));
+  return out;
+}
+
+/** Obstacles and painted decorations must lie inside the lot, and obstacles on the same layer must not overlap. */
+function lotProblems(def: LevelDef, startLayer: string, lot: OBB): string[] {
+  const out: string[] = [];
+  const inside = (box: OBB) =>
+    corners(box).every(([x, z]) => pointInOBB(x, z, { ...lot, hw: lot.hw + 1e-6, hl: lot.hl + 1e-6 }));
+  def.obstacles.forEach((o, i) => {
+    if (!inside(obstacleOBB(o))) out.push(`obstacle #${i} is not inside the lot`);
+  });
+  (def.bays ?? []).forEach((b, i) => {
+    if (!inside(bayOBB(b))) out.push(`decorative bay #${i} is not inside the lot`);
+  });
+  (def.arrows ?? []).forEach((a, i) => {
+    if (!inside({ x: a.x, z: a.z, hw: 0, hl: 0, rot: 0 })) out.push(`arrow #${i} is not inside the lot`);
+  });
+  // Only the level's own obstacles: the generated boundary and edge walls are meant to touch what stands against them.
+  const own = def.obstacles.map((o) => ({ ...obstacleOBB(o), layer: o.floor ?? startLayer }));
+  for (let i = 0; i < own.length; i++)
+    for (let j = i + 1; j < own.length; j++)
+      if (def.obstacles[i].kind === 'wall' && def.obstacles[j].kind === 'wall')
+        continue; // wall runs join end to end
+      else if (own[i].layer === own[j].layer && sat(own[i], own[j])) out.push(`obstacles #${i} and #${j} overlap`);
   return out;
 }
 

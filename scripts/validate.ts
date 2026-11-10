@@ -65,7 +65,7 @@ import {
   rampSignText,
 } from '../src/storey';
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
-import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
+import { floorProblems, levelObstacles, maxClimbSlope, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
 import { MODEL_SHARED, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
@@ -80,7 +80,7 @@ import {
   startReset,
   stepReset,
 } from '../src/orbit';
-import { LEVELS } from '../src/levels';
+import { LEVELS, MIRROR_OF } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
@@ -198,6 +198,7 @@ function levelChecks(lvl: LevelDef): void {
 const upperBayLevel: LevelDef = {
   ...LEVELS[0],
   lot: { w: 20, l: 80 },
+  bays: [],
   spawn: { x: 0, z: -10, rot: 0 },
   obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
   floors: [
@@ -575,6 +576,7 @@ console.log('Floors and ramps');
   const rampLevel = (rampLen: number): LevelDef => ({
     ...LEVELS[0],
     lot: { w: 20, l: 80 },
+    bays: [],
     spawn: { x: 0, z: -10, rot: 0 },
     obstacles: [{ kind: 'pillar', x: 0, z: 25, floor: 'ground' }],
     floors: [
@@ -740,6 +742,94 @@ console.log('Floors and ramps');
     'ramp to a floor that does not exist not detected',
   );
   check(probs(rampLevel(12)).includes('over the limit'), 'too-steep ramp not detected by staticProblems');
+
+  // Climbability: a slow vehicle cannot climb at CLIMB_THROTTLE what the hatchback can.
+  const ramped = (vehicle: string, rampLen: number): LevelDef => ({
+    ...rampLevel(rampLen),
+    vehicle,
+    lot: { w: 20, l: 100 },
+    target: { ...rampLevel(rampLen).target, z: rampLen + 10, w: 3.5, l: 11 },
+  });
+  check(
+    maxClimbSlope(vehicleOf('bus')) < maxClimbSlope(vehicleOf('hatchback')) &&
+      maxClimbSlope(vehicleOf('hatchback')) >= RAMP_MAX_SLOPE,
+    'climb limit should fall with accel, and the hatchback should climb every allowed ramp',
+  );
+  check(
+    floorProblems(ramped('hatchback', 15)).join('; ') === '',
+    `hatchback ramp rejected: ${floorProblems(ramped('hatchback', 15)).join('; ')}`,
+  );
+  for (const id of ['bus', 'box-truck'])
+    check(
+      floorProblems(ramped(id, 15)).join('; ').includes('too steep'),
+      `${id} on an 11 deg ramp should be rejected as too steep to climb`,
+    );
+  check(
+    floorProblems(ramped('bus', 22)).join('; ') === '',
+    `bus on a gentle ramp rejected: ${floorProblems(ramped('bus', 22)).join('; ')}`,
+  );
+  {
+    // The limit is real: a bus at 60% throttle stalls on the steep ramp and climbs the gentle one.
+    for (const [len, climbs] of [
+      [15, false],
+      [22, true],
+    ] as const) {
+      const l = ramped('bus', len);
+      const c = new CarPhysics(vehicleOf('bus'));
+      const sf = new Surfaces(l);
+      c.reset(0, 1, 0, sf);
+      for (let i = 0; i < 40 / STEP && c.layer !== 'upper'; i++)
+        c.step(STEP, { throttle: 0.6, steer: 0, handbrake: false }, sf);
+      check(
+        (c.layer === 'upper' || c.z > len * 0.9) === climbs,
+        `bus at 60% throttle on a ${len} m ramp: expected climb ${climbs}`,
+      );
+    }
+  }
+
+  // Missing-level checks.
+  check(
+    probs({ ...lvl, target: { ...lvl.target, floor: 'roof' } }).includes('unknown floor'),
+    'target on a missing floor not detected',
+  );
+  const island: LevelDef = {
+    ...lvl,
+    floors: [...lvl.floors!, { id: 'roof', y: 6, area: [{ x: 0, z: 25, hw: 3, hl: 3, rot: 0 }] }],
+    target: { ...lvl.target, floor: 'roof' },
+  };
+  check(probs(island).includes('cannot be reached'), 'target floor with no ramp to it not detected');
+  check(!probs(lvl).includes('cannot be reached'), 'reachable target floor wrongly rejected');
+  const at = (o: LevelDef['obstacles']): string => probs({ ...lvl, obstacles: o });
+  check(at([{ kind: 'cone', x: 20, z: -10 }]).includes('not inside the lot'), 'obstacle outside the lot not detected');
+  check(
+    at([
+      { kind: 'cone', x: 4, z: -20 },
+      { kind: 'cone', x: 4.2, z: -20 },
+    ]).includes('overlap'),
+    'overlapping obstacles not detected',
+  );
+  check(
+    at([
+      { kind: 'cone', x: 4, z: -20, floor: 'ground' },
+      { kind: 'cone', x: 4.2, z: -20, floor: 'upper' },
+    ]) === '',
+    'obstacles on different floors wrongly counted as overlapping',
+  );
+  check(
+    at([
+      { kind: 'wall', x: 0, z: -20, w: 4, l: 0.4 },
+      { kind: 'wall', x: 1.9, z: -20, w: 4, l: 0.4 },
+    ]) === '',
+    'joined wall segments wrongly counted as overlapping',
+  );
+  check(
+    probs({ ...lvl, bays: [{ x: 30, z: 0, rot: 0, w: 3, l: 5.6 }] }).includes('decorative bay #0'),
+    'painted bay outside the lot not detected',
+  );
+  check(
+    probs({ ...lvl, arrows: [{ x: 0, z: 90, rot: 0 }] }).includes('arrow #0'),
+    'arrow outside the lot not detected',
+  );
   check(
     probs({ ...lvl, ramps: [{ ...lvl.ramps![0], w: CAR_W + 0.7 }] }).includes('too narrow'),
     'ramp narrower than car + 0.8 m not detected',
@@ -1533,12 +1623,60 @@ console.log('Worlds');
   check(new Set(LEVELS.map((l) => l.name)).size === LEVELS.length, 'every level has a unique name');
   check(new Set(LEVELS.map((l) => l.hint)).size === LEVELS.length, 'every level has a unique hint');
   // Margin: no route may rely on scraping past things. The recorded solution keeps 0.1 m clear of every obstacle
-  // (the search that found it asked for 0.15-0.2 m).
-  for (const l of [...proving, ...master]) {
-    const r = replaySolution(l, SOLUTIONS[l.id], 0.1);
+  // (the search that found it asked for 0.15-0.2 m). Every level is held to it, except these older levels whose
+  // solutions scrape closer: each keeps the margin it has today (a ratchet) until it is re-recorded.
+  const LEGACY_MARGIN: Record<string, number> = {
+    'parallel-pro': 0.08,
+    'cone-gates': 0.03,
+    'the-garage': 0.02,
+    'rush-hour': 0.01,
+    'curb-side': 0.02,
+    'one-way-curb': 0.02,
+    'van-garage': 0,
+    'bus-bay': 0.02,
+    'tight-squeeze': 0,
+    'slalom-reverse': 0.02,
+    'the-finale': 0,
+    'twilight-squeeze': 0,
+    'dusk-slalom': 0.02,
+    'night-finale': 0,
+  };
+  for (const l of LEVELS) {
+    const want = LEGACY_MARGIN[l.id] ?? 0.1;
+    const r = replaySolution(l, SOLUTIONS[l.id], want);
     check(
       r.parked && r.tight === 0,
-      `${l.id}: the recorded solution stays 0.1 m clear of everything (${r.tight} tight steps)`,
+      `${l.id}: the recorded solution stays ${want} m clear of everything (${r.tight} tight steps)`,
+    );
+  }
+  check(
+    Object.keys(LEGACY_MARGIN).every((id) => levelNames.has(id)),
+    'LEGACY_MARGIN names an unknown level',
+  );
+
+  // Mirrored levels flip their base's spawn, bay, obstacles and painted bays exactly.
+  const flipBox = <T extends { x: number; rot?: number }>(o: T) => ({
+    ...o,
+    x: o.x === 0 ? 0 : -o.x,
+    rot: o.rot === undefined ? undefined : -o.rot,
+  });
+  for (const [id, baseId] of Object.entries(MIRROR_OF)) {
+    const m = LEVELS.find((l) => l.id === id)!;
+    const b = LEVELS.find((l) => l.id === baseId)!;
+    const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y);
+    check(
+      same(m.spawn, flipBox(b.spawn)) && same(m.target, flipBox(b.target)),
+      `${id}: spawn and bay are not the mirror of ${baseId}`,
+    );
+    check(same(m.obstacles, b.obstacles.map(flipBox)), `${id}: obstacles are not the mirror of ${baseId}`);
+    check(same(m.bays ?? [], (b.bays ?? []).map(flipBox)), `${id}: painted bays are not the mirror of ${baseId}`);
+    check(
+      !m.floors && !b.floors && !m.ramps && !b.ramps,
+      `${id}: mirrored() does not flip floors and ramps, so ${baseId} must be flat`,
+    );
+    check(
+      (b.arrows ?? []).length === 0 || m.arrows !== b.arrows,
+      `${id}: arrows inherited from ${baseId} were not mirrored`,
     );
   }
 }

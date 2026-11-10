@@ -9,8 +9,8 @@
 <polyline class="bay" points="90,-316 90,-204 150,-204 150,-316"/>
 <polygon class="target" points="30,-204 30,-316 -30,-316 -30,-204"/>
 <polyline class="targetarrow" points="0,-295 0,-225"/><polygon class="targetarrowf" points="0,-225 -12.6,-244.6 12.6,-244.6"/>
-<polygon class="wall" points="-30,4 -30,-4 -280,-4 -280,4"/>
-<polygon class="wall" points="280,4 280,-4 30,-4 30,4"/>
+<polygon class="wall" points="-39.2,4 -39.2,-4 -280,-4 -280,4"/>
+<polygon class="wall" points="280,4 280,-4 39.2,-4 39.2,4"/>
 <circle class="cone" cx="-34" cy="0" r="5"/>
 <circle class="cone" cx="34" cy="0" r="5"/>
 <polygon class="wall" points="292,412 292,400 -292,400 -292,412"/>

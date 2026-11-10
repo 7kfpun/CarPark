@@ -279,7 +279,7 @@ const LEVELS_1_12: RawLevel[] = [
       carOn('upper', -3, 26, 0),
       carOn('upper', 9, 26, PI),
       carOn('upper', -7.5, 17, PI / 2),
-      carOn('upper', 8, 17, PI / 2),
+      carOn('upper', 7.5, 17, PI / 2),
     ],
   },
   {
@@ -365,8 +365,8 @@ const LEVELS_1_12: RawLevel[] = [
     stars: { three: 24, two: 36 },
     bays: bayRow([-6, -3, 0, 3, 6], -13, 0),
     obstacles: [
-      { kind: 'wall', x: -7.75, z: 0, w: 12.5, l: 0.4, h: 1.2 },
-      { kind: 'wall', x: 7.75, z: 0, w: 12.5, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: -7.98, z: 0, w: 12.04, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: 7.98, z: 0, w: 12.04, l: 0.4, h: 1.2 },
       { kind: 'cone', x: -1.7, z: 0 },
       { kind: 'cone', x: 1.7, z: 0 },
       car(-3, -13, 0),
@@ -448,7 +448,7 @@ const LEVELS_1_12: RawLevel[] = [
       { kind: 'wall', x: -1.45, z: 14.1, w: 0.3, l: 6, h: 2.4 },
       { kind: 'wall', x: 1.45, z: 14.1, w: 0.3, l: 6, h: 2.4 },
       { kind: 'wall', x: 0, z: 17.35, w: 3.2, l: 0.3, h: 2.4 },
-      { kind: 'wall', x: -6, z: -4, w: 20, l: 0.4, h: 1.2 },
+      { kind: 'wall', x: -5.5, z: -4, w: 19, l: 0.4, h: 1.2 },
       { kind: 'wall', x: 8, z: 4, w: 14, l: 0.4, h: 1.2 },
       { kind: 'pillar', x: -4, z: 8 },
       { kind: 'pillar', x: 4, z: 8 },
@@ -461,9 +461,13 @@ const LEVELS_1_12: RawLevel[] = [
   },
 ];
 
+/** Mirrored level id -> id of the level it flips (filled by `mirrored`; the validator checks the pair agrees). */
+export const MIRROR_OF: Record<string, string> = {};
+
 /** The level with its layout flipped left to right (x to -x, headings mirrored), under a new identity. */
 function mirrored(base: string, extra: Pick<LevelDef, 'id' | 'name' | 'hint'> & Partial<RawLevel>): RawLevel {
   const b = LEVELS_1_12.find((l) => l.id === base)!;
+  MIRROR_OF[extra.id] = base;
   const flip = <T extends { x: number; rot?: number }>(o: T): T => ({
     ...o,
     x: o.x === 0 ? 0 : -o.x,

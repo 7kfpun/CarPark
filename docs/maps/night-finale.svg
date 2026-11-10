@@ -10,7 +10,7 @@
 <polygon class="wall" points="32,342 32,222 26,222 26,342"/>
 <polygon class="wall" points="-26,342 -26,222 -32,222 -32,342"/>
 <polygon class="wall" points="32,350 32,344 -32,344 -32,350"/>
-<polygon class="wall" points="320,-76 320,-84 -80,-84 -80,-76"/>
+<polygon class="wall" points="300,-76 300,-84 -80,-84 -80,-76"/>
 <polygon class="wall" points="-20,84 -20,76 -300,76 -300,84"/>
 <polygon class="pillar" points="88,168 88,152 72,152 72,168"/>
 <polygon class="pillar" points="-72,168 -72,152 -88,152 -88,168"/>
