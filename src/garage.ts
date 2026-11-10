@@ -1,7 +1,12 @@
-/** The player's garage: coins, the cars they own and the one they drive. Stored on its own, in this browser only. */
+/**
+ * The player's garage: the cars they own and the one they drive. Stored on its own, in this browser only.
+ * Coins are the shared wallet (src/missions.ts); HP is per vehicle (src/health.ts). Buying and repairing spend that wallet.
+ */
+import { COST_PER_HP } from './repair';
+import { hpFor, MAX_HP, type Health } from './health';
+
 export interface Garage {
   v: 1;
-  coins: number;
   owned: string[]; // vehicle ids
   selected: string; // vehicle id, always owned
 }
@@ -18,26 +23,19 @@ export const SHOP: readonly ShopCar[] = [
   { id: 'suv', price: 500 },
 ];
 
-/** Placeholder balance until the earning ticket (CARP-128) feeds `coins`. */
-export const START_COINS = 500;
-
 const KEY = 'carpark.garage';
-const MAX_COINS = 1_000_000_000;
 
 const priceOf = (id: string): number | undefined => SHOP.find((c) => c.id === id)?.price;
 
 export function freshGarage(): Garage {
-  return { v: 1, coins: START_COINS, owned: [SHOP[0].id], selected: SHOP[0].id };
+  return { v: 1, owned: [SHOP[0].id], selected: SHOP[0].id };
 }
 
 /** Turn whatever was stored into a valid garage: unknown cars dropped, starter car always owned. */
 export function parseGarage(raw: unknown): Garage {
   const out = freshGarage();
   if (!raw || typeof raw !== 'object') return out;
-  const p = raw as { coins?: unknown; owned?: unknown; selected?: unknown };
-  if (typeof p.coins === 'number' && Number.isFinite(p.coins)) {
-    out.coins = Math.min(MAX_COINS, Math.max(0, Math.floor(p.coins)));
-  }
+  const p = raw as { owned?: unknown; selected?: unknown };
   if (Array.isArray(p.owned)) {
     for (const id of p.owned)
       if (typeof id === 'string' && priceOf(id) !== undefined && !out.owned.includes(id)) out.owned.push(id);
@@ -48,13 +46,18 @@ export function parseGarage(raw: unknown): Garage {
 
 export type BuyResult = 'bought' | 'owned' | 'poor' | 'unknown';
 
-/** Spends coins on a car and selects it. Changes `g` only when it returns 'bought'. */
-export function buyCar(g: Garage, id: string): BuyResult {
+/** The shared wallet balance (the `money` of a Wallet from src/missions.ts). */
+export interface Purse {
+  money: number;
+}
+
+/** Spends wallet coins on a car and selects it. Changes `g` and `w` only when it returns 'bought'. */
+export function buyCar(g: Garage, w: Purse, id: string): BuyResult {
   const price = priceOf(id);
   if (price === undefined) return 'unknown';
   if (g.owned.includes(id)) return 'owned';
-  if (g.coins < price) return 'poor';
-  g.coins -= price;
+  if (w.money < price) return 'poor';
+  w.money -= price;
   g.owned.push(id);
   g.selected = id;
   return 'bought';
@@ -70,6 +73,23 @@ export function selectCar(g: Garage, id: string): boolean {
 /** The vehicle to drive: a level with its own vehicle keeps it, any other level uses the selected car. */
 export function driveVehicleId(levelVehicle: string | undefined, g: Garage): string {
   return levelVehicle ?? g.selected;
+}
+
+/** Coins to bring a car back to full HP. */
+export function repairCostFor(h: Health, id: string): number {
+  return (MAX_HP - hpFor(h, id)) * COST_PER_HP;
+}
+
+export type RepairResult = 'repaired' | 'full' | 'poor';
+
+/** Pays wallet coins to restore a car to full HP. Changes `h` and `w` only when it returns 'repaired'. */
+export function repairCar(h: Health, w: Purse, id: string): RepairResult {
+  const cost = repairCostFor(h, id);
+  if (cost <= 0) return 'full';
+  if (w.money < cost) return 'poor';
+  w.money -= cost;
+  h.hp[id] = MAX_HP;
+  return 'repaired';
 }
 
 export function loadGarage(): Garage {

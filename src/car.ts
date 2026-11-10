@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CAR_L, CAR_W, WHEELBASE, WHEEL_R } from './config';
 import { DEFAULT_VEHICLE, vehicleOf, type VehicleDef } from './vehicles';
+import { STREET_SHARED } from './streetCars';
 import { carTemplate, MODEL_SHARED, type CarTemplate } from './carModels';
 import { CarPhysics } from './physics';
 
@@ -35,7 +36,9 @@ const trimMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7
 
 /** Geometries/materials shared by every car; never dispose these per level. */
 const BOX_SHARED = new Set<object>([wheelGeo, hubGeo, tyreMat, hubMat, glassMat, headMat, trimMat]);
-export const CAR_SHARED = { has: (o: object): boolean => BOX_SHARED.has(o) || MODEL_SHARED.has(o) };
+export const CAR_SHARED = {
+  has: (o: object): boolean => BOX_SHARED.has(o) || MODEL_SHARED.has(o) || STREET_SHARED.has(o),
+};
 
 function box(w: number, h: number, l: number, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat);

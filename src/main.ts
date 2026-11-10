@@ -19,7 +19,7 @@ import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
-import { buyCar, driveVehicleId, loadGarage, saveGarage, selectCar, SHOP } from './garage';
+import { buyCar, driveVehicleId, loadGarage, repairCar, repairCostFor, saveGarage, selectCar, SHOP } from './garage';
 import {
   assistMode,
   bodyHidden,
@@ -35,6 +35,11 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { applyDamage, crashDamage, hpFor, loadHealth, saveHealth } from './health';
+import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
+import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
+import type { Missions } from './missions';
+import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -209,6 +214,7 @@ const garage = loadGarage();
 /** The vehicle for a level: its own if it sets one, otherwise the player's selected car. */
 const vehicleFor = (def: LevelDef): VehicleDef => vehicleOf(driveVehicleId(def.vehicle, garage));
 let garageOpen = false;
+const health = loadHealth();
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -410,6 +416,51 @@ function startLevel(i: number): boolean {
   return true;
 }
 
+let missions: Missions = loadMissions();
+let wallet = loadWallet();
+
+function showMissions(): void {
+  missions = rollDay(missions, dayKey(new Date()));
+  renderMissions(document.getElementById('missions')!, missions, wallet.money, (id) => {
+    const r = claim(missions, id);
+    if (!r.reward) return;
+    missions = r.missions;
+    wallet = { ...wallet, money: wallet.money + r.reward };
+    if (mayPersist(ADMIN)) {
+      saveMissions(missions);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+  });
+}
+
+// --- Hourly earn: coins over time, claimed from the menu into the wallet ---------------
+const earn = loadEarn();
+if (mayPersist(ADMIN)) saveEarn(earn); // a fresh clock must survive a reload before the first claim
+const earnNote = document.getElementById('earn-note')!;
+const earnClaim = document.getElementById('earn-claim') as HTMLButtonElement;
+function renderEarn(): void {
+  const now = Date.now();
+  const ready = pendingCoins(earn, now);
+  earnClaim.disabled = ready === 0;
+  earnClaim.textContent = ready ? `Claim ${ready} coins` : 'Hourly coins';
+  earnNote.textContent = ready ? '' : `Next coins in ${waitLabel(msToNext(earn, now))}`;
+}
+earnClaim.onclick = () => {
+  const got = claimEarn(earn, Date.now());
+  if (!got) return;
+  wallet = { ...wallet, money: wallet.money + got };
+  if (mayPersist(ADMIN)) {
+    // Coins first, and the clock only once they are stored: a failed wallet write must not eat the payout.
+    if (saveWallet(wallet)) saveEarn(earn);
+  }
+  sfx.click();
+  showMissions();
+  renderEarn();
+};
+setInterval(() => state === 'menu' && renderEarn(), 30_000);
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -428,6 +479,8 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  showMissions();
+  renderEarn();
   applyUpdate();
 }
 
@@ -505,6 +558,10 @@ function finish(win: boolean, reason: string): void {
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
+    if (mayPersist(ADMIN)) {
+      missions = recordPark(rollDay(missions, dayKey(new Date())), id, stars);
+      saveMissions(missions);
+    }
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const nextLevel = LEVELS[levelIndex + 1];
     // The next level may sit in a world that is still locked (a world opens when the one before is finished).
@@ -666,26 +723,67 @@ document.getElementById('btn-settings-menu')!.addEventListener('click', (e) => {
 });
 function openGarage(note = ''): void {
   garageOpen = true;
+  const persist = mayPersist(ADMIN);
   const buttons = SHOP.map((c) => {
     const name = vehicleOf(c.id).name;
     const owned = garage.owned.includes(c.id);
+    const hp = hpFor(health, c.id);
+    const hpTag = owned ? ` · ${hp} HP${hp === 0 ? ' wrecked' : ''}` : '';
     const label =
-      garage.selected === c.id ? `✓ ${name} (driving)` : owned ? `Drive ${name}` : `Buy ${name}: ${c.price} coins`;
+      garage.selected === c.id
+        ? `✓ ${name} (driving${hpTag})`
+        : owned
+          ? `Drive ${name}${hpTag}`
+          : `Buy ${name}: ${c.price} coins`;
     return {
       label,
       primary: garage.selected === c.id,
       onClick: () => {
         if (owned) selectCar(garage, c.id);
-        else if (buyCar(garage, c.id) !== 'bought') {
-          openGarage('Not enough coins for that car.');
+        else {
+          const purse = { money: wallet.money };
+          if (buyCar(garage, purse, c.id) !== 'bought') {
+            openGarage('Not enough coins for that car.');
+            return;
+          }
+          wallet = { ...wallet, money: purse.money };
+          if (persist) {
+            saveWallet(wallet);
+            saveGarage(garage);
+          }
+          sfx.click();
+          showMissions();
+          openGarage();
           return;
         }
-        saveGarage(garage);
+        if (persist) saveGarage(garage);
         sfx.click();
         openGarage();
       },
     };
   });
+  const cost = repairCostFor(health, garage.selected);
+  if (cost > 0) {
+    buttons.push({
+      label: `Repair ${vehicleOf(garage.selected).name}: ${cost} coins`,
+      primary: false,
+      onClick: () => {
+        const purse = { money: wallet.money };
+        if (repairCar(health, purse, garage.selected) !== 'repaired') {
+          openGarage('Not enough coins to repair. Buy or drive another car instead.');
+          return;
+        }
+        wallet = { ...wallet, money: purse.money };
+        if (persist) {
+          saveWallet(wallet);
+          saveHealth(health);
+        }
+        sfx.click();
+        showMissions();
+        openGarage();
+      },
+    });
+  }
   buttons.push({
     label: 'Done',
     primary: false,
@@ -696,7 +794,7 @@ function openGarage(note = ''): void {
   });
   hud.showModal(
     'Garage',
-    `${note ? `${note} ` : ''}You have ${garage.coins} coins. Levels with their own vehicle keep it; the rest use your car.`,
+    `${note ? `${note} ` : ''}You have ${wallet.money} coins. Levels with their own vehicle keep it; the rest use your car.`,
     null,
     buttons,
     false,
@@ -743,10 +841,14 @@ function step(dt: number): void {
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).
-  if (isTouch(car.resolveCollisions(nearby, level.surfaces), TOUCH_MIN_SPEED)) {
+  const impact = car.resolveCollisions(nearby, level.surfaces);
+  if (isTouch(impact, TOUCH_MIN_SPEED)) {
     sfx.crash();
     hud.flashHit();
-    return finish(false, 'You hit something. Ease off near cars, walls and cones.');
+    const damage = crashDamage(impact);
+    const left = applyDamage(health, vehicleFor(def).id, damage);
+    if (mayPersist(ADMIN)) saveHealth(health);
+    return finish(false, `You hit something: -${damage} HP, ${left} left. Ease off near cars, walls and cones.`);
   }
   // Record the resolved pose, so frames never show the car inside an obstacle.
   recorder.step(car);

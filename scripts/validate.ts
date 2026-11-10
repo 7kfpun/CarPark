@@ -1,6 +1,16 @@
 // Sanity checks for level geometry and car physics. Run: npm run validate
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import {
+  applyDamage,
+  crashDamage,
+  freshHealth,
+  hpFor,
+  loadHealth,
+  MAX_HP as HEALTH_MAX_HP,
+  parseHealth,
+  saveHealth,
+} from '../src/health';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
 import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
 import {
@@ -29,9 +39,57 @@ import {
   Recorder,
   REPLAY_HZ,
 } from '../src/replay';
-import { buyCar, driveVehicleId, freshGarage, parseGarage, selectCar, SHOP, START_COINS } from '../src/garage';
+import {
+  buyCar,
+  driveVehicleId,
+  freshGarage,
+  parseGarage,
+  repairCar,
+  repairCostFor,
+  selectCar,
+  SHOP,
+} from '../src/garage';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
+import {
+  COINS_PER_HOUR,
+  HOUR_MS,
+  MAX_HOURS,
+  claim as claimEarn,
+  freshEarn,
+  hoursReady,
+  msToNext,
+  parseEarn,
+  loadEarn,
+  pendingCoins,
+  saveEarn,
+  waitLabel,
+} from '../src/earn';
 import { isUpdateWaiting } from '../src/pwa';
+import {
+  canRepair,
+  COST_PER_HP,
+  freshRepair,
+  isDamaged,
+  loadRepair,
+  MAX_HP,
+  parseRepair,
+  repair,
+  repairCost,
+  saveRepair,
+} from '../src/repair';
+import {
+  canClaim,
+  claim,
+  dayKey,
+  freshMissions,
+  MISSIONS,
+  parseMissions,
+  parseWallet,
+  saveWallet,
+  progressFor,
+  recordPark,
+  rollDay,
+} from '../src/missions';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -1282,8 +1340,13 @@ console.log('Load timeout');
   const realFetch = globalThis.fetch;
   let hits = 0;
   let aborted = false;
+  // Keep the request alive: Node holds the AbortSignal.any() dependents that FileLoader passes to fetch
+  // weakly, so once nothing references the pending fake request a GC can drop its abort listener and the
+  // abort is never seen (flaky: loading[url] stays set and the retry is deduped onto the hung request).
+  const pinned: Request[] = [];
   globalThis.fetch = ((input: Request) => {
     hits++;
+    pinned.push(input);
     if (hits > 1) return Promise.resolve(new Response(null, { status: 404 }));
     // First request never answers; it only ends when aborted.
     return new Promise<Response>((_res, rej) =>
@@ -1647,6 +1710,9 @@ console.log('Admin mode');
     'skip buttons need admin, the toggle on, and an open level',
   );
 }
+
+console.log('Street level');
+check(LEVELS.find((l) => l.id === 'main-street')?.location === 'open-air', 'main-street is in the location table');
 
 console.log('Level maps (docs/LEVELS.md, docs/maps)');
 {
@@ -2289,6 +2355,72 @@ console.log('Performance budget');
   );
 }
 
+{
+  const s = { ...freshRepair(), hp: 40, coins: 500 };
+  check(isDamaged(s) && !isDamaged(freshRepair()), 'a car below full HP is damaged');
+  check(repairCost(s) === (MAX_HP - 40) * COST_PER_HP, 'repair cost scales with missing HP');
+  check(repair(s) && s.hp === MAX_HP && s.coins === 500 - 60 * COST_PER_HP, 'repair restores full HP and spends coins');
+  check(!repair(s) && s.coins === 500 - 60 * COST_PER_HP, 'repairing an undamaged car costs nothing');
+  const poor = { ...freshRepair(), hp: 40, coins: 10 };
+  check(
+    !canRepair(poor) && !repair(poor) && poor.hp === 40 && poor.coins === 10,
+    'too few coins leaves the car and balance alone',
+  );
+  const exact = { ...freshRepair(), hp: 0, coins: MAX_HP * COST_PER_HP };
+  check(repair(exact) && exact.coins === 0 && exact.hp === MAX_HP, 'exact balance repairs a wreck');
+  const junk = parseRepair({ coins: -5, hp: 999 });
+  check(junk.coins === 0 && junk.hp === MAX_HP, 'stored repair state is clamped');
+  const bad = parseRepair('nope');
+  check(bad.coins === 0 && bad.hp === MAX_HP, 'junk storage gives a fresh state');
+  const frac = { ...freshRepair(), hp: 99.4, coins: 3 };
+  check(
+    repairCost(frac) === 2 && repair(frac) && frac.coins === 1 && frac.hp === MAX_HP,
+    'fractional HP bills whole coins',
+  );
+  check(
+    repairCost({ ...freshRepair(), hp: -10 }) === MAX_HP * COST_PER_HP,
+    'negative HP is billed as a wreck, no more',
+  );
+  const inf = { ...freshRepair(), hp: 40, coins: Infinity };
+  check(!canRepair(inf) && !repair(inf) && inf.hp === 40, 'a non-finite balance never repairs');
+  check(!canRepair({ ...freshRepair(), hp: 40, coins: NaN }), 'a NaN balance never repairs');
+  check(
+    JSON.stringify(parseRepair({ coins: 40, hp: 0 })) === '{"v":1,"coins":40,"hp":0}',
+    'a stored wreck keeps 0 HP and its coins',
+  );
+  check(
+    parseRepair({ coins: 40, hp: 25 }).hp === 25 && parseRepair({ coins: 40 }).hp === MAX_HP,
+    'stored HP is kept; missing HP is full',
+  );
+  {
+    const gl = globalThis as unknown as { localStorage?: unknown };
+    const prev = gl.localStorage;
+    const store: Record<string, string> = {};
+    gl.localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => void (store[k] = v),
+    };
+    check(JSON.stringify(loadRepair()) === JSON.stringify(freshRepair()), 'no saved repair state loads fresh');
+    saveRepair({ v: 1, coins: 40, hp: 0 });
+    check(Object.keys(store).join() === 'carpark.repair', 'repair state saves under carpark.repair');
+    check(JSON.stringify(loadRepair()) === '{"v":1,"coins":40,"hp":0}', 'a saved wreck round-trips');
+    store['carpark.repair'] = '{oops';
+    check(loadRepair().hp === MAX_HP && loadRepair().coins === 0, 'corrupt repair JSON loads fresh');
+    gl.localStorage = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+    };
+    check(loadRepair().hp === MAX_HP, 'throwing getItem loads fresh');
+    saveRepair(freshRepair());
+    check(true, 'throwing setItem does not escape');
+    gl.localStorage = prev;
+  }
+}
+
 // --- CARP-121: Reload always recovers; no synchronous GPU readbacks ------------------
 {
   const timers: (() => void)[] = [];
@@ -2340,27 +2472,25 @@ console.log('Performance budget');
   }
 }
 
-// --- Garage (buy / choose a car) -------------------------------------------------
+// --- Garage (buy / choose a car, spending the shared wallet) ---------------------
 console.log('Garage');
 {
   const g = freshGarage();
-  check(
-    g.owned.length === 1 && g.selected === 'hatchback' && g.coins === START_COINS,
-    'a fresh garage owns the starter car',
-  );
+  const w = { money: 500 };
+  check(g.owned.length === 1 && g.selected === 'hatchback', 'a fresh garage owns the starter car');
   check(
     SHOP.every((c) => VEHICLES.some((v) => v.id === c.id)),
     'every shop car is a known vehicle',
   );
   check(SHOP[0].price === 0 && SHOP.every((c) => c.price >= 0), 'the starter car is free and no price is negative');
-  check(buyCar(g, 'nope') === 'unknown' && g.coins === START_COINS, 'an unknown car cannot be bought');
-  check(buyCar(g, 'hatchback') === 'owned' && g.coins === START_COINS, 'an owned car is not charged again');
+  check(buyCar(g, w, 'nope') === 'unknown' && w.money === 500, 'an unknown car cannot be bought');
+  check(buyCar(g, w, 'hatchback') === 'owned' && w.money === 500, 'an owned car is not charged again');
   check(
-    buyCar(g, 'suv') === 'bought' && g.coins === START_COINS - 500 && g.selected === 'suv',
-    'buying spends coins and selects the car',
+    buyCar(g, w, 'suv') === 'bought' && w.money === 0 && g.selected === 'suv',
+    'buying spends wallet coins and selects the car',
   );
   check(
-    buyCar(g, 'sedan') === 'poor' && !g.owned.includes('sedan') && g.coins === 0,
+    buyCar(g, w, 'sedan') === 'poor' && !g.owned.includes('sedan') && w.money === 0,
     'a car you cannot afford changes nothing',
   );
   check(selectCar(g, 'hatchback') && g.selected === 'hatchback', 'an owned car can be selected');
@@ -2369,18 +2499,164 @@ console.log('Garage');
     driveVehicleId('van', g) === 'van' && driveVehicleId(undefined, g) === 'hatchback',
     'levels with their own vehicle keep it',
   );
-  const junk = parseGarage({ coins: -5, owned: ['suv', 'suv', 'tank', 7], selected: 'sedan' });
+  const junk = parseGarage({ coins: 99, owned: ['suv', 'suv', 'tank', 7], selected: 'sedan' });
   check(
-    junk.coins === 0 && junk.owned.join() === 'hatchback,suv' && junk.selected === 'hatchback',
-    'junk storage is cleaned up',
+    junk.owned.join() === 'hatchback,suv' && junk.selected === 'hatchback' && !('coins' in junk),
+    'junk storage is cleaned up and the old placeholder coins are dropped',
+  );
+  check(parseGarage(null).owned.join() === 'hatchback', 'missing storage gives the starter garage');
+  check(parseGarage({ owned: ['sedan'], selected: 'sedan' }).selected === 'sedan', 'a saved owned selection is kept');
+  // HP / repair: a wrecked car is repaired with wallet coins, or the player switches to another car.
+  const h = freshHealth();
+  const w2 = { money: 100 };
+  applyDamage(h, 'hatchback', 100);
+  check(
+    hpFor(h, 'hatchback') === 0 && repairCostFor(h, 'hatchback') === 100 * COST_PER_HP,
+    'a wreck costs full repair price',
   );
   check(
-    parseGarage(null).coins === START_COINS && parseGarage({ coins: 'x' }).coins === START_COINS,
-    'missing or bad coins fall back to the start balance',
+    repairCar(h, w2, 'hatchback') === 'poor' && hpFor(h, 'hatchback') === 0 && w2.money === 100,
+    'too poor to repair changes nothing',
+  );
+  const g2 = freshGarage();
+  const w3 = { money: 300 };
+  check(
+    buyCar(g2, w3, 'sedan') === 'bought' && g2.selected === 'sedan' && hpFor(h, g2.selected) === 100,
+    'after a wreck you can buy a different car, which comes at full HP',
+  );
+  w3.money = 250;
+  applyDamage(h, 'sedan', 50);
+  check(
+    repairCar(h, w3, 'sedan') === 'repaired' && hpFor(h, 'sedan') === 100 && w3.money === 150,
+    'repair spends wallet coins',
+  );
+  check(repairCar(h, w3, 'sedan') === 'full' && w3.money === 150, 'a full-HP car is not charged');
+}
+
+// --- Car HP and crash damage ---------------------------------------------------
+console.log('Car HP');
+check(crashDamage(0) === 0 && crashDamage(NaN) === 0, 'no impact deals no damage');
+check(crashDamage(0.1) === 1, 'a gentle bump still costs 1 HP');
+check(crashDamage(4) > crashDamage(2), 'harder crashes deal more damage');
+check(crashDamage(1000) === HEALTH_MAX_HP, 'damage is capped at full HP');
+{
+  const h = freshHealth();
+  check(hpFor(h, 'sedan') === HEALTH_MAX_HP, 'a car starts at full HP');
+  check(
+    applyDamage(h, 'sedan', 30) === HEALTH_MAX_HP - 30 && hpFor(h, 'hatchback') === HEALTH_MAX_HP,
+    'damage hits only that car',
+  );
+  check(applyDamage(h, 'sedan', 500) === 0, 'HP never goes below 0');
+  const p = parseHealth({ v: 1, hp: { a: 50.7, b: -5, c: 999, d: 'x', e: null } });
+  check(
+    p.hp.a === 50 && p.hp.b === 0 && p.hp.c === HEALTH_MAX_HP && !('d' in p.hp) && !('e' in p.hp),
+    'stored HP is cleaned',
   );
   check(
-    parseGarage({ coins: 120.9, owned: ['sedan'], selected: 'sedan' }).selected === 'sedan',
-    'a saved owned selection is kept',
+    parseHealth('junk').v === 1 && parseHealth({ hp: [1] }).hp['0'] === undefined,
+    'junk health falls back to fresh',
+  );
+  let stored: string | null = null;
+  let throws = false;
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: () => {
+      if (throws) throw new Error('unavailable');
+      return stored;
+    },
+    setItem: (_k: string, v: string) => {
+      stored = v;
+    },
+  };
+  saveHealth(h);
+  check(hpFor(loadHealth(), 'sedan') === 0, 'HP survives a save and load');
+  throws = true;
+  check(hpFor(loadHealth(), 'sedan') === HEALTH_MAX_HP, 'throwing storage gives full HP');
+  delete (globalThis as { localStorage?: unknown }).localStorage;
+}
+
+{
+  const t0 = 1_000_000_000_000;
+  const e = freshEarn(t0);
+  check(pendingCoins(e, t0 + HOUR_MS - 1) === 0, 'no coins before the first hour');
+  check(pendingCoins(e, t0 + HOUR_MS) === COINS_PER_HOUR, 'one hour earns one hour of coins');
+  check(hoursReady(e, t0 + 100 * HOUR_MS) === MAX_HOURS, 'earning is capped');
+  check(hoursReady(e, t0 - HOUR_MS) === 0, 'a clock set back earns nothing');
+  check(msToNext(e, t0 + 20 * 60_000) === 40 * 60_000, 'time to next hour counts down');
+  const now = t0 + 2.5 * HOUR_MS;
+  check(claimEarn(e, now) === 2 * COINS_PER_HOUR, 'claim pays whole hours');
+  check(e.lastClaim === t0 + 2 * HOUR_MS && msToNext(e, now) === HOUR_MS / 2, 'claim keeps the leftover half hour');
+  check(claimEarn(e, now) === 0, 'claiming twice pays once');
+  claimEarn(e, now + 50 * HOUR_MS);
+  check(e.lastClaim === now + 50 * HOUR_MS, 'a capped claim restarts the clock');
+  const back = parseEarn({ lastClaim: t0 + 5 * HOUR_MS }, t0);
+  check(back.lastClaim === t0, 'a future lastClaim is reset to now');
+  const junk = parseEarn({ lastClaim: 'x' }, t0);
+  check(junk.lastClaim === t0, 'junk storage falls back to a fresh state');
+  check(parseEarn(null, t0).lastClaim === t0, 'missing storage is a fresh state');
+  // Reload before the first claim: the fresh clock is saved, so the next launch keeps counting from it.
+  const store = new Map<string, string>();
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  };
+  saveEarn(loadEarn(t0));
+  check(
+    pendingCoins(loadEarn(t0 + HOUR_MS), t0 + HOUR_MS) === COINS_PER_HOUR,
+    'a reload before the first claim keeps the clock',
+  );
+  check(saveWallet({ v: 1, money: 5 }) === true, 'saveWallet reports a stored wallet');
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: () => null,
+    setItem: () => {
+      throw new Error('quota');
+    },
+  };
+  check(saveWallet({ v: 1, money: 5 }) === false, 'saveWallet reports a failed write');
+  delete (globalThis as { localStorage?: unknown }).localStorage;
+  check(waitLabel(61 * 60_000) === '1h 01m' && waitLabel(1) === '1m', 'wait labels read well');
+}
+
+// Daily missions: progress, claim-once, and the local-day reset.
+{
+  const day = '2026-11-11';
+  check(dayKey(new Date(2026, 0, 5, 23, 59)) === '2026-01-05', 'dayKey is the zero-padded local date');
+  let m = freshMissions(day);
+  check(
+    MISSIONS.every((d) => !canClaim(m, d.id)),
+    'nothing is claimable on a fresh day',
+  );
+  m = recordPark(m, 'a', 2);
+  m = recordPark(m, 'a', 3);
+  check(progressFor(m, 'park3') === 2 && progressFor(m, 'star3') === 1, 'parks and 3-star wins are counted');
+  check(progressFor(m, 'worlds2') === 1, 'repeating one level counts once for different levels');
+  check(canClaim(m, 'star3') && !canClaim(m, 'park3'), 'only finished missions can be claimed');
+  m = recordPark(m, 'b', 1);
+  const c1 = claim(m, 'park3');
+  check(c1.reward === MISSIONS[0].reward && !canClaim(c1.missions, 'park3'), 'a claim pays its reward once');
+  check(claim(c1.missions, 'park3').reward === 0, 'claiming twice pays nothing');
+  check(
+    claim(m, 'star3').reward > 0 && claim(freshMissions(day), 'star3').reward === 0,
+    'unfinished claims pay nothing',
+  );
+  check(rollDay(c1.missions, day) === c1.missions, 'same day keeps progress');
+  const next = rollDay(c1.missions, '2026-11-12');
+  check(
+    next.parks === 0 && next.claimed.length === 0 && next.day === '2026-11-12',
+    'a new day resets progress and claims',
+  );
+  check(
+    JSON.stringify(parseMissions(JSON.parse(JSON.stringify(c1.missions)), day)) === JSON.stringify(c1.missions),
+    'missions round-trip',
+  );
+  check(parseMissions(c1.missions, '2026-11-12').parks === 0, 'stored missions from another day are dropped');
+  const junk = parseMissions({ day, parks: -4, star3: 'x', levels: [1, 'a', 'a'], claimed: ['nope', 'star3'] }, day);
+  check(
+    junk.parks === 0 && junk.star3 === 0 && junk.levels.length === 1 && junk.claimed.join() === 'star3',
+    'junk fields are cleaned',
+  );
+  check(
+    parseMissions(null, day).parks === 0 && parseWallet('x').money === 0 && parseWallet({ money: 250.9 }).money === 250,
+    'bad storage parses to defaults',
   );
 }
 

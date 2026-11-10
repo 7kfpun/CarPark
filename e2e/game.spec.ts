@@ -49,7 +49,19 @@ test('any collision fails the level', async ({ page }) => {
   for (let t = 0; t < 20 && (await page.locator('#modal-title').innerText()) === ''; t++) await run(page, 1);
   await page.keyboard.up('ArrowUp');
   await expect(page.locator('#modal-title')).toHaveText('Level failed');
-  await expect(page.locator('#modal-body')).toHaveText('You hit something. Ease off near cars, walls and cones.');
+  await expect(page.locator('#modal-body')).toHaveText(
+    /^You hit something: -\d+ HP, \d+ left\. Ease off near cars, walls and cones\.$/,
+  );
+  // The crash is saved as damage to the car that was driven, and survives a reload.
+  const hp = async () => page.evaluate(() => JSON.parse(localStorage.getItem('carpark.health') ?? 'null'));
+  const saved = await hp();
+  const [id, left] = Object.entries(saved.hp as Record<string, number>)[0];
+  expect(id).toBe('hatchback');
+  expect(left).toBeGreaterThanOrEqual(0);
+  expect(left).toBeLessThan(100);
+  await expect(page.locator('#modal-body')).toContainText(`${left} left`);
+  await page.reload();
+  expect(await hp()).toEqual(saved);
 });
 
 test('Escape pauses and resumes; the game does not run under Settings', async ({ page }) => {
