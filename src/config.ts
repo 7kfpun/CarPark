@@ -37,7 +37,8 @@ export const MAX_COLLISION_YAW = 0.03; // rad, max heading change per resolveCol
 export const CONTACT_MEMORY = 6; // steps a contact stays "sustained" after separating
 
 // Multi-storey.
-// m/s^2 pulling the car down a slope. Arcade value: must stay below 0.6 * ACCEL / sin(RAMP_MAX_SLOPE) = 4.3 so a
-// 60% throttle (touch pedals) still climbs the steepest allowed ramp from rest.
+// m/s^2 pulling the car down a slope. Arcade value: the hatchback must climb the steepest allowed ramp from rest at
+// CLIMB_THROTTLE (0.6 * ACCEL / sin(RAMP_MAX_SLOPE) = 4.3 > 3). Slower vehicles climb less: see `maxClimbSlope`.
 export const SLOPE_GRAVITY = 3;
+export const CLIMB_THROTTLE = 0.6; // the throttle a touch-pedal player can be relied on to hold
 export const RAMP_MAX_SLOPE = (12 * Math.PI) / 180; // rad, steepest ramp the 2D footprint approximation allows

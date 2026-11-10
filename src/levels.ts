@@ -280,7 +280,7 @@ const LEVELS_1_12: RawLevel[] = [
       carOn('upper', -3, 26, 0),
       carOn('upper', 9, 26, PI),
       carOn('upper', -7.5, 17, PI / 2),
-      carOn('upper', 8, 17, PI / 2),
+      carOn('upper', 7.5, 17, PI / 2),
     ],
   },
   {
@@ -377,9 +377,13 @@ const LEVELS_1_12: RawLevel[] = [
   },
 ];
 
+/** Mirrored level id -> id of the level it flips (filled by `mirrored`; the validator checks the pair agrees). */
+export const MIRROR_OF: Record<string, string> = {};
+
 /** The level with its layout flipped left to right (x to -x, headings mirrored), under a new identity. */
 function mirrored(base: string, extra: Pick<LevelDef, 'id' | 'name' | 'hint'> & Partial<RawLevel>): RawLevel {
   const b = LEVELS_1_12.find((l) => l.id === base)!;
+  MIRROR_OF[extra.id] = base;
   const flip = <T extends { x: number; rot?: number }>(o: T): T => ({
     ...o,
     x: o.x === 0 ? 0 : -o.x,
