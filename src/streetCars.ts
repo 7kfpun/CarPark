@@ -12,12 +12,10 @@ import type { StreetBody } from './layout';
  * Car space: x across (width 1.9 m), y up, z forward (length 4.2 m), the same footprint as every
  * other parked car, so collisions are unchanged.
  */
-export const STREET_W = 1.9;
-export const STREET_L = 4.2;
-const HL = STREET_L / 2;
+const DEF_W = 1.9;
+const DEF_L = 4.2;
 const BEVEL = 0.06;
 const WHEEL_Z = 1.3;
-const TYRE_R = 0.352;
 
 type Pt = [number, number]; // [z, y]
 
@@ -34,9 +32,25 @@ interface Spec {
   rails?: boolean;
   /** Open load bed behind the cab. */
   bed?: boolean;
+  /** Footprint (m); defaults to the standard parked car, 1.9 x 4.2. */
+  w?: number;
+  l?: number;
+  /** Axle positions along z and tyre radius (defaults: wheelbase 2.6, 0.352). */
+  axles?: number[];
+  tyreR?: number;
+  /** Height where the glass starts (defaults to the body's top at the doors). */
+  belt?: number;
+  /** Solid paint panels over the glass between these z values (a van's cargo area). */
+  panels?: [number, number][];
+  /** Extra vertical pillars at these z values (a bus's window frames). */
+  pillars?: number[];
+  /** A paint cap above the glass up to this height (a bus's roof). */
+  roofCap?: number;
+  /** Buses and vans: no car-style door handles and shut lines. */
+  boxy?: boolean;
 }
 
-const E = HL - BEVEL; // outline end, the bevel brings it to the full length
+const E = DEF_L / 2 - BEVEL; // outline end, the bevel brings it to the full length
 const SPECS: Record<StreetBody, Spec> = {
   sedan: {
     body: [
@@ -117,6 +131,55 @@ const SPECS: Record<StreetBody, Spec> = {
     sill: 0.4,
     rails: true,
   },
+  van: {
+    body: [
+      [-2.45, 0.42],
+      [-2.45, 1.1],
+      [-2.2, 1.14],
+      [1.6, 1.1],
+      [2.2, 1.0],
+      [2.45, 0.85],
+      [2.45, 0.42],
+    ],
+    cabin: [
+      [-2.4, 1.1],
+      [-2.4, 2.12],
+      [1.0, 2.14],
+      [1.75, 1.12],
+    ],
+    round: 0.14,
+    sill: 0.42,
+    w: 2.0,
+    l: 5.0,
+    axles: [-1.55, 1.7],
+    panels: [[-2.45, -0.6]],
+    boxy: true,
+  },
+  bus: {
+    body: [
+      [-4.44, 0.5],
+      [-4.44, 1.5],
+      [4.44, 1.5],
+      [4.44, 0.62],
+      [4.44, 0.5],
+    ],
+    cabin: [
+      [-4.4, 1.5],
+      [-4.4, 2.72],
+      [4.4, 2.72],
+      [4.4, 1.5],
+    ],
+    round: 0.16,
+    sill: 0.5,
+    w: 2.5,
+    l: 9.0,
+    axles: [-2.9, 3.1],
+    tyreR: 0.5,
+    belt: 1.5,
+    pillars: [-3.3, -1.8, -0.3, 1.2, 2.7],
+    roofCap: 3.0,
+    boxy: true,
+  },
   pickup: {
     body: [
       [-E, 0.4],
@@ -137,6 +200,11 @@ const SPECS: Record<StreetBody, Spec> = {
     bed: true,
   },
 };
+
+/** Footprint (m) of a body type: what the collision box of that parked car must be. */
+export function streetDims(kind: StreetBody): { w: number; l: number } {
+  return { w: SPECS[kind].w ?? DEF_W, l: SPECS[kind].l ?? DEF_L };
+}
 
 /** A polygon with rounded corners as a THREE.Shape. */
 function roundedShape(pts: Pt[], r: number): THREE.Shape {
@@ -249,13 +317,19 @@ interface Built {
 
 function build(kind: StreetBody): Built {
   const s = SPECS[kind];
+  const STREET_W = s.w ?? DEF_W;
+  const STREET_L = s.l ?? DEF_L;
+  const HL = STREET_L / 2;
+  const k = STREET_W / DEF_W; // lateral scale of the lamps and trim
+  const axles = s.axles ?? [-WHEEL_Z, WHEEL_Z];
+  const TYRE_R = s.tyreR ?? 0.352;
   const paintParts: THREE.BufferGeometry[] = [];
   const detail: THREE.BufferGeometry[] = [];
   const lamps: THREE.BufferGeometry[] = [];
 
   paintParts.push(profile(roundedShape(s.body, s.round), STREET_W, BEVEL));
   // Underbody and sills: keeps the gap under the car dark instead of see-through.
-  detail.push(tint(boxAt(1.66, 0.14, STREET_L - 0.3, 0, s.sill - 0.02, 0), DARK));
+  detail.push(tint(boxAt(STREET_W - 0.24, 0.14, STREET_L - 0.3, 0, s.sill - 0.02, 0), DARK));
 
   // Greenhouse: glass with paint pillars and a roof panel proud of it.
   const gw = STREET_W - 0.34;
@@ -263,14 +337,22 @@ function build(kind: StreetBody): Built {
   const glass = profile(roundedShape(cabin, 0.12), gw, 0.03);
   const pw = gw + 0.07;
   const [rb, rt, ft, fb] = cabin;
+  const belt = s.belt ?? s.body[2][1];
   paintParts.push(strut(rt, ft, 0.07, pw - 0.02, 0)); // roof
   paintParts.push(strut(fb, ft, 0.09, pw, 0)); // windscreen header / A pillars
   paintParts.push(strut(rb, rt, 0.09, pw, 0)); // C pillars / tailgate edge
   if (!s.bed) {
     const mid = (rt[0] + ft[0]) / 2 - 0.15;
     const midY = cabin[1][1] - 0.02;
-    paintParts.push(boxAt(pw, midY - s.body[2][1], 0.08, 0, (midY + s.body[2][1]) / 2 - 0.02, mid)); // B pillar
+    paintParts.push(boxAt(pw, midY - belt, 0.08, 0, (midY + belt) / 2 - 0.02, mid)); // B pillar
   }
+  for (const [z0, z1] of s.panels ?? [])
+    paintParts.push(boxAt(pw, cabin[1][1] - belt, z1 - z0, 0, (cabin[1][1] + belt) / 2, (z0 + z1) / 2));
+  for (const z of s.pillars ?? []) paintParts.push(boxAt(pw, cabin[1][1] - belt, 0.14, 0, (cabin[1][1] + belt) / 2, z));
+  if (s.roofCap)
+    paintParts.push(
+      boxAt(pw + 0.02, s.roofCap - cabin[1][1] + 0.02, STREET_L - 0.1, 0, (s.roofCap + cabin[1][1]) / 2, 0),
+    );
   if (s.rails)
     for (const sx of [-1, 1])
       detail.push(
@@ -288,13 +370,14 @@ function build(kind: StreetBody): Built {
 
   // Wheels and arches.
   const wheel = mergeGeometries(wheelParts(), false)!;
-  const archR = 0.4;
+  wheel.scale(TYRE_R / 0.352, TYRE_R / 0.352, TYRE_R / 0.352);
+  const archR = TYRE_R + 0.048;
   const wheelY = TYRE_R;
   for (const sx of [-1, 1])
-    for (const z of [-WHEEL_Z, WHEEL_Z]) {
+    for (const z of axles) {
       const w = wheel.clone();
       if (sx < 0) w.rotateY(Math.PI);
-      detail.push(w.translate(sx * 0.83, wheelY, z));
+      detail.push(w.translate(sx * (STREET_W / 2 - 0.12), wheelY, z));
       // Dark arch on the flank behind the tyre.
       const lip = Math.asin((s.sill - 0.02 - wheelY) / archR);
       const arch = new THREE.CircleGeometry(archR, 24, -lip, Math.PI + 2 * lip);
@@ -303,7 +386,7 @@ function build(kind: StreetBody): Built {
       // Arch liner: a dark half cylinder inside, so the wheel well has depth.
       const liner = new THREE.CylinderGeometry(archR - 0.03, archR - 0.03, 0.34, 20, 1, true, 0, Math.PI);
       liner.rotateZ(Math.PI / 2).rotateX(-Math.PI / 2);
-      detail.push(tint(liner.translate(sx * 0.76, wheelY, z), DARK));
+      detail.push(tint(liner.translate(sx * (STREET_W / 2 - 0.19), wheelY, z), DARK));
     }
 
   // Front: grille, lower intake, plate, headlamps.
@@ -311,27 +394,28 @@ function build(kind: StreetBody): Built {
   const frontY = (s.sill + nose) / 2;
   detail.push(tint(boxAt(0.78, 0.17, 0.05, 0, frontY + 0.06, HL + 0.005), DARK));
   detail.push(tint(boxAt(0.8, 0.02, 0.055, 0, frontY + 0.06, HL + 0.006), CHROME));
-  detail.push(tint(boxAt(1.5, 0.12, 0.06, 0, s.sill + 0.1, HL - 0.02), DARK));
+  detail.push(tint(boxAt(STREET_W - 0.4, 0.12, 0.06, 0, s.sill + 0.1, HL - 0.02), DARK));
   detail.push(tint(boxAt(0.5, 0.11, 0.02, 0, s.sill + 0.12, HL + 0.04), PLATE));
   for (const sx of [-1, 1]) {
-    lamps.push(tint(boxAt(0.4, 0.1, 0.05, sx * 0.63, nose - 0.08, HL), 0xfff3cf));
-    lamps.push(tint(boxAt(0.12, 0.06, 0.05, sx * 0.8, nose - 0.2, HL - 0.02), 0xff9a1f));
+    lamps.push(tint(boxAt(0.4, 0.1, 0.05, sx * 0.63 * k, nose - 0.08, HL), 0xfff3cf));
+    lamps.push(tint(boxAt(0.12, 0.06, 0.05, sx * 0.8 * k, nose - 0.2, HL - 0.02), 0xff9a1f));
   }
   // Rear: tail lamps, plate, bumper.
   const tail = s.body[1][1];
-  for (const sx of [-1, 1]) lamps.push(tint(boxAt(0.46, 0.12, 0.05, sx * 0.64, tail - 0.1, -HL), 0xc4161c));
+  for (const sx of [-1, 1]) lamps.push(tint(boxAt(0.46, 0.12, 0.05, sx * 0.64 * k, tail - 0.1, -HL), 0xc4161c));
   detail.push(tint(boxAt(0.5, 0.11, 0.02, 0, tail - 0.28, -HL - 0.03), PLATE));
-  detail.push(tint(boxAt(1.6, 0.1, 0.06, 0, s.sill + 0.1, -HL + 0.02), DARK));
+  detail.push(tint(boxAt(STREET_W - 0.3, 0.1, 0.06, 0, s.sill + 0.1, -HL + 0.02), DARK));
 
   // Flanks: door shut lines, handles, mirrors.
-  const beltY = s.body[2][1];
+  const beltY = belt;
   for (const sx of [-1, 1]) {
     const x = sx * (STREET_W / 2 + 0.003);
-    for (const z of [-0.45, 0.85])
+    for (const z of s.boxy ? [] : [-0.45, 0.85])
       detail.push(tint(boxAt(0.012, beltY - s.sill - 0.08, 0.012, x, (beltY + s.sill) / 2, z), DARK));
-    for (const z of [-0.2, 0.55]) detail.push(tint(boxAt(0.02, 0.025, 0.16, x + sx * 0.005, beltY - 0.1, z), CHROME));
-    detail.push(tint(boxAt(0.14, 0.1, 0.17, sx * (STREET_W / 2 + 0.04), cabin[0][1] + 0.12, cabin[3][0] - 0.28), DARK)); // mirror
-    detail.push(tint(boxAt(0.02, 0.012, 3.5, sx * 0.88, s.sill + 0.06, 0), CHROME)); // sill trim
+    for (const z of s.boxy ? [] : [-0.2, 0.55])
+      detail.push(tint(boxAt(0.02, 0.025, 0.16, x + sx * 0.005, beltY - 0.1, z), CHROME));
+    detail.push(tint(boxAt(0.14, 0.1, 0.17, sx * (STREET_W / 2 + 0.04), belt + 0.12, cabin[3][0] - 0.28), DARK)); // mirror
+    detail.push(tint(boxAt(0.02, 0.012, STREET_L - 0.7, sx * (STREET_W / 2 - 0.07), s.sill + 0.06, 0), CHROME)); // sill trim
   }
 
   const paint = mergeGeometries(
@@ -405,7 +489,7 @@ function sharedParts(): NonNullable<typeof shared> {
       polygonOffsetUnits: -2,
     }),
   );
-  const blobGeo = keep(new THREE.PlaneGeometry(STREET_W + 0.9, STREET_L + 0.9).rotateX(-Math.PI / 2));
+  const blobGeo = keep(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
   const blob = new THREE.Mesh(blobGeo, blobMat);
   blob.position.y = 0.012;
   blob.userData.noShadow = true;
@@ -434,6 +518,9 @@ export function buildStreetCar(kind: StreetBody, color: number): THREE.Group {
   mesh(b.glass, sp.glass);
   mesh(b.detail, sp.detail);
   mesh(b.lamps, sp.lamps);
-  root.add(sp.blob.clone());
+  const blob = sp.blob.clone();
+  const d = streetDims(kind);
+  blob.scale.set(d.w + 0.9, 1, d.l + 0.9);
+  root.add(blob);
   return root;
 }

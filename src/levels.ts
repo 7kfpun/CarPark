@@ -1,5 +1,6 @@
 import { LOCATIONS } from './worlds';
-import type { ArrowDef, BayDef, FloorDef, LevelDef, LocationId, ObstacleDef, RampDef } from './layout';
+import type { ArrowDef, BayDef, FloorDef, LevelDef, LocationId, ObstacleDef, RampDef, StreetBody } from './layout';
+import { streetDims } from './streetCars';
 
 /** A level as written below: its location is filled in from `LOCATION_OF`. */
 type RawLevel = Omit<LevelDef, 'location'>;
@@ -821,6 +822,19 @@ const MASTER_LEVELS: RawLevel[] = [
   },
 ];
 
+/** A parked street car (src/streetCars.ts): body type and colour chosen by hand, collision box of the body's own size. */
+function streetCar(
+  body: StreetBody,
+  x: number,
+  z: number,
+  yawDeg: number,
+  color: number,
+  heading = PI / 2,
+): ObstacleDef {
+  const { w, l } = streetDims(body);
+  return { kind: 'car', x, z, rot: heading + (yawDeg * PI) / 180, color, body, w, l };
+}
+
 /** Main Street: a plain road with a kerb along one side. Pull up and stop in the marked space by the kerb. */
 const STREET_LEVEL: RawLevel = {
   id: 'main-street',
@@ -832,7 +846,19 @@ const STREET_LEVEL: RawLevel = {
   bothWays: true,
   time: 60,
   stars: { three: 18, two: 28 },
-  obstacles: [{ kind: 'wall', x: 0, z: -5.4, w: 46, l: 0.4, h: 0.25 }],
+  obstacles: [
+    { kind: 'wall', x: 0, z: -5.4, w: 46, l: 0.4, h: 0.25 },
+    // Kerb side, past the space: a sedan and a van, a little off true and unevenly spaced.
+    streetCar('sedan', 9.6, -3.3, 1.5, 0x2f6fde),
+    streetCar('van', 16.2, -3.2, -1, 0xe8e8e8),
+    // Far side of the street, facing the other way.
+    streetCar('bus', -8, 4.5, 0.5, 0xe9b000, -PI / 2),
+    streetCar('hatchback', -17, 4.6, -1.5, 0xc8322b, -PI / 2),
+    streetCar('suv', 1.5, 4.6, 1, 0x2e8b57, -PI / 2),
+    streetCar('pickup', 8.2, 4.5, -1, 0x8a8f98, -PI / 2),
+    streetCar('wagon', 14.5, 4.6, 2, 0x7a4fd0, -PI / 2),
+    streetCar('sedan', 20.4, 4.6, -1.5, 0x222428, -PI / 2),
+  ],
 };
 
 const RAW_LEVELS: RawLevel[] = [
