@@ -284,6 +284,8 @@ function mirror(segments: Segment[]): Segment[] {
 
 SOLUTIONS['backhand-angle'] = mirror(SOLUTIONS['angle-of-attack']);
 SOLUTIONS['one-way-curb'] = mirror(SOLUTIONS['curb-side']);
+// Main Street shares Curb Side's gap and spawn; its extra cars are further along the kerb.
+SOLUTIONS['main-street'] = SOLUTIONS['curb-side'];
 
 // Van: drive past the bay, then reverse in at an angle (found by searching the physics, replayed by validate).
 SOLUTIONS['van-garage'] = [

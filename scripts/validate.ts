@@ -85,6 +85,7 @@ import {
   stepReset,
 } from '../src/orbit';
 import { LEVELS } from '../src/levels';
+import { streetProblems } from '../src/street';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
@@ -1645,6 +1646,29 @@ console.log('Admin mode');
       !showSkipButtons(true, true, false),
     'skip buttons need admin, the toggle on, and an open level',
   );
+}
+
+console.log('Street level (parked vehicles)');
+{
+  const street = LEVELS.find((l) => l.id === 'main-street');
+  check(street !== undefined && street.location === 'open-air', 'main-street is in the location table');
+  if (street) {
+    const problems = streetProblems(street);
+    check(problems.length === 0, `street problems: ${problems.join('; ')}`);
+    // The checker itself must catch a uniform, single-model row.
+    const dull = {
+      ...street,
+      obstacles: [-12, -6, 0, 6, 12].map((x) => ({
+        kind: 'car' as const,
+        x,
+        z: -7.2,
+        rot: Math.PI / 2,
+        color: 1,
+        variant: 0,
+      })),
+    };
+    check(streetProblems(dull).length >= 3, 'streetProblems should flag a uniform one-model row');
+  }
 }
 
 console.log('Level maps (docs/LEVELS.md, docs/maps)');

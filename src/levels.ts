@@ -821,6 +821,43 @@ const MASTER_LEVELS: RawLevel[] = [
   },
 ];
 
+/** A parked car with its model and colour chosen by hand (the street row below reads as natural, not cycled). */
+function streetCar(x: number, z: number, yawDeg: number, variant: number, color: number, base = PI / 2): ObstacleDef {
+  return { kind: 'car', x, z, rot: base + (yawDeg * PI) / 180, color, variant };
+}
+
+/** Phase 1 of the street: a kerb lined with parked cars of mixed models and colours (variants index PARKED_MODELS). */
+const STREET_LEVEL: RawLevel = {
+  id: 'main-street',
+  name: 'Main Street',
+  hint: 'Parallel park at the kerb between two cars. Reverse in at an angle, then straighten up.',
+  lot: { w: 64, l: 26 },
+  spawn: { x: -16, z: 2, rot: PI / 2 },
+  target: { x: 0, z: -7.2, rot: PI / 2, w: 2.5, l: 6.8 },
+  bothWays: true,
+  time: 60,
+  stars: { three: 16, two: 25 },
+  obstacles: [
+    { kind: 'wall', x: 0, z: -9.6, w: 62, l: 0.4, h: 0.25 },
+    // Kerb row: slightly irregular spacing and yaw, models and colours mixed.
+    streetCar(-5.7, -7.2, 1, 0, 0x2f6fde),
+    streetCar(5.7, -7.2, -1.5, 2, 0xc8322b),
+    streetCar(-13, -7.2, -1, 1, 0xe8e8e8),
+    streetCar(13.4, -7.2, 2, 5, 0x222428),
+    streetCar(-19.2, -7.2, 2.5, 3, 0xd9a521),
+    streetCar(19.9, -7.2, -2, 4, 0xf2c200),
+    streetCar(-26.1, -7.2, -1.5, 0, 0x2e8b57),
+    streetCar(26.6, -7.2, 1, 2, 0x8a8f98),
+    // Far side of the street.
+    streetCar(-22, 8, -1, 5, 0x7a4fd0, -PI / 2),
+    streetCar(-12, 8, 1.5, 1, 0x1fa3b5, -PI / 2),
+    streetCar(-1.5, 8, -2, 0, 0xe8e8e8, -PI / 2),
+    streetCar(8.5, 8, 1, 3, 0x2f6fde, -PI / 2),
+    streetCar(18, 8, -1.5, 2, 0x8a8f98, -PI / 2),
+    streetCar(28.2, 8, 2, 4, 0xc8322b, -PI / 2),
+  ],
+};
+
 const RAW_LEVELS: RawLevel[] = [
   ...LEVELS_1_12,
   mirrored('angle-of-attack', {
@@ -838,6 +875,7 @@ const RAW_LEVELS: RawLevel[] = [
   ...VEHICLE_LEVELS,
   ...PROVING_LEVELS,
   ...MASTER_LEVELS,
+  STREET_LEVEL,
 ];
 
 /** Location of every level. Ids are permanent; this is the only place a level is assigned to a world. */
@@ -852,6 +890,7 @@ const LOCATION_OF: Record<string, LocationId> = {
   'backhand-angle': 'open-air',
   'curb-side': 'open-air',
   'one-way-curb': 'open-air',
+  'main-street': 'open-air',
   'up-one-floor': 'multi-storey',
   basement: 'multi-storey',
   spiral: 'multi-storey',

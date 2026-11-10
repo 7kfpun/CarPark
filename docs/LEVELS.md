@@ -167,7 +167,23 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![One-Way Curb](maps/one-way-curb.svg)
 
-## 11. Up One Floor
+## 11. Main Street
+
+> Parallel park at the kerb between two cars. Reverse in at an angle, then straighten up.
+
+| | |
+| --- | --- |
+| Id | `main-street` |
+| Vehicle | Hatchback |
+| Lot | 64 × 26 m |
+| Time limit | 60 s |
+| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
+| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 90° (either direction) |
+| Start pose | x -16, z 2, heading 90° |
+
+![Main Street](maps/main-street.svg)
+
+## 12. Up One Floor
 
 > Drive up the ramp to level 1, then pull forwards into the glowing bay and stop.
 
@@ -185,7 +201,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Up One Floor, floor upper](maps/up-one-floor-upper.svg)
 
-## 12. Basement
+## 13. Basement
 
 > Down the ramp into the dark. Reverse into the bay between the two cars.
 
@@ -203,7 +219,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Basement, floor basement](maps/basement-basement.svg)
 
-## 13. Spiral
+## 14. Spiral
 
 > Keep a steady curve all the way up the spiral. The free bay is on the top deck.
 
@@ -223,7 +239,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Spiral, floor top](maps/spiral-top.svg)
 
-## 14. Van Garage
+## 15. Van Garage
 
 > A van is longer and wider than a car. Reverse into the garage bay with barely half a metre to spare each side.
 
@@ -239,7 +255,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Van Garage](maps/van-garage.svg)
 
-## 15. Bus Bay
+## 16. Bus Bay
 
 > A city bus swings wide and turns slowly. Pull in alongside the platform between the two parked buses.
 
@@ -255,7 +271,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Bus Bay](maps/bus-bay.svg)
 
-## 16. Loading Dock
+## 17. Loading Dock
 
 > Back the box truck square into the dock. Line up early: the cargo box swings wide.
 
@@ -271,7 +287,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Loading Dock](maps/loading-dock.svg)
 
-## 17. Minibus Parallel
+## 18. Minibus Parallel
 
 > Parallel park the minibus at the curb. The gap is only a metre longer than the bus.
 
@@ -287,7 +303,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Minibus Parallel](maps/minibus-parallel.svg)
 
-## 18. Drive-Through
+## 19. Drive-Through
 
 > Follow the kerbed lane and stop in the bay before the barrier. Keep clear of both kerbs.
 
@@ -303,7 +319,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Drive-Through](maps/drive-through.svg)
 
-## 19. Chevron Bays
+## 20. Chevron Bays
 
 > The bays are slanted. Drive past the free one, then reverse in at the same angle.
 
@@ -319,7 +335,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Chevron Bays](maps/chevron-bays.svg)
 
-## 20. Dead-End Turn
+## 21. Dead-End Turn
 
 > The alley is too narrow for a U-turn. Back out of the dead end, then swing nose-first into the side bay.
 
@@ -335,7 +351,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Dead-End Turn](maps/dead-end-turn.svg)
 
-## 21. S-Bend Reverse
+## 22. S-Bend Reverse
 
 > Back the sedan all the way down the winding lane into the bay at the far end. Small steering, patience.
 
@@ -351,7 +367,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![S-Bend Reverse](maps/s-bend-reverse.svg)
 
-## 22. Double Parallel
+## 23. Double Parallel
 
 > Two lorries, a kerb and a row of cars across the road. Parallel park the SUV in the gap between the lorries.
 
@@ -367,7 +383,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Double Parallel](maps/double-parallel.svg)
 
-## 23. Pillar Hall
+## 24. Pillar Hall
 
 > Weave through the pillars, then reverse into the bay between a pillar and a parked car.
 
@@ -383,7 +399,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Pillar Hall](maps/pillar-hall.svg)
 
-## 24. Delivery Alley
+## 25. Delivery Alley
 
 > Take the van round the tight corner, past the loading bay, then back into it.
 
@@ -399,7 +415,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Delivery Alley](maps/delivery-alley.svg)
 
-## 25. Needle Alley
+## 26. Needle Alley
 
 > A dead end and a bay barely wider than the sedan. Back out, line up and drive nose-first into the bay on the right.
 
@@ -415,7 +431,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Needle Alley](maps/needle-alley.svg)
 
-## 26. Hairpin Deck
+## 27. Hairpin Deck
 
 > Up the narrow ramp, round the barrier on the deck, then reverse into the bay squeezed between two cars.
 
@@ -433,7 +449,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Hairpin Deck, floor upper](maps/hairpin-deck-upper.svg)
 
-## 27. Squeeze Play
+## 28. Squeeze Play
 
 > A narrow aisle and a bay with barely a hand to spare either side. Pull up past it and reverse straight in.
 
@@ -449,7 +465,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Squeeze Play](maps/squeeze-play.svg)
 
-## 28. Switchback Lane
+## 29. Switchback Lane
 
 > A one-way lane with two corners the SUV cannot take in one sweep. Shuffle round each and finish in the bay.
 
@@ -465,7 +481,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Switchback Lane](maps/switchback-lane.svg)
 
-## 29. Gate Runner
+## 30. Gate Runner
 
 > Three walls, three narrow gates on alternate sides. Weave through them, then reverse into the walled bay.
 
@@ -481,7 +497,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Gate Runner](maps/gate-runner.svg)
 
-## 30. Dock Master
+## 31. Dock Master
 
 > The box truck needs every metre of the yard. Swing wide, then reverse into the narrow loading dock.
 

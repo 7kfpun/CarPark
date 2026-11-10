@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-680 -300 1360 600" width="1360" height="600" role="img" aria-label="Main Street">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-680" y="-300" width="1360" height="600"/>
+<polygon class="floor" points="640,260 640,-260 -640,-260 -640,260"/>
+<polygon class="target" points="68,-169 -68,-169 -68,-119 68,-119"/>
+<polyline class="targetarrow" points="-35,-144 35,-144"/><polygon class="targetarrowf" points="35,-144 15.4,-131.4 15.4,-156.6"/>
+<polygon class="wall" points="620,-188 620,-196 -620,-196 -620,-188"/>
+<polygon class="wall" points="652,272 652,260 -652,260 -652,272"/>
+<polygon class="wall" points="652,-260 652,-272 -652,-272 -652,-260"/>
+<polygon class="wall" points="652,260 652,-260 640,-260 640,260"/>
+<polygon class="wall" points="-640,260 -640,-260 -652,-260 -652,260"/>
+<polygon class="car" fill="#2f6fde" points="-72.34,-163.73 -156.33,-162.26 -155.66,-124.27 -71.67,-125.74"/><polyline class="glass" points="-89.72,-128.42 -90.28,-160.42"/>
+<polygon class="car" fill="#8a8f98" points="156.48,-161.89 72.51,-164.09 71.52,-126.11 155.49,-123.91"/><polyline class="glass" points="137.57,-127.38 138.41,-159.37"/>
+<polygon class="car" fill="#e8e8e8" points="-217.67,-162.26 -301.66,-163.73 -302.33,-125.74 -218.34,-124.27"/><polyline class="glass" points="-236.28,-127.58 -235.72,-159.58"/>
+<polygon class="car" fill="#222428" points="309.31,-164.45 225.36,-161.52 226.69,-123.55 310.64,-126.48"/><polyline class="glass" points="292.54,-128.85 291.43,-160.83"/>
+<polygon class="car" fill="#c8322b" points="-342.87,-164.81 -426.79,-161.15 -425.13,-123.19 -341.21,-126.85"/><polyline class="glass" points="-359.32,-129.06 -360.72,-161.03"/>
+<polygon class="car" fill="#2e8b57" points="440.64,-161.52 356.69,-164.45 355.36,-126.48 439.31,-123.55"/><polyline class="glass" points="421.43,-127.17 422.54,-159.15"/>
+<polygon class="car" fill="#2f6fde" points="-479.52,-161.89 -563.49,-164.09 -564.48,-126.11 -480.51,-123.91"/><polyline class="glass" points="-498.43,-127.38 -497.59,-159.37"/>
+<polygon class="car" fill="#8a8f98" points="573.66,-163.73 489.67,-162.26 490.34,-124.27 574.33,-125.74"/><polyline class="glass" points="556.28,-128.42 555.72,-160.42"/>
+<polygon class="car" fill="#222428" points="-482.33,178.26 -398.34,179.73 -397.67,141.74 -481.66,140.27"/><polyline class="glass" points="-463.72,143.58 -464.28,175.58"/>
+<polygon class="car" fill="#e8e8e8" points="-281.49,180.09 -197.52,177.89 -198.51,139.91 -282.48,142.11"/><polyline class="glass" points="-264.41,144.63 -263.57,176.62"/>
+<polygon class="car" fill="#2f6fde" points="-72.64,177.52 11.31,180.45 12.64,142.48 -71.31,139.55"/><polyline class="glass" points="-53.43,143.17 -54.54,175.15"/>
+<polygon class="car" fill="#c8322b" points="128.34,179.73 212.33,178.26 211.66,140.27 127.67,141.74"/><polyline class="glass" points="145.72,144.42 146.28,176.42"/>
+<polygon class="car" fill="#8a8f98" points="317.52,177.89 401.49,180.09 402.48,142.11 318.51,139.91"/><polyline class="glass" points="336.43,143.38 335.59,175.37"/>
+<polygon class="car" fill="#2e8b57" points="522.69,180.45 606.64,177.52 605.31,139.55 521.36,142.48"/><polyline class="glass" points="539.46,144.85 540.57,176.83"/>
+<polygon class="start" points="-278,21 -362,21 -362,59 -278,59"/>
+<polyline class="startarrow" points="-353.6,40 -286.4,40"/><polygon class="startarrowf" points="-286.4,40 -305.22,52.1 -305.22,27.9"/>
+</svg>
