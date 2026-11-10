@@ -19,5 +19,5 @@
 <polygon class="car" fill="#2e8b57" points="-41,562 -41,478 -79,478 -79,562"/><polyline class="glass" points="-76,544 -44,544"/>
 <polygon class="car" fill="#222428" points="161,478 161,562 199,562 199,478"/><polyline class="glass" points="196,496 164,496"/>
 <polygon class="car" fill="#7a4fd0" points="-108,321 -192,321 -192,359 -108,359"/><polyline class="glass" points="-126,356 -126,324"/>
-<polygon class="car" fill="#1fa3b5" points="202,321 118,321 118,359 202,359"/><polyline class="glass" points="184,356 184,324"/>
+<polygon class="car" fill="#1fa3b5" points="192,321 108,321 108,359 192,359"/><polyline class="glass" points="174,356 174,324"/>
 </svg>

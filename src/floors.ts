@@ -2,8 +2,8 @@
 // that surface is, and which obstacles the car can touch from there.
 // A flat level is one floor ('ground', y = 0), so it needs no description.
 import { corners, pointInOBB, type OBB } from './collision';
-import { RAMP_MAX_SLOPE } from './config';
-import { vehicleOf } from './vehicles';
+import { CLIMB_THROTTLE, RAMP_MAX_SLOPE, SLOPE_GRAVITY } from './config';
+import { vehicleOf, type VehicleDef } from './vehicles';
 import {
   allObstacles,
   bayOBB,
@@ -197,6 +197,29 @@ export function levelObstacles(def: LevelDef, surfaces: Surfaces): LayeredOBB[] 
   return levelObstacleDefs(def, surfaces).map((o) => ({ ...obstacleOBB(o), layer: o.floor ?? surfaces.startLayer }));
 }
 
+/** Steepest ramp slope (rad) the vehicle can climb from rest at CLIMB_THROTTLE: its accel must beat the slope's pull. */
+export function maxClimbSlope(v: VehicleDef): number {
+  return Math.asin(Math.min(1, (CLIMB_THROTTLE * v.accel) / SLOPE_GRAVITY));
+}
+
+/** Ids of the floors and ramps joined to `start` through the ramps (a ramp joins its `from` and `to`). */
+export function connectedLayers(s: Surfaces, start: string): Set<string> {
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length) {
+    const at = queue.pop()!;
+    for (const r of s.ramps) {
+      const next = r.id === at ? [r.from, r.to] : r.from === at ? [r.id] : r.to === at ? [r.id] : [];
+      for (const n of next) {
+        if (seen.has(n)) continue;
+        seen.add(n);
+        queue.push(n);
+      }
+    }
+  }
+  return seen;
+}
+
 /** Problems with a level's floors and ramps (empty when fine). */
 export function floorProblems(def: LevelDef): string[] {
   const s = new Surfaces(def);
@@ -213,6 +236,8 @@ export function floorProblems(def: LevelDef): string[] {
       if (s.floorHeight(end) === null) out.push(`ramp ${r.id} joins unknown floor ${end}`);
     if (s.rampSlope(r) > RAMP_MAX_SLOPE + 1e-9)
       out.push(`ramp ${r.id} is ${((s.rampSlope(r) * 180) / Math.PI).toFixed(1)} deg, over the limit`);
+    if (s.rampSlope(r) > maxClimbSlope(veh) + 1e-9)
+      out.push(`ramp ${r.id} is too steep for the ${veh.name} to climb from rest`);
     if (r.w < veh.width + RAMP_MARGIN)
       out.push(`ramp ${r.id} is too narrow for the car (needs ${veh.width + RAMP_MARGIN} m)`);
     if (r.l < veh.length + veh.wheelbase) out.push(`ramp ${r.id} is too short for the car`);
@@ -250,5 +275,7 @@ export function floorProblems(def: LevelDef): string[] {
     if (o.floor !== undefined && !ids.has(o.floor)) out.push(`obstacle on unknown layer ${o.floor}`);
   }
   if (def.target.floor !== undefined && !ids.has(def.target.floor)) out.push('target bay on unknown floor');
+  else if (!connectedLayers(s, s.startLayer).has(def.target.floor ?? s.startLayer))
+    out.push(`target floor ${def.target.floor} cannot be reached by ramp from the first floor`);
   return out;
 }
