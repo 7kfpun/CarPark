@@ -1293,8 +1293,13 @@ console.log('Load timeout');
   const realFetch = globalThis.fetch;
   let hits = 0;
   let aborted = false;
+  // Keep the request alive: Node holds the AbortSignal.any() dependents that FileLoader passes to fetch
+  // weakly, so once nothing references the pending fake request a GC can drop its abort listener and the
+  // abort is never seen (flaky: loading[url] stays set and the retry is deduped onto the hung request).
+  const pinned: Request[] = [];
   globalThis.fetch = ((input: Request) => {
     hits++;
+    pinned.push(input);
     if (hits > 1) return Promise.resolve(new Response(null, { status: 404 }));
     // First request never answers; it only ends when aborted.
     return new Promise<Response>((_res, rej) =>
