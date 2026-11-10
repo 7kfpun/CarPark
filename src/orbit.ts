@@ -114,6 +114,23 @@ export function isDoubleTap(dtMs: number, distPx: number): boolean {
   return dtMs > 0 && dtMs <= DOUBLE_TAP_MS && distPx <= 30;
 }
 
+/** Extra pixels around the on-screen wheel and pedals where a touch still counts as aimed at them (CARP-134). */
+export const CONTROL_GUARD_PX = 28;
+
+export interface ZoneRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** True when (x, y) is inside any of `rects` grown by `margin` px: a mis-touch near a control, not a camera drag. */
+export function inControlZone(x: number, y: number, rects: readonly ZoneRect[], margin = CONTROL_GUARD_PX): boolean {
+  return rects.some(
+    (r) => x >= r.left - margin && x <= r.right + margin && y >= r.top - margin && y <= r.bottom + margin,
+  );
+}
+
 /**
  * The pose with the offset applied. Cockpit and hood turn the head (the eye stays put);
  * the other views swing around the car's pivot at `t`, tilt, and zoom, never dropping

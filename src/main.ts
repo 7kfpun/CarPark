@@ -28,7 +28,7 @@ import {
   nextCamMode,
   reverseHold,
 } from './views';
-import { isDoubleTap, pinchFactor, wheelFactor } from './orbit';
+import { inControlZone, isDoubleTap, pinchFactor, wheelFactor } from './orbit';
 import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
@@ -704,6 +704,15 @@ function camTarget(): Parameters<typeof rig.snap>[0] {
   return { x: p.x, y: p.y, z: p.z, heading: p.heading, pitch: p.pitch, steer: p.steer, v: p.v };
 }
 
+// CARP-134: the wheel, gear lever and pedals (plus a guard margin) never start a camera move, even when a
+// finger lands just outside them. Hidden controls (keys / pad input) have no rects and guard nothing.
+function onControls(e: { clientX: number; clientY: number }): boolean {
+  const touch = document.getElementById('touch');
+  if (!touch || touch.classList.contains('hidden') || getComputedStyle(touch).display === 'none') return false;
+  const rects = [...touch.querySelectorAll<HTMLElement>('.touch-group')].map((g) => g.getBoundingClientRect());
+  return inControlZone(e.clientX, e.clientY, rects);
+}
+
 // Free look: drag on the backdrop while paused or after a level to orbit the car (mouse wheel zooms).
 let dragFrom: { id: number; x: number; y: number } | null = null;
 function canOrbit(): boolean {
@@ -711,6 +720,7 @@ function canOrbit(): boolean {
 }
 addEventListener('pointerdown', (e) => {
   if (!canOrbit() || (e.target as Element | null)?.closest('.panel, button, a')) return;
+  if (onControls(e)) return;
   dragFrom = { id: e.pointerId, x: e.clientX, y: e.clientY };
 });
 addEventListener('pointermove', (e) => {
@@ -750,6 +760,7 @@ function resetView(): void {
 addEventListener('pointerdown', (e) => {
   if (!canDriveOrbit() || (e.target as Element | null)?.closest(ORBIT_IGNORE)) return;
   if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
+  if (onControls(e)) return;
   orbitPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   tapStart =
     orbitPtrs.size === 1 ? { id: e.pointerId, t: e.timeStamp, x: e.clientX, y: e.clientY, moved: false } : null;
@@ -788,7 +799,7 @@ addEventListener('pointercancel', endOrbit);
 addEventListener(
   'wheel',
   (e) => {
-    if (canDriveOrbit() && !(e.target as Element | null)?.closest(ORBIT_IGNORE))
+    if (canDriveOrbit() && !(e.target as Element | null)?.closest(ORBIT_IGNORE) && !onControls(e))
       rig.orbitBy(0, 0, wheelFactor(e.deltaY));
   },
   { passive: true },
