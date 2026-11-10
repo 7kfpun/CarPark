@@ -6,7 +6,7 @@ import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
-import { FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
+import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
@@ -150,14 +150,13 @@ try {
 }
 /** The other models load while the menu is up; a level only starts once they are in. */
 let modelsDone = false;
-const laterModels = loadCarModels(LATER_MODELS).then(() => {
+// One attempt here keeps Play near the single-timeout ceiling; the background rounds retry the rest.
+const laterModels = loadCarModels(LATER_MODELS, undefined, undefined, undefined, 1).then(() => {
   modelsDone = true;
   // The menu's backdrop lot was built with box cars: rebuild it with the real models.
-  if (state === 'menu' && level) loadLevel(levelIndex);
-  // Models that still failed keep retrying; the next level load picks them up.
-  void keepLoadingCarModels(LATER_MODELS, () => {
-    if (state === 'menu' && level) loadLevel(levelIndex);
-  });
+  onModelsLoaded();
+  // Every model still missing (the first one too) keeps retrying in the background.
+  void keepLoadingCarModels(ALL_MODELS, onModelsLoaded);
 });
 const player = new PlayerCar();
 const mirror = new RearMirror();
@@ -285,7 +284,42 @@ addEventListener(
 );
 addEventListener('pointerdown', () => stopReplay(), true);
 
+/** The lot on screen was built before some model arrived; rebuilt at the next safe moment. */
+let levelStale = false;
+
+/** A model arrived late: swap the box cars for it everywhere it is cached or built in. */
+function onModelsLoaded(): void {
+  levelStale = true;
+  // Ghost copies are cached per vehicle like the player's; drop them so they rebuild with the template.
+  for (const g of ghostModels.values()) scene.remove(g.root);
+  ghostModels.clear();
+  ghostMats.clear();
+  const wasGhost = ghostCar !== null;
+  ghostCar = null;
+  const previous = player.model.root;
+  if (player.refreshModels()) {
+    player.model.root.visible = previous.visible;
+    swapPlayerModel(previous);
+  }
+  if (wasGhost && ghostFrames) {
+    ghostCar = ghostFor(vehicleOf(LEVELS[levelIndex].vehicle));
+    updateGhost(state === 'playing' ? elapsed : 0);
+  }
+  // Never rebuild the lot under a run: it comes up at the next menu or level start.
+  if (state === 'menu' && level) loadLevel(levelIndex);
+}
+
+function swapPlayerModel(previous: THREE.Object3D): void {
+  previous.remove(cockpit.group);
+  scene.remove(previous);
+  cockpit = cockpitFor(player.vehicle);
+  player.model.root.add(cockpit.group);
+  scene.add(player.model.root);
+  gfx.applyDecor(player.model.root);
+}
+
 function loadLevel(i: number): void {
+  levelStale = false;
   if (level) {
     scene.remove(level.group);
     level.dispose();
@@ -325,18 +359,11 @@ function startLevel(i: number): boolean {
   if (!canRun()) return false;
   sfx.unlock();
   sfx.startMusic();
-  if (!level || levelIndex !== i) loadLevel(i);
+  if (!level || levelIndex !== i || levelStale) loadLevel(i);
   const def = LEVELS[i];
   const vehicle = vehicleOf(def.vehicle);
   const previous = player.model.root;
-  if (player.use(vehicle)) {
-    previous.remove(cockpit.group);
-    scene.remove(previous);
-    cockpit = cockpitFor(vehicle);
-    player.model.root.add(cockpit.group);
-    scene.add(player.model.root);
-    gfx.applyDecor(player.model.root);
-  }
+  if (player.use(vehicle)) swapPlayerModel(previous);
   replay = null;
   hideGhost();
   const stored = ghosts[LEVEL_IDS[i]];
@@ -375,6 +402,7 @@ function showMenu(): void {
   cockpit.visible = false;
   syncAdminBar();
   if (!level) loadLevel(resumeLevel(progress, LEVELS, ADMIN));
+  else if (levelStale) loadLevel(levelIndex); // a model arrived during play
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, ADMIN, (i) => {
     if (state !== 'menu') return;

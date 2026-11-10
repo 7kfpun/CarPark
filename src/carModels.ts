@@ -12,12 +12,13 @@ import {
 } from './loading';
 import { upgradeCarMaterial } from './materials';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 
 // CC0 car models from Kenney's Car Kit (www.kenney.nl), see public/models/cars/License.txt.
 export const PARKED_MODELS = ['sedan', 'suv', 'hatchback-sports', 'van', 'taxi', 'suv-luxury'] as const;
 /** Every model file to load: the parked-car set plus those the vehicle table drives. */
-const ALL = [...new Set([...VEHICLES.flatMap((v) => (v.model ? [v.model] : [])), ...PARKED_MODELS])];
+export const ALL_MODELS = [...new Set([...VEHICLES.flatMap((v) => (v.model ? [v.model] : [])), ...PARKED_MODELS])];
+const ALL = ALL_MODELS;
 
 export interface WheelTemplate {
   mesh: THREE.Object3D;
@@ -94,6 +95,32 @@ export function modelUrl(name: string, baseUrl = `${import.meta.env.BASE_URL}mod
 }
 
 /**
+ * One download attempt. Uses its own FileLoader so a timeout can abort the fetch: three.js dedupes
+ * every load of a URL onto the one in-flight request, so an un-aborted stall would swallow retries.
+ */
+function fetchModel(
+  manager: THREE.LoadingManager,
+  loader: GLTFLoader,
+  url: string,
+  timeoutMs: number,
+  name: string,
+): Promise<GLTF> {
+  const file = new THREE.FileLoader(manager);
+  file.setResponseType('arraybuffer');
+  const data = new Promise<ArrayBuffer>((resolve, reject) =>
+    file.load(
+      url,
+      (d) => resolve(d as ArrayBuffer),
+      undefined,
+      (e) => reject(e instanceof Error ? e : new Error(String(e))),
+    ),
+  );
+  return withTimeout(data, timeoutMs, `Car model "${name}"`, () => file.abort()).then((buf) =>
+    loader.parseAsync(buf, THREE.LoaderUtils.extractUrlBase(url)),
+  );
+}
+
+/**
  * Load the given car models (all of them by default), a couple at a time, retrying each with
  * backoff. Resolves even if some still fail: missing models fall back to the built-in box car
  * (see `keepLoadingCarModels` to keep trying), so the game always starts.
@@ -115,7 +142,7 @@ export async function loadCarModels(
     async (name) => {
       try {
         const gltf = await retry(
-          () => withTimeout(loader.loadAsync(modelUrl(name, baseUrl)), timeoutMs, `Car model "${name}"`),
+          () => fetchModel(manager, loader, modelUrl(name, baseUrl), timeoutMs, name),
           attempts,
           retryBaseMs,
         );
@@ -127,14 +154,22 @@ export async function loadCarModels(
   );
 }
 
-/** Keep fetching models that are still missing, with growing pauses; calls `onLoaded` when new ones arrive. */
-export async function keepLoadingCarModels(names: readonly string[], onLoaded: () => void): Promise<void> {
-  for (let round = 0; round < MODEL_BACKGROUND_ROUNDS; round++) {
+/** Keep fetching models that are still missing, with growing pauses; calls `onLoaded` with the new ones as they arrive. */
+export async function keepLoadingCarModels(
+  names: readonly string[],
+  onLoaded: (arrived: string[]) => void,
+  baseUrl?: string,
+  timeoutMs = MODEL_TIMEOUT_MS * 2,
+  rounds = MODEL_BACKGROUND_ROUNDS,
+  baseDelayMs = MODEL_RETRY_BASE_MS * 5,
+): Promise<void> {
+  for (let round = 0; round < rounds; round++) {
     const missing = names.filter((n) => !templates.has(n));
     if (!missing.length) return;
-    await new Promise((r) => setTimeout(r, backoffMs(round, MODEL_RETRY_BASE_MS * 5)));
-    await loadCarModels(missing, undefined, MODEL_TIMEOUT_MS * 2, undefined, 1);
-    if (missing.some((n) => templates.has(n))) onLoaded();
+    await new Promise((r) => setTimeout(r, backoffMs(round, baseDelayMs)));
+    await loadCarModels(missing, undefined, timeoutMs, baseUrl, 1);
+    const arrived = missing.filter((n) => templates.has(n));
+    if (arrived.length) onLoaded(arrived);
   }
 }
 

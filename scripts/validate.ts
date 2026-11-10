@@ -67,7 +67,7 @@ import {
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { MODEL_SHARED, toTemplate } from '../src/carModels';
+import { MODEL_SHARED, loadCarModels, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
 import {
   applyOrbit,
@@ -1241,6 +1241,33 @@ console.log('Load timeout');
   check((await withTimeout(Promise.resolve(7), 50)) === 7, 'withTimeout passes a fast result through');
   const rej = await withTimeout(Promise.reject(new Error('boom')), 50).catch((e: Error) => e.message);
   check(rej === 'boom', 'withTimeout passes rejections through');
+  let timedOut = false;
+  await withTimeout(new Promise<void>(() => undefined), 5, 'x', () => (timedOut = true)).catch(() => undefined);
+  check(timedOut, 'withTimeout calls onTimeout so the caller can abort the work');
+  // A stalled download must be aborted so the next attempt issues a new request (three.js would
+  // otherwise dedupe it onto the hung one).
+  (globalThis as { __APP_BUILD__?: string }).__APP_BUILD__ = 'validate'; // normally injected by Vite
+  const realFetch = globalThis.fetch;
+  let hits = 0;
+  let aborted = false;
+  globalThis.fetch = ((input: Request) => {
+    hits++;
+    if (hits > 1) return Promise.resolve(new Response(null, { status: 404 }));
+    // First request never answers; it only ends when aborted.
+    return new Promise<Response>((_res, rej) =>
+      input.signal.addEventListener('abort', () => {
+        aborted = true;
+        rej(new DOMException('aborted', 'AbortError'));
+      }),
+    );
+  }) as typeof fetch;
+  const warn = console.warn;
+  console.warn = () => undefined;
+  await loadCarModels(['__stall_test__'], undefined, 80, 'http://models.test/', 2, 1);
+  console.warn = warn;
+  globalThis.fetch = realFetch;
+  check(aborted, 'a timed-out download is aborted');
+  check(hits === 2, `a second attempt issues a new request after the first times out (saw ${hits})`);
 }
 console.log('Model load retry and concurrency');
 {

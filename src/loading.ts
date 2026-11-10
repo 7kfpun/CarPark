@@ -9,9 +9,13 @@ export function loadingLabel(loaded: number, total: number): string {
 export const MODEL_TIMEOUT_MS = 8000;
 
 /** Resolve with `p`, or reject after `ms` so a stalled load can't hang startup forever. */
-export function withTimeout<T>(p: Promise<T>, ms: number, what = 'operation'): Promise<T> {
+export function withTimeout<T>(p: Promise<T>, ms: number, what = 'operation', onTimeout?: () => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms);
+    const t = setTimeout(() => {
+      // Cancel the underlying work (e.g. abort the fetch) so a retry starts a fresh request.
+      onTimeout?.();
+      reject(new Error(`${what} timed out after ${ms} ms`));
+    }, ms);
     p.then(
       (v) => {
         clearTimeout(t);
