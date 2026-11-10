@@ -169,7 +169,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ## 11. Main Street
 
-> Parallel park at the kerb between two cars. Reverse in at an angle, then straighten up.
+> Park in the marked space by the kerb. Reverse in at an angle, then straighten up.
 
 | | |
 | --- | --- |

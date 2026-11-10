@@ -1,5 +1,5 @@
 import { LOCATIONS } from './worlds';
-import type { ArrowDef, BayDef, FloorDef, LevelDef, LocationId, ObstacleDef, RampDef, StreetBody } from './layout';
+import type { ArrowDef, BayDef, FloorDef, LevelDef, LocationId, ObstacleDef, RampDef } from './layout';
 
 /** A level as written below: its location is filled in from `LOCATION_OF`. */
 type RawLevel = Omit<LevelDef, 'location'>;
@@ -821,41 +821,18 @@ const MASTER_LEVELS: RawLevel[] = [
   },
 ];
 
-/** A parked street car: body type and colour chosen by hand, so the row reads as natural, not cycled. */
-function streetCar(x: number, z: number, yawDeg: number, body: StreetBody, color: number, base = PI / 2): ObstacleDef {
-  return { kind: 'car', x, z, rot: base + (yawDeg * PI) / 180, color, body };
-}
-
-/** Phase 1 of the street: a kerb lined with parked cars of mixed body types and colours (src/streetCars.ts). */
+/** Main Street: an empty street with a kerb (Curb Side's gap and spawn, no parked cars). */
 const STREET_LEVEL: RawLevel = {
   id: 'main-street',
   name: 'Main Street',
-  hint: 'Parallel park at the kerb between two cars. Reverse in at an angle, then straighten up.',
+  hint: 'Park in the marked space by the kerb. Reverse in at an angle, then straighten up.',
   lot: { w: 64, l: 26 },
   spawn: { x: -16, z: 2, rot: PI / 2 },
   target: { x: 0, z: -7.2, rot: PI / 2, w: 2.5, l: 6.8 },
   bothWays: true,
   time: 60,
   stars: { three: 16, two: 25 },
-  obstacles: [
-    { kind: 'wall', x: 0, z: -9.6, w: 62, l: 0.4, h: 0.25 },
-    // Kerb row: slightly irregular spacing and yaw, models and colours mixed.
-    streetCar(-5.7, -7.2, 1, 'sedan', 0x2f6fde),
-    streetCar(5.7, -7.2, -1.5, 'suv', 0xc8322b),
-    streetCar(-13, -7.2, -1, 'hatchback', 0xe8e8e8),
-    streetCar(13.4, -7.2, 2, 'sedan', 0x222428),
-    streetCar(-19.2, -7.2, 2.5, 'wagon', 0xd9a521),
-    streetCar(19.9, -7.2, -2, 'pickup', 0xf2c200),
-    streetCar(-26.1, -7.2, -1.5, 'hatchback', 0x2e8b57),
-    streetCar(26.6, -7.2, 1, 'suv', 0x8a8f98),
-    // Far side of the street.
-    streetCar(-22, 8, -1, 'sedan', 0x7a4fd0, -PI / 2),
-    streetCar(-12, 8, 1.5, 'hatchback', 0x1fa3b5, -PI / 2),
-    streetCar(-1.5, 8, -2, 'suv', 0xe8e8e8, -PI / 2),
-    streetCar(8.5, 8, 1, 'wagon', 0x2f6fde, -PI / 2),
-    streetCar(18, 8, -1.5, 'suv', 0x8a8f98, -PI / 2),
-    streetCar(28.2, 8, 2, 'pickup', 0xc8322b, -PI / 2),
-  ],
+  obstacles: [{ kind: 'wall', x: 0, z: -9.6, w: 62, l: 0.4, h: 0.25 }],
 };
 
 const RAW_LEVELS: RawLevel[] = [
