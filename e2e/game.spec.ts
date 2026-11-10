@@ -49,7 +49,9 @@ test('any collision fails the level', async ({ page }) => {
   for (let t = 0; t < 20 && (await page.locator('#modal-title').innerText()) === ''; t++) await run(page, 1);
   await page.keyboard.up('ArrowUp');
   await expect(page.locator('#modal-title')).toHaveText('Level failed');
-  await expect(page.locator('#modal-body')).toHaveText('You hit something. Ease off near cars, walls and cones.');
+  await expect(page.locator('#modal-body')).toHaveText(
+    /^You hit something: -\d+ HP, \d+ left\. Ease off near cars, walls and cones\.$/,
+  );
 });
 
 test('Escape pauses and resumes; the game does not run under Settings', async ({ page }) => {
