@@ -2144,8 +2144,14 @@ console.log('Performance budget');
     check(html.includes(`"${tag}"`), `storefront: index.html has ${tag}`);
   }
   check(
-    html.includes('href="/favicon.svg"') && html.includes('href="/apple-touch-icon.png"'),
-    'storefront: index.html links the favicon and apple-touch-icon',
+    ['href="/favicon.svg"', 'href="/favicon-32.png"', 'href="/apple-touch-icon.png"', 'rel="canonical"'].every((t) =>
+      html.includes(t),
+    ),
+    'storefront: index.html links the favicons, apple-touch-icon and canonical',
+  );
+  check(
+    html.includes('"twitter:image:alt"') && html.includes('id="whats-new"'),
+    "storefront: index.html has twitter:image:alt and the what's-new slot",
   );
   check(WHATS_NEW.length > 0 && WHATS_NEW.length <= 120, "storefront: what's-new note is short and not empty");
 }
