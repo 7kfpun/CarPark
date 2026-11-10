@@ -1,4 +1,3 @@
-import { PARKED_MODELS } from './carModels';
 import { obstacleOBB, type LevelDef } from './layout';
 import { sat } from './collision';
 
@@ -9,8 +8,8 @@ export const MAX_PARK_YAW = (4 * Math.PI) / 180;
 export function streetProblems(def: LevelDef): string[] {
   const out: string[] = [];
   const cars = def.obstacles.filter((o) => o.kind === 'car');
-  const models = new Set(cars.map((c) => (c.variant ?? 0) % PARKED_MODELS.length));
-  if (models.size < 4) out.push(`only ${models.size} car models in the street (want 4+)`);
+  const models = new Set(cars.map((c) => c.body));
+  if (models.size < 4) out.push(`only ${models.size} body types in the street (want 4+)`);
   const colours = new Set(cars.map((c) => c.color));
   if (colours.size < 6) out.push(`only ${colours.size} car colours in the street (want 6+)`);
   cars.forEach((c, i) => {
