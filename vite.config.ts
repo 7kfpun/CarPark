@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
+import { precacheList, serviceWorkerSource } from './scripts/serviceWorker';
 import { buildVersion } from './scripts/version';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
@@ -33,6 +35,30 @@ function versionFile(): Plugin {
   };
 }
 
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f);
+    return statSync(p).isDirectory() ? walk(p) : [p];
+  });
+}
+
+// Writes dist/sw.js after everything else is in dist (public files included), precaching all of it.
+function serviceWorker(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'service-worker',
+    apply: 'build',
+    configResolved(c) {
+      outDir = c.build.outDir;
+    },
+    closeBundle() {
+      const files = walk(outDir).map((p) => relative(outDir, p).split('\\').join('/'));
+      const list = precacheList(files, []);
+      writeFileSync(join(outDir, 'sw.js'), serviceWorkerSource(build, list));
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
   define: {
@@ -40,6 +66,6 @@ export default defineConfig({
     __APP_SEMVER__: JSON.stringify(pkg.version),
     __APP_BUILD__: JSON.stringify(build),
   },
-  plugins: [versionFile()],
+  plugins: [versionFile(), serviceWorker()],
   build: { chunkSizeWarningLimit: 800 },
 });

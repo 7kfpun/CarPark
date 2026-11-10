@@ -28,6 +28,8 @@ import {
   Recorder,
   REPLAY_HZ,
 } from '../src/replay';
+import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
+import { isUpdateWaiting } from '../src/pwa';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -2096,6 +2098,37 @@ console.log('Performance budget');
   const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
   check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
+}
+
+{
+  const list = precacheList(
+    ['index.html', 'assets/a-1.js', 'sw.js', 'version.json', 'CNAME', 'assets/a.js.map'],
+    ['manifest.webmanifest'],
+  );
+  check(
+    list.join() === './,assets/a-1.js,index.html,manifest.webmanifest',
+    'precache keeps the shell and drops sw.js, version.json, maps',
+  );
+  const src = serviceWorkerSource('abc1234', list);
+  check(src.includes(JSON.stringify(cacheName('abc1234'))), 'service worker cache is named after the build');
+  check(
+    src.includes("'SKIP_WAITING'") && !/\n\s*self\.skipWaiting\(\);/.test(src.split("'message'")[0]),
+    'service worker waits for the page before taking over',
+  );
+  check(
+    src.includes("req.mode === 'navigate'") && src.includes('index.html'),
+    'service worker serves the cached shell for offline navigation',
+  );
+  try {
+    new Function(src);
+  } catch {
+    check(false, 'generated service worker is valid JavaScript');
+  }
+  check(!isUpdateWaiting({ waiting: {} as ServiceWorker }, false), 'a first install is not an update');
+  check(
+    isUpdateWaiting({ waiting: {} as ServiceWorker }, true) && !isUpdateWaiting({ waiting: null }, true),
+    'a waiting worker under a controller is an update',
+  );
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

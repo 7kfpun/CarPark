@@ -50,6 +50,7 @@ import {
   saveGhosts,
   type Pose,
 } from './replay';
+import { activateUpdate, initPwa } from './pwa';
 import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
@@ -484,7 +485,11 @@ let pendingUpdate: UpdateKind = 'none';
 let pendingBuild: string | null = null;
 let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
-const reloadPage = (): void => location.replace(reloadUrl(location.href, Date.now()));
+let swUpdateReady = false;
+// With a waiting service worker, activating it reloads the page onto the new build; otherwise reload past the HTTP cache.
+const reloadPage = (): void => {
+  if (!activateUpdate()) location.replace(reloadUrl(location.href, Date.now()));
+};
 
 function applyUpdate(): void {
   if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
@@ -511,11 +516,27 @@ async function runUpdateCheck(): Promise<void> {
     new URL('version.json', document.baseURI).href,
   );
   // A newer answer replaces an older one (even 'none'), but a required update is never downgraded.
-  pendingUpdate = mergeUpdate(pendingUpdate, res.kind);
-  pendingBuild = res.build;
+  pendingUpdate = mergeUpdate(pendingUpdate, res.kind === 'none' && swUpdateReady ? 'optional' : res.kind);
+  pendingBuild = res.build ?? (swUpdateReady ? 'sw' : null);
   applyUpdate();
 }
 document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());
+
+// --- PWA: offline shell, update banner, install button ---------------------------
+const installBtn = document.getElementById('btn-install')!;
+initPwa({
+  onUpdateReady() {
+    swUpdateReady = true;
+    pendingUpdate = mergeUpdate(pendingUpdate, 'optional');
+    pendingBuild ??= 'sw';
+    applyUpdate();
+  },
+  onInstallable(install) {
+    installBtn.classList.remove('hidden');
+    installBtn.onclick = () => void install().then(() => installBtn.classList.add('hidden'));
+  },
+  onInstalled: () => installBtn.classList.add('hidden'),
+});
 
 // --- Keyboard actions ---------------------------------------------------------
 input.driving = () => state === 'playing';

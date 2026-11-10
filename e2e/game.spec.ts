@@ -457,3 +457,15 @@ test('a tall pause panel on a small landscape screen can scroll (no ancestor blo
   expect(r.chain.some((t) => t === 'none')).toBe(false);
   expect(await page.locator('#modal-backdrop').evaluate((el) => getComputedStyle(el).touchAction)).toBe('none');
 });
+
+test('PWA: the service worker caches the shell so a revisit opens offline', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await page.reload(); // now controlled by the worker
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator('#menu')).toBeVisible();
+});
