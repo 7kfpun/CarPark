@@ -10,6 +10,7 @@ import {
   probeQuality,
   saveDetected,
 } from './qualityProbe';
+import { LOST_STALL_MS } from './recovery';
 import type { QualitySetting } from './settings';
 
 export type Quality = 'low' | 'high';
@@ -47,7 +48,7 @@ export function autoQuality(): Quality {
   return coarse || lowMem || fewCores ? 'low' : 'high';
 }
 
-function overlay(id: string, title: string, body: string): HTMLElement {
+function overlay(id: string, title: string, body: string, onReload?: () => void): HTMLElement {
   let el = document.getElementById(id);
   if (!el) {
     el = document.createElement('div');
@@ -61,6 +62,14 @@ function overlay(id: string, title: string, body: string): HTMLElement {
     const p = document.createElement('p');
     p.textContent = body;
     panel.append(h, p);
+    if (onReload) {
+      const b = document.createElement('button');
+      b.id = `${id}-reload`;
+      b.className = 'primary hidden';
+      b.textContent = 'Reload';
+      b.addEventListener('click', onReload);
+      panel.appendChild(b);
+    }
     el.appendChild(panel);
     document.body.appendChild(el);
   }
@@ -102,12 +111,13 @@ export class Graphics {
     canvas: HTMLCanvasElement,
     private readonly scene: THREE.Scene,
     private readonly sun: THREE.DirectionalLight,
-    hooks: { onLost: () => void; onRestored: () => void },
+    hooks: { onLost: () => void; onRestored: () => void; onReload: () => void },
   ) {
     this.lostOverlay = overlay(
       'gfx-lost',
       'Graphics reset…',
       'The graphics driver restarted. Hang on, the game will be back in a moment.',
+      hooks.onReload,
     );
     try {
       if (!webglAvailable()) throw new Error('WebGL unavailable');
@@ -115,11 +125,14 @@ export class Graphics {
     } catch (err) {
       console.error(err);
       canvas.classList.add('hidden');
-      overlay(
+      const fatal = overlay(
         'gfx-fatal',
         "Can't start 3D graphics",
         "Your browser or device can't run 3D graphics (WebGL). Try turning on hardware acceleration in your browser settings, updating your browser, or using a different device.",
-      ).classList.remove('hidden');
+        hooks.onReload,
+      );
+      fatal.classList.remove('hidden');
+      fatal.querySelector('button')?.classList.remove('hidden');
       return;
     }
     const r = this.renderer;
@@ -131,17 +144,36 @@ export class Graphics {
       e.preventDefault();
       this.lost = true;
       this.lostOverlay.classList.remove('hidden');
+      // If the browser never restores the context, Reload is the way out.
+      clearTimeout(this.lostTimer);
+      this.lostTimer = setTimeout(() => this.offerReload(), LOST_STALL_MS);
       hooks.onLost();
     });
     canvas.addEventListener('webglcontextrestored', () => {
       // three.js re-inits its GL state and lazily re-uploads geometry,
       // textures (incl. the canvas asphalt) and programs. The shadow map's
       // render target is re-created on the next shadow pass.
+      clearTimeout(this.lostTimer);
       this.lost = false;
       this.lostOverlay.classList.add('hidden');
-      this.buildEnvironment(); // the prefiltered map's render target does not survive a context loss
-      hooks.onRestored();
+      this.lostOverlay.querySelector('button')?.classList.add('hidden');
+      try {
+        this.buildEnvironment(); // the prefiltered map's render target does not survive a context loss
+        hooks.onRestored();
+      } catch (err) {
+        // A half-restored context must not leave a dead canvas with no way out.
+        console.error('Graphics restore failed', err);
+        this.lost = true;
+        this.lostOverlay.classList.remove('hidden');
+        this.offerReload();
+      }
     });
+  }
+
+  private lostTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private offerReload(): void {
+    this.lostOverlay.querySelector('button')?.classList.remove('hidden');
   }
 
   get ok(): boolean {

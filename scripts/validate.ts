@@ -121,6 +121,7 @@ import {
   parseRemote,
   parseVersion,
 } from '../src/update';
+import { LOST_STALL_MS, MAX_RELOAD_ATTEMPTS, RELOAD_RETRY_MS, recover, type ReloadEnv } from '../src/recovery';
 import {
   LOCATIONS,
   levelPlayable,
@@ -2096,6 +2097,52 @@ console.log('Performance budget');
   const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
   check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
+}
+
+// --- CARP-121: Reload always recovers; no synchronous GPU readbacks ------------------
+{
+  const timers: (() => void)[] = [];
+  const calls: string[] = [];
+  const mk = (replaceThrows: boolean): ReloadEnv => ({
+    href: 'https://x.test/g/?a=1',
+    replace: (u) => {
+      calls.push(`replace ${u}`);
+      if (replaceThrows) throw new Error('blocked');
+    },
+    reload: () => calls.push('reload'),
+    now: () => 100,
+    setTimeout: (fn) => timers.push(fn),
+  });
+  recover(mk(false));
+  check(
+    calls.length === 1 && calls[0].startsWith('replace https://x.test/g/?a=1&_u='),
+    'reload: first try is cache-busted',
+  );
+  check(timers.length === 1, 'reload: a retry is armed in case the page survives');
+  timers.shift()!();
+  check(calls[1] === 'reload', 'reload: a failed navigation falls back to a plain reload');
+  timers.shift()!();
+  check(calls.length === 3 && calls[2].startsWith('replace'), 'reload: third attempt busts the cache again');
+  check(timers.length === 0, `reload: gives up after ${MAX_RELOAD_ATTEMPTS} attempts, no endless loop`);
+  calls.length = 0;
+  const quiet = console.error;
+  console.error = () => undefined;
+  recover(mk(true));
+  console.error = quiet;
+  check(timers.length === 1, 'reload: a throwing location.replace still schedules the fallback');
+  check(LOST_STALL_MS > 0 && RELOAD_RETRY_MS > 0, 'reload: timings are positive');
+
+  // Guard: nothing in src may read the GPU back synchronously, and 2D readbacks must use a CPU canvas.
+  for (const f of readdirSync('src').filter((n) => n.endsWith('.ts'))) {
+    const text = readFileSync(`src/${f}`, 'utf8');
+    check(
+      !/readPixels|readRenderTargetPixels(?!Async)|toDataURL|toBlob/.test(text),
+      `${f}: no synchronous GPU readback`,
+    );
+    if (text.includes('getImageData')) {
+      check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
+    }
+  }
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

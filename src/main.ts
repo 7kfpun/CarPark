@@ -50,7 +50,8 @@ import {
   saveGhosts,
   type Pose,
 } from './replay';
-import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
+import { recoverNow } from './recovery';
+import { fetchUpdate, mergeUpdate, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -81,6 +82,7 @@ const settings = loadSettings();
 const gfx = new Graphics(canvas, scene, sun, {
   onLost: () => pause(),
   onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+  onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
 gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
@@ -484,7 +486,7 @@ let pendingUpdate: UpdateKind = 'none';
 let pendingBuild: string | null = null;
 let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
-const reloadPage = (): void => location.replace(reloadUrl(location.href, Date.now()));
+const reloadPage = recoverNow;
 
 function applyUpdate(): void {
   if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
@@ -821,7 +823,7 @@ function reportFrameError(err: unknown): void {
   console.error('Frame loop error', err);
   const banner = document.getElementById('error-banner')!;
   banner.classList.remove('hidden');
-  document.getElementById('error-reload')!.addEventListener('click', () => location.reload());
+  document.getElementById('error-reload')!.addEventListener('click', recoverNow);
 }
 function frame(now: number): void {
   rafId = 0;

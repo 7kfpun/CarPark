@@ -37,6 +37,7 @@
       <div class="panel small">
         <p id="loading-text">Loading…</p>
         <div class="bar" aria-hidden="true"><div id="loading-fill"></div></div>
+        <button id="loading-reload" class="primary hidden">Reload</button>
       </div>
     </div>
 
@@ -277,6 +278,29 @@
       </div>
     </div>
 
+    <script>
+      // Startup watchdog, independent of the game bundle: if loading is still up after 15 s (hung
+      // start, failed script), offer Reload. main.ts removes #loading once it has started.
+      setTimeout(function () {
+        var l = document.getElementById('loading');
+        var b = document.getElementById('loading-reload');
+        if (!l || !b) return;
+        b.classList.remove('hidden');
+        b.addEventListener('click', function () {
+          var u = new URL(location.href);
+          u.searchParams.set('_u', String(Date.now()));
+          u.hash = '';
+          try {
+            location.replace(u.href);
+          } catch (e) {
+            location.reload();
+          }
+          setTimeout(function () {
+            location.reload();
+          }, 3000);
+        });
+      }, 15000);
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
