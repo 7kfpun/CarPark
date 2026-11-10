@@ -41,6 +41,18 @@ import {
 } from '../src/replay';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import { isUpdateWaiting } from '../src/pwa';
+import {
+  canClaim,
+  claim,
+  dayKey,
+  freshMissions,
+  MISSIONS,
+  parseMissions,
+  parseWallet,
+  progressFor,
+  recordPark,
+  rollDay,
+} from '../src/missions';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -2382,6 +2394,50 @@ check(crashDamage(1000) === MAX_HP, 'damage is capped at full HP');
   throws = true;
   check(hpFor(loadHealth(), 'sedan') === MAX_HP, 'throwing storage gives full HP');
   delete (globalThis as { localStorage?: unknown }).localStorage;
+}
+
+// Daily missions: progress, claim-once, and the local-day reset.
+{
+  const day = '2026-11-11';
+  check(dayKey(new Date(2026, 0, 5, 23, 59)) === '2026-01-05', 'dayKey is the zero-padded local date');
+  let m = freshMissions(day);
+  check(
+    MISSIONS.every((d) => !canClaim(m, d.id)),
+    'nothing is claimable on a fresh day',
+  );
+  m = recordPark(m, 'a', 2);
+  m = recordPark(m, 'a', 3);
+  check(progressFor(m, 'park3') === 2 && progressFor(m, 'star3') === 1, 'parks and 3-star wins are counted');
+  check(progressFor(m, 'worlds2') === 1, 'repeating one level counts once for different levels');
+  check(canClaim(m, 'star3') && !canClaim(m, 'park3'), 'only finished missions can be claimed');
+  m = recordPark(m, 'b', 1);
+  const c1 = claim(m, 'park3');
+  check(c1.reward === MISSIONS[0].reward && !canClaim(c1.missions, 'park3'), 'a claim pays its reward once');
+  check(claim(c1.missions, 'park3').reward === 0, 'claiming twice pays nothing');
+  check(
+    claim(m, 'star3').reward > 0 && claim(freshMissions(day), 'star3').reward === 0,
+    'unfinished claims pay nothing',
+  );
+  check(rollDay(c1.missions, day) === c1.missions, 'same day keeps progress');
+  const next = rollDay(c1.missions, '2026-11-12');
+  check(
+    next.parks === 0 && next.claimed.length === 0 && next.day === '2026-11-12',
+    'a new day resets progress and claims',
+  );
+  check(
+    JSON.stringify(parseMissions(JSON.parse(JSON.stringify(c1.missions)), day)) === JSON.stringify(c1.missions),
+    'missions round-trip',
+  );
+  check(parseMissions(c1.missions, '2026-11-12').parks === 0, 'stored missions from another day are dropped');
+  const junk = parseMissions({ day, parks: -4, star3: 'x', levels: [1, 'a', 'a'], claimed: ['nope', 'star3'] }, day);
+  check(
+    junk.parks === 0 && junk.star3 === 0 && junk.levels.length === 1 && junk.claimed.join() === 'star3',
+    'junk fields are cleaned',
+  );
+  check(
+    parseMissions(null, day).parks === 0 && parseWallet('x').money === 0 && parseWallet({ money: 250.9 }).money === 250,
+    'bad storage parses to defaults',
+  );
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

@@ -35,6 +35,9 @@ import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
 import { applyDamage, crashDamage, loadHealth, saveHealth } from './health';
+import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
+import type { Missions } from './missions';
+import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -407,6 +410,25 @@ function startLevel(i: number): boolean {
   return true;
 }
 
+let missions: Missions = loadMissions();
+let wallet = loadWallet();
+
+function showMissions(): void {
+  missions = rollDay(missions, dayKey(new Date()));
+  renderMissions(document.getElementById('missions')!, missions, wallet.money, (id) => {
+    const r = claim(missions, id);
+    if (!r.reward) return;
+    missions = r.missions;
+    wallet = { ...wallet, money: wallet.money + r.reward };
+    if (mayPersist(ADMIN)) {
+      saveMissions(missions);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+  });
+}
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -425,6 +447,7 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  showMissions();
   applyUpdate();
 }
 
@@ -502,6 +525,10 @@ function finish(win: boolean, reason: string): void {
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
+    if (mayPersist(ADMIN)) {
+      missions = recordPark(rollDay(missions, dayKey(new Date())), id, stars);
+      saveMissions(missions);
+    }
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const nextLevel = LEVELS[levelIndex + 1];
     // The next level may sit in a world that is still locked (a world opens when the one before is finished).
