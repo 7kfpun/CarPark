@@ -34,6 +34,7 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
 import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
 import type { Missions } from './missions';
 import { renderMissions } from './missionsView';
@@ -427,6 +428,32 @@ function showMissions(): void {
   });
 }
 
+// --- Hourly earn: coins over time, claimed from the menu into the wallet ---------------
+const earn = loadEarn();
+if (mayPersist(ADMIN)) saveEarn(earn); // a fresh clock must survive a reload before the first claim
+const earnNote = document.getElementById('earn-note')!;
+const earnClaim = document.getElementById('earn-claim') as HTMLButtonElement;
+function renderEarn(): void {
+  const now = Date.now();
+  const ready = pendingCoins(earn, now);
+  earnClaim.disabled = ready === 0;
+  earnClaim.textContent = ready ? `Claim ${ready} coins` : 'Hourly coins';
+  earnNote.textContent = ready ? '' : `Next coins in ${waitLabel(msToNext(earn, now))}`;
+}
+earnClaim.onclick = () => {
+  const got = claimEarn(earn, Date.now());
+  if (!got) return;
+  wallet = { ...wallet, money: wallet.money + got };
+  if (mayPersist(ADMIN)) {
+    // Coins first, and the clock only once they are stored: a failed wallet write must not eat the payout.
+    if (saveWallet(wallet)) saveEarn(earn);
+  }
+  sfx.click();
+  showMissions();
+  renderEarn();
+};
+setInterval(() => state === 'menu' && renderEarn(), 30_000);
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -446,6 +473,7 @@ function showMenu(): void {
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
   showMissions();
+  renderEarn();
   applyUpdate();
 }
 
