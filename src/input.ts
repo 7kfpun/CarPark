@@ -136,14 +136,17 @@ export function pedalControls(
 }
 
 /** Reverse held shorter than this (s) does nothing: a brush of S or the R gear never backs the car out. */
+/** Forward speed (m/s) above which a negative throttle brakes; matches the threshold in CarPhysics.step. */
+export const BRAKE_SPEED = 0.05;
 export const REVERSE_DELAY = 0.15;
 /** After the delay, reverse pull ramps from REVERSE_START to full over REVERSE_RAMP seconds. */
 export const REVERSE_RAMP = 0.6;
 export const REVERSE_START = 0.35;
 
 /** Soften a throttle command: forward is untouched, reverse is delayed then eased in by how long it has been held. */
-export function softReverse(throttle: number, heldSeconds: number): number {
-  if (throttle >= 0) return throttle;
+export function softReverse(throttle: number, heldSeconds: number, forwardSpeed = 0): number {
+  // While rolling forwards a negative throttle is the brake (physics ignores its size): pass it through.
+  if (throttle >= 0 || forwardSpeed > BRAKE_SPEED) return throttle;
   if (heldSeconds < REVERSE_DELAY) return 0;
   const k = Math.min(1, (heldSeconds - REVERSE_DELAY) / REVERSE_RAMP);
   return throttle * (REVERSE_START + (1 - REVERSE_START) * k);
@@ -286,6 +289,7 @@ export class Input {
   clear(): void {
     this.keys.clear();
     this.releaseTouch();
+    this.reverseSince = null; // gamepad triggers survive clear(): restart the reverse delay on resume
   }
 
   /** Track the active input device on <body data-input> so CSS can hide the cockpit for keyboard / pad. */
@@ -604,7 +608,8 @@ export class Input {
     return codes.some((c) => this.keys.has(c));
   }
 
-  get controls(): Controls {
+  /** Drive controls; `forwardSpeed` (car.v) lets braking stay instant and only delays actual reversing. */
+  controlsFor(forwardSpeed: number): Controls {
     const up = this.any('KeyW', 'ArrowUp');
     const down = this.any('KeyS', 'ArrowDown');
     const left = this.any('KeyA', 'ArrowLeft');
@@ -612,11 +617,11 @@ export class Input {
     const touch = pedalControls(this.accelPointers.size > 0, this.brakePointers.size > 0, this.reverse);
     const raw = strongest((up ? 1 : 0) - (down ? 1 : 0), touch.throttle, this.pad.throttle);
     const now = performance.now();
-    if (raw < 0) this.reverseSince ??= now;
+    if (raw < 0 && forwardSpeed <= BRAKE_SPEED) this.reverseSince ??= now;
     else this.reverseSince = null;
     const held = this.reverseSince === null ? 0 : (now - this.reverseSince) / 1000;
     return {
-      throttle: softReverse(raw, held),
+      throttle: softReverse(raw, held, forwardSpeed),
       steer: strongest((right ? 1 : 0) - (left ? 1 : 0), this.touchSteer, this.pad.steer),
       handbrake: touch.handbrake || this.pad.handbrake || this.any('Space'),
     };

@@ -861,6 +861,9 @@ check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Me
 {
   check(softReverse(1, 0) === 1 && softReverse(1, 5) === 1, 'soft reverse: forward throttle is untouched');
   check(softReverse(-1, REVERSE_DELAY - 0.01) === 0, 'soft reverse: a brief tap does not reverse');
+  check(softReverse(-1, 0, 3) === -1, 'soft reverse: a tap while rolling forward still brakes at once');
+  check(softReverse(-1, 0, 0.05) === 0, 'soft reverse: at rest the delay applies');
+  check(softReverse(-1, REVERSE_DELAY, 0) === -REVERSE_START, 'soft reverse: ramp starts at REVERSE_START');
   const a = softReverse(-1, REVERSE_DELAY + 0.05);
   const b = softReverse(-1, REVERSE_DELAY + 0.3);
   check(a < 0 && a > -0.6 && b < a && softReverse(-1, 10) === -1, 'soft reverse: eases in to full pull');
