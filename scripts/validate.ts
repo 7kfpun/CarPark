@@ -121,7 +121,14 @@ import {
   parseRemote,
   parseVersion,
 } from '../src/update';
-import { LOST_STALL_MS, MAX_RELOAD_ATTEMPTS, RELOAD_RETRY_MS, recover, type ReloadEnv } from '../src/recovery';
+import {
+  LOST_STALL_MS,
+  MAX_RELOAD_ATTEMPTS,
+  RELOAD_RETRY_MS,
+  RELOAD_SETTLE_MS,
+  recover,
+  type ReloadEnv,
+} from '../src/recovery';
 import {
   LOCATIONS,
   levelPlayable,
@@ -2121,6 +2128,7 @@ console.log('Performance budget');
 {
   const timers: (() => void)[] = [];
   const calls: string[] = [];
+  const delays: number[] = [];
   const mk = (replaceThrows: boolean): ReloadEnv => ({
     href: 'https://x.test/g/?a=1',
     replace: (u) => {
@@ -2129,7 +2137,7 @@ console.log('Performance budget');
     },
     reload: () => calls.push('reload'),
     now: () => 100,
-    setTimeout: (fn) => timers.push(fn),
+    setTimeout: (fn, ms) => (delays.push(ms), timers.push(fn)),
   });
   recover(mk(false));
   check(
@@ -2137,8 +2145,9 @@ console.log('Performance budget');
     'reload: first try is cache-busted',
   );
   check(timers.length === 1, 'reload: a retry is armed in case the page survives');
+  check(delays[0] === RELOAD_SETTLE_MS, 'reload: a navigation that did not throw gets the long settle time');
   timers.shift()!();
-  check(calls[1] === 'reload', 'reload: a failed navigation falls back to a plain reload');
+  check(calls[1].startsWith('replace'), 'reload: a slow replace is retried with replace, never cancelled by reload()');
   timers.shift()!();
   check(calls.length === 3 && calls[2].startsWith('replace'), 'reload: third attempt busts the cache again');
   check(timers.length === 0, `reload: gives up after ${MAX_RELOAD_ATTEMPTS} attempts, no endless loop`);
@@ -2148,6 +2157,9 @@ console.log('Performance budget');
   recover(mk(true));
   console.error = quiet;
   check(timers.length === 1, 'reload: a throwing location.replace still schedules the fallback');
+  check(delays[delays.length - 1] === RELOAD_RETRY_MS, 'reload: a throwing replace retries quickly');
+  timers.shift()!();
+  check(calls[1] === 'reload', 'reload: a throwing replace falls back to a plain reload');
   check(LOST_STALL_MS > 0 && RELOAD_RETRY_MS > 0, 'reload: timings are positive');
 
   // Guard: nothing in src may read the GPU back synchronously, and 2D readbacks must use a CPU canvas.

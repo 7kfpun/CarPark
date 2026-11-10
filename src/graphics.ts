@@ -132,7 +132,9 @@ export class Graphics {
         hooks.onReload,
       );
       fatal.classList.remove('hidden');
-      fatal.querySelector('button')?.classList.remove('hidden');
+      const fb = fatal.querySelector('button');
+      fb?.classList.remove('hidden');
+      fb?.focus();
       return;
     }
     const r = this.renderer;
@@ -173,7 +175,9 @@ export class Graphics {
   private lostTimer: ReturnType<typeof setTimeout> | undefined;
 
   private offerReload(): void {
-    this.lostOverlay.querySelector('button')?.classList.remove('hidden');
+    const b = this.lostOverlay.querySelector('button');
+    b?.classList.remove('hidden');
+    b?.focus();
   }
 
   get ok(): boolean {

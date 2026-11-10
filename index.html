@@ -286,18 +286,30 @@
         var b = document.getElementById('loading-reload');
         if (!l || !b) return;
         b.classList.remove('hidden');
+        b.focus();
         b.addEventListener('click', function () {
-          var u = new URL(location.href);
-          u.searchParams.set('_u', String(Date.now()));
-          u.hash = '';
-          try {
-            location.replace(u.href);
-          } catch (e) {
-            location.reload();
-          }
-          setTimeout(function () {
-            location.reload();
-          }, 3000);
+          var tries = 0;
+          var prevThrew = false;
+          var timer;
+          addEventListener('pagehide', function () {
+            clearTimeout(timer);
+          });
+          (function go() {
+            var threw = false;
+            tries++;
+            try {
+              var u = new URL(location.href);
+              u.searchParams.set('_u', String(Date.now() + tries));
+              u.hash = '';
+              if (tries === 2 && prevThrew) location.reload();
+              else location.replace(u.href);
+            } catch (e) {
+              threw = true;
+            }
+            // Same ladder as src/recovery.ts: never reload over a replace that is still in flight.
+            prevThrew = threw;
+            if (tries < 3) timer = setTimeout(go, threw ? 3000 : 10000);
+          })();
         });
       }, 15000);
     </script>

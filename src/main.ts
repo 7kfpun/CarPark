@@ -81,8 +81,8 @@ scene.add(sun, sun.target);
 // Created before the renderer so the first frame uses the saved quality.
 const settings = loadSettings();
 const gfx = new Graphics(canvas, scene, sun, {
-  onLost: () => pause(),
-  onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+  onLost: () => holdForContextLoss(),
+  onRestored: () => pause(), // three.js re-uploads everything lazily; show the pause dialog now that the overlay is gone
   onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
@@ -387,6 +387,15 @@ function showMenu(): void {
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
   applyUpdate();
+}
+
+/** Context lost: halt the run without opening the pause dialog under the graphics overlay (it is shown on restore). */
+function holdForContextLoss(): void {
+  if (state !== 'playing') return;
+  state = 'paused';
+  sfx.stopEngine();
+  syncAdminBar();
+  input.clear();
 }
 
 function pause(): void {
