@@ -8,3 +8,9 @@ export function padConfirmAction(focusInNavButton: boolean, actionsEnabled: bool
   if (focusInNavButton) return 'click';
   return actionsEnabled ? 'enter' : 'none';
 }
+
+/** Runs a modal button's action once. `false` means it was blocked, so the button stays live for a retry. */
+export function runModalAction(used: boolean, action: () => boolean | void): boolean {
+  if (used) return false;
+  return action() !== false;
+}
