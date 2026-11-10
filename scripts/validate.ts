@@ -2027,7 +2027,9 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   const huge = Array.from({ length: 20_000 }, () => 123456);
   const old = { time: 12, data: enc };
   check(
-    nextGhost(old, 11, enc)?.time === 11 && nextGhost(old, 12, enc) === old && nextGhost(undefined, 5, huge) === undefined,
+    nextGhost(old, 11, enc)?.time === 11 &&
+      nextGhost(old, 12, enc) === old &&
+      nextGhost(undefined, 5, huge) === undefined,
     'nextGhost keeps the faster ghost',
   );
   check(nextGhost(old, 11, huge) === undefined, 'a faster run too big to store drops the stale slower ghost');
