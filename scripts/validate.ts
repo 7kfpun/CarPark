@@ -31,6 +31,30 @@ import {
 } from '../src/replay';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import { isUpdateWaiting } from '../src/pwa';
+import {
+  canRepair,
+  COST_PER_HP,
+  freshRepair,
+  isDamaged,
+  loadRepair,
+  MAX_HP,
+  parseRepair,
+  repair,
+  repairCost,
+  saveRepair,
+} from '../src/repair';
+import {
+  canClaim,
+  claim,
+  dayKey,
+  freshMissions,
+  MISSIONS,
+  parseMissions,
+  parseWallet,
+  progressFor,
+  recordPark,
+  rollDay,
+} from '../src/missions';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -2291,6 +2315,72 @@ console.log('Performance budget');
   );
 }
 
+{
+  const s = { ...freshRepair(), hp: 40, coins: 500 };
+  check(isDamaged(s) && !isDamaged(freshRepair()), 'a car below full HP is damaged');
+  check(repairCost(s) === (MAX_HP - 40) * COST_PER_HP, 'repair cost scales with missing HP');
+  check(repair(s) && s.hp === MAX_HP && s.coins === 500 - 60 * COST_PER_HP, 'repair restores full HP and spends coins');
+  check(!repair(s) && s.coins === 500 - 60 * COST_PER_HP, 'repairing an undamaged car costs nothing');
+  const poor = { ...freshRepair(), hp: 40, coins: 10 };
+  check(
+    !canRepair(poor) && !repair(poor) && poor.hp === 40 && poor.coins === 10,
+    'too few coins leaves the car and balance alone',
+  );
+  const exact = { ...freshRepair(), hp: 0, coins: MAX_HP * COST_PER_HP };
+  check(repair(exact) && exact.coins === 0 && exact.hp === MAX_HP, 'exact balance repairs a wreck');
+  const junk = parseRepair({ coins: -5, hp: 999 });
+  check(junk.coins === 0 && junk.hp === MAX_HP, 'stored repair state is clamped');
+  const bad = parseRepair('nope');
+  check(bad.coins === 0 && bad.hp === MAX_HP, 'junk storage gives a fresh state');
+  const frac = { ...freshRepair(), hp: 99.4, coins: 3 };
+  check(
+    repairCost(frac) === 2 && repair(frac) && frac.coins === 1 && frac.hp === MAX_HP,
+    'fractional HP bills whole coins',
+  );
+  check(
+    repairCost({ ...freshRepair(), hp: -10 }) === MAX_HP * COST_PER_HP,
+    'negative HP is billed as a wreck, no more',
+  );
+  const inf = { ...freshRepair(), hp: 40, coins: Infinity };
+  check(!canRepair(inf) && !repair(inf) && inf.hp === 40, 'a non-finite balance never repairs');
+  check(!canRepair({ ...freshRepair(), hp: 40, coins: NaN }), 'a NaN balance never repairs');
+  check(
+    JSON.stringify(parseRepair({ coins: 40, hp: 0 })) === '{"v":1,"coins":40,"hp":0}',
+    'a stored wreck keeps 0 HP and its coins',
+  );
+  check(
+    parseRepair({ coins: 40, hp: 25 }).hp === 25 && parseRepair({ coins: 40 }).hp === MAX_HP,
+    'stored HP is kept; missing HP is full',
+  );
+  {
+    const gl = globalThis as unknown as { localStorage?: unknown };
+    const prev = gl.localStorage;
+    const store: Record<string, string> = {};
+    gl.localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => void (store[k] = v),
+    };
+    check(JSON.stringify(loadRepair()) === JSON.stringify(freshRepair()), 'no saved repair state loads fresh');
+    saveRepair({ v: 1, coins: 40, hp: 0 });
+    check(Object.keys(store).join() === 'carpark.repair', 'repair state saves under carpark.repair');
+    check(JSON.stringify(loadRepair()) === '{"v":1,"coins":40,"hp":0}', 'a saved wreck round-trips');
+    store['carpark.repair'] = '{oops';
+    check(loadRepair().hp === MAX_HP && loadRepair().coins === 0, 'corrupt repair JSON loads fresh');
+    gl.localStorage = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+    };
+    check(loadRepair().hp === MAX_HP, 'throwing getItem loads fresh');
+    saveRepair(freshRepair());
+    check(true, 'throwing setItem does not escape');
+    gl.localStorage = prev;
+  }
+}
+
 // --- CARP-121: Reload always recovers; no synchronous GPU readbacks ------------------
 {
   const timers: (() => void)[] = [];
@@ -2340,6 +2430,50 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+}
+
+// Daily missions: progress, claim-once, and the local-day reset.
+{
+  const day = '2026-11-11';
+  check(dayKey(new Date(2026, 0, 5, 23, 59)) === '2026-01-05', 'dayKey is the zero-padded local date');
+  let m = freshMissions(day);
+  check(
+    MISSIONS.every((d) => !canClaim(m, d.id)),
+    'nothing is claimable on a fresh day',
+  );
+  m = recordPark(m, 'a', 2);
+  m = recordPark(m, 'a', 3);
+  check(progressFor(m, 'park3') === 2 && progressFor(m, 'star3') === 1, 'parks and 3-star wins are counted');
+  check(progressFor(m, 'worlds2') === 1, 'repeating one level counts once for different levels');
+  check(canClaim(m, 'star3') && !canClaim(m, 'park3'), 'only finished missions can be claimed');
+  m = recordPark(m, 'b', 1);
+  const c1 = claim(m, 'park3');
+  check(c1.reward === MISSIONS[0].reward && !canClaim(c1.missions, 'park3'), 'a claim pays its reward once');
+  check(claim(c1.missions, 'park3').reward === 0, 'claiming twice pays nothing');
+  check(
+    claim(m, 'star3').reward > 0 && claim(freshMissions(day), 'star3').reward === 0,
+    'unfinished claims pay nothing',
+  );
+  check(rollDay(c1.missions, day) === c1.missions, 'same day keeps progress');
+  const next = rollDay(c1.missions, '2026-11-12');
+  check(
+    next.parks === 0 && next.claimed.length === 0 && next.day === '2026-11-12',
+    'a new day resets progress and claims',
+  );
+  check(
+    JSON.stringify(parseMissions(JSON.parse(JSON.stringify(c1.missions)), day)) === JSON.stringify(c1.missions),
+    'missions round-trip',
+  );
+  check(parseMissions(c1.missions, '2026-11-12').parks === 0, 'stored missions from another day are dropped');
+  const junk = parseMissions({ day, parks: -4, star3: 'x', levels: [1, 'a', 'a'], claimed: ['nope', 'star3'] }, day);
+  check(
+    junk.parks === 0 && junk.star3 === 0 && junk.levels.length === 1 && junk.claimed.join() === 'star3',
+    'junk fields are cleaned',
+  );
+  check(
+    parseMissions(null, day).parks === 0 && parseWallet('x').money === 0 && parseWallet({ money: 250.9 }).money === 250,
+    'bad storage parses to defaults',
+  );
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
