@@ -30,7 +30,7 @@ import {
 } from '../src/replay';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
-import { canRunGame, padConfirmAction } from '../src/guards';
+import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
 import {
   angleDelta,
   deadzone,
@@ -131,7 +131,7 @@ import {
   worldStars,
   worldUnlocked,
 } from '../src/worlds';
-import { FAST_MS, SLOW_MS, probeQuality } from '../src/qualityProbe';
+import { FAST_MS, LOW_TTL_MS, SLOW_MS, parseDetected, probeQuality } from '../src/qualityProbe';
 import { budgetProblems, chunkName, makeBudget, sizeTable, withHeadroom, type Chunk } from './sizeReport';
 import { renderMaps } from './mapsRender';
 import { buildVersion } from './version';
@@ -1591,6 +1591,20 @@ check(
   !canRunGame(true, false) && !canRunGame(false, true) && !canRunGame(true, true),
   'Settings or a lost context blocks the game',
 );
+{
+  let used = false;
+  let blocked = true;
+  const act = (): boolean => !blocked;
+  used = runModalAction(used, act);
+  check(!used, 'a blocked modal action leaves the button live');
+  blocked = false;
+  used = runModalAction(used, act);
+  check(used, 'the retried modal action runs and marks the button used');
+  let calls = 0;
+  runModalAction(used, () => void calls++);
+  check(calls === 0, 'a used modal button does not fire twice');
+  check(runModalAction(false, () => void calls++) && calls === 1, 'a void action counts as run');
+}
 check(padConfirmAction(true, false) === 'click', 'pad A clicks a focused nav button even with actions off');
 check(padConfirmAction(false, true) === 'enter', 'pad A runs Enter when actions are on');
 check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Settings');
@@ -2049,6 +2063,16 @@ console.log('Performance budget');
     'probe: too few frames keeps the heuristic',
   );
   check(probeQuality(NaN, 60, 'high') === 'high', 'probe: a NaN average keeps the heuristic');
+  check(
+    parseDetected('low:1000', 1000 + LOW_TTL_MS - 1) === 'low' && parseDetected('low:1000', 1000 + LOW_TTL_MS) === null,
+    'saved Low expires after a day so a 30 fps cap is probed again',
+  );
+  check(
+    parseDetected('low', 0) === null && parseDetected('low:x', 0) === null,
+    'a Low without a valid timestamp is dropped',
+  );
+  check(parseDetected('low:5000', 1000) === null, 'a Low saved in the future is dropped');
+  check(parseDetected('high', 1e15) === 'high' && parseDetected(null, 0) === null, 'a saved High never expires');
   check(chunkName('assets/index-SmQQBtbV.js') === 'index.js', 'chunk name drops the content hash');
   check(chunkName('assets/vendor-three-a_B-0xYz.js') === 'vendor-three.js', 'chunk name keeps dashes in the stem');
   check(chunkName('index.css') === 'index.css', 'chunk name without a hash is unchanged');
