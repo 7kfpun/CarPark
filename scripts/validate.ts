@@ -2696,10 +2696,14 @@ console.log('Garage');
   const h3 = freshHealth();
   applyDamage(h3, 'suv', 100);
   const w4 = { money: 500 };
-  if (buyCar(g3, w4, 'suv') === 'bought') delete h3.hp['suv'];
   check(
-    hpFor(h3, 'suv') === 100 && w4.money === 0,
+    buyCar(g3, w4, 'suv', h3) === 'bought' && hpFor(h3, 'suv') === 100 && !('suv' in h3.hp) && w4.money === 0,
     'a car bought after being wrecked as a level vehicle is at full HP',
+  );
+  applyDamage(h3, 'hatchback', 40);
+  check(
+    buyCar(g3, w4, 'hatchback', h3) === 'owned' && hpFor(h3, 'hatchback') === 60 && w4.money === 0,
+    'buying a car you already own leaves its HP',
   );
   w3.money = 250;
   applyDamage(h, 'sedan', 50);
