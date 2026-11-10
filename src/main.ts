@@ -34,6 +34,7 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { claim, loadEarn, msToNext, pendingCoins, saveEarn, waitLabel } from './earn';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -405,6 +406,25 @@ function startLevel(i: number): boolean {
   return true;
 }
 
+// --- Hourly earn: coins over time, claimed from the menu ---------------------------
+const earn = loadEarn();
+const earnBalance = document.getElementById('earn-balance')!;
+const earnClaim = document.getElementById('earn-claim') as HTMLButtonElement;
+function renderEarn(): void {
+  const now = Date.now();
+  const ready = pendingCoins(earn, now);
+  earnBalance.textContent = `🪙 ${earn.balance}`;
+  earnClaim.disabled = ready === 0;
+  earnClaim.textContent = ready ? `Claim ${ready} coins` : `Next coins in ${waitLabel(msToNext(earn, now))}`;
+}
+earnClaim.onclick = () => {
+  const got = claim(earn, Date.now());
+  if (got && mayPersist(ADMIN)) saveEarn(earn);
+  if (got) sfx.click();
+  renderEarn();
+};
+setInterval(() => state === 'menu' && renderEarn(), 30_000);
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -423,6 +443,7 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  renderEarn();
   applyUpdate();
 }
 

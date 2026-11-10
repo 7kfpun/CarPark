@@ -748,6 +748,20 @@ h2 {
   font-weight: 700;
 }
 
+#earn {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-weight: 700;
+}
+
+#earn button {
+  margin: 0;
+}
+
 #menu-version {
   margin-top: 12px;
   color: var(--muted);
