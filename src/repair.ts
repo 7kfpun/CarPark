@@ -36,19 +36,24 @@ export function parseRepair(raw: unknown): RepairState {
   return out;
 }
 
-/** True when the car is below full HP, so a repair makes sense. */
-export function isDamaged(s: RepairState): boolean {
-  return s.hp < MAX_HP;
+/** HP as a whole number in 0..MAX_HP; a non-finite value counts as a wreck rather than as healthy. */
+function wholeHp(hp: number): number {
+  return Number.isFinite(hp) ? toInt(hp, 0, MAX_HP, 0) : 0;
 }
 
-/** Coins needed to restore the car to full HP. */
+/** True when the car is below full HP, so a repair makes sense. */
+export function isDamaged(s: RepairState): boolean {
+  return wholeHp(s.hp) < MAX_HP;
+}
+
+/** Coins needed to restore the car to full HP (a whole number, never billing HP the car cannot have). */
 export function repairCost(s: RepairState): number {
-  return (MAX_HP - s.hp) * COST_PER_HP;
+  return (MAX_HP - wholeHp(s.hp)) * COST_PER_HP;
 }
 
 /** Whether the player can pay for a full repair of a damaged car. */
 export function canRepair(s: RepairState): boolean {
-  return isDamaged(s) && s.coins >= repairCost(s);
+  return Number.isFinite(s.coins) && isDamaged(s) && s.coins >= repairCost(s);
 }
 
 /** Pays for a full repair. Returns false and changes nothing when the car is undamaged or coins fall short. */

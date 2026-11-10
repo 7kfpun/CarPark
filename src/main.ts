@@ -34,6 +34,9 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
+import type { Missions } from './missions';
+import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -52,7 +55,8 @@ import {
   type Pose,
 } from './replay';
 import { activateUpdate, initPwa } from './pwa';
-import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
+import { recoverNow } from './recovery';
+import { fetchUpdate, mergeUpdate, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -81,8 +85,9 @@ scene.add(sun, sun.target);
 // Created before the renderer so the first frame uses the saved quality.
 const settings = loadSettings();
 const gfx = new Graphics(canvas, scene, sun, {
-  onLost: () => pause(),
-  onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+  onLost: () => holdForContextLoss(),
+  onRestored: () => pause(), // three.js re-uploads everything lazily; show the pause dialog now that the overlay is gone
+  onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
 gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
@@ -403,6 +408,25 @@ function startLevel(i: number): boolean {
   return true;
 }
 
+let missions: Missions = loadMissions();
+let wallet = loadWallet();
+
+function showMissions(): void {
+  missions = rollDay(missions, dayKey(new Date()));
+  renderMissions(document.getElementById('missions')!, missions, wallet.money, (id) => {
+    const r = claim(missions, id);
+    if (!r.reward) return;
+    missions = r.missions;
+    wallet = { ...wallet, money: wallet.money + r.reward };
+    if (mayPersist(ADMIN)) {
+      saveMissions(missions);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+  });
+}
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -421,7 +445,17 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  showMissions();
   applyUpdate();
+}
+
+/** Context lost: halt the run without opening the pause dialog under the graphics overlay (it is shown on restore). */
+function holdForContextLoss(): void {
+  if (state !== 'playing') return;
+  state = 'paused';
+  sfx.stopEngine();
+  syncAdminBar();
+  input.clear();
 }
 
 function pause(): void {
@@ -489,6 +523,10 @@ function finish(win: boolean, reason: string): void {
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
+    if (mayPersist(ADMIN)) {
+      missions = recordPark(rollDay(missions, dayKey(new Date())), id, stars);
+      saveMissions(missions);
+    }
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const nextLevel = LEVELS[levelIndex + 1];
     // The next level may sit in a world that is still locked (a world opens when the one before is finished).
@@ -529,9 +567,9 @@ let pendingBuild: string | null = null;
 let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
 let swUpdateReady = false;
-// With a waiting service worker, activating it reloads the page onto the new build; otherwise reload past the HTTP cache.
+// With a waiting service worker, activating it reloads the page onto the new build; otherwise recover (cache-busted reload).
 const reloadPage = (): void => {
-  if (!activateUpdate()) location.replace(reloadUrl(location.href, Date.now()));
+  if (!activateUpdate()) recoverNow();
 };
 
 function applyUpdate(): void {
@@ -897,7 +935,7 @@ function reportFrameError(err: unknown): void {
   console.error('Frame loop error', err);
   const banner = document.getElementById('error-banner')!;
   banner.classList.remove('hidden');
-  document.getElementById('error-reload')!.addEventListener('click', () => location.reload());
+  document.getElementById('error-reload')!.addEventListener('click', recoverNow);
 }
 function frame(now: number): void {
   rafId = 0;
