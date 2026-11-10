@@ -147,7 +147,8 @@ try {
     loadingFill.style.width = `${total > 0 ? Math.round((loaded / total) * 100) : 0}%`;
   });
 } finally {
-  loadingEl.remove();
+  // A ?level= jump keeps the overlay up until the level has started (removed at the bottom).
+  if (!new URLSearchParams(location.search).has('level')) loadingEl.remove();
 }
 /** The other models load while the menu is up; a level only starts once they are in. */
 let modelsDone = false;
@@ -958,5 +959,6 @@ if (direct >= 0 && direct < LEVELS.length) {
   await laterModels; // a test jump starts at once, so wait for the parked-car models
   startLevel(direct);
 } else showMenu();
+loadingEl.remove();
 startLoop();
 void runUpdateCheck();
