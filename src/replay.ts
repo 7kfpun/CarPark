@@ -101,27 +101,50 @@ export function fitsCap(data: number[]): boolean {
   return data.length > 0 && JSON.stringify(data).length <= MAX_GHOST_CHARS;
 }
 
-/** Keep only well-formed ghosts for known levels. */
-export function parseGhosts(raw: unknown, ids: string[]): Ghosts {
+/** A stored ghost when well-formed, else undefined. */
+function cleanGhost(g: unknown): Ghost | undefined {
+  if (!g || typeof g !== 'object') return undefined;
+  const { time, data } = g as { time?: unknown; data?: unknown };
+  if (typeof time !== 'number' || !Number.isFinite(time) || time <= 0) return undefined;
+  if (!decodeFrames(data) || !fitsCap(data as number[])) return undefined;
+  return { time, data: data as number[] };
+}
+
+function ghostEntries(raw: unknown, wantKnown: boolean, ids: string[]): Ghosts {
   const out: Ghosts = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   const known = new Set(ids);
   for (const [id, g] of Object.entries(raw)) {
-    if (!known.has(id) || !g || typeof g !== 'object') continue;
-    const { time, data } = g as { time?: unknown; data?: unknown };
-    if (typeof time !== 'number' || !Number.isFinite(time) || time <= 0) continue;
-    if (!decodeFrames(data) || !fitsCap(data as number[])) continue;
-    out[id] = { time, data: data as number[] };
+    if (known.has(id) !== wantKnown) continue;
+    const ghost = cleanGhost(g);
+    if (ghost) out[id] = ghost;
   }
   return out;
 }
 
+/** Keep only well-formed ghosts for known levels. */
+export function parseGhosts(raw: unknown, ids: string[]): Ghosts {
+  return ghostEntries(raw, true, ids);
+}
+
+/** Well-formed ghosts stored for ids outside `ids`, written back so they aren't lost. */
+export function unknownGhosts(raw: unknown, ids: string[]): Ghosts {
+  return ghostEntries(raw, false, ids);
+}
+
+/** Stored ghosts for level ids this build doesn't know, kept from the last load. */
+let unknownSaved: Ghosts = {};
+
 const KEY = 'car-parking-3d:ghosts';
 
 export function loadGhosts(ids: string[]): Ghosts {
+  unknownSaved = {};
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? parseGhosts(JSON.parse(raw), ids) : {};
+    if (!raw) return {};
+    const data: unknown = JSON.parse(raw);
+    unknownSaved = unknownGhosts(data, ids);
+    return parseGhosts(data, ids);
   } catch {
     return {};
   }
@@ -129,7 +152,7 @@ export function loadGhosts(ids: string[]): Ghosts {
 
 export function saveGhosts(g: Ghosts): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(g));
+    localStorage.setItem(KEY, JSON.stringify({ ...unknownSaved, ...g }));
   } catch {
     // storage unavailable or full: ghosts just won't persist
   }
@@ -137,6 +160,7 @@ export function saveGhosts(g: Ghosts): void {
 
 /** Forget every stored ghost; call wherever saved progress is reset. */
 export function clearGhosts(): void {
+  unknownSaved = {};
   try {
     localStorage.removeItem(KEY);
   } catch {

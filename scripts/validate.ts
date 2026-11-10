@@ -20,8 +20,10 @@ import {
   duration,
   encodeFrames,
   fitsCap,
+  loadGhosts,
   MAX_FRAMES,
   parseGhosts,
+  saveGhosts,
   poseAt,
   Recorder,
   REPLAY_HZ,
@@ -1302,6 +1304,25 @@ check(
   store.value !== fut && JSON.parse(store.value as string).v === 2,
   'v3 save is written once the player earns something',
 );
+// Ids this build doesn't list (older/smaller build, removed level) survive the next save.
+{
+  const raw = JSON.stringify({
+    v: 2,
+    stars: { [ids[0]]: 1, gone: 3, bad: 9 },
+    unlocked: [ids[0], 'gone'],
+    best: { [ids[0]]: 30, gone: 12, junk: -1 },
+  });
+  const p = load(raw);
+  check(!('gone' in p.stars) && !p.unlocked.includes('gone'), 'unknown ids stay out of in-memory progress');
+  recordWin(p, four, 0, 2);
+  recordBest(p, ids[0], 25);
+  saveProgress(p);
+  const saved = JSON.parse(store.value as string);
+  check(saved.stars.gone === 3 && saved.stars.bad === 3, 'unknown level stars are kept on save (clamped)');
+  check(saved.best.gone === 12 && !('junk' in saved.best), 'unknown best times are kept on save, junk dropped');
+  check(saved.unlocked.includes('gone'), 'unknown unlocked ids are kept on save');
+  check(saved.stars[ids[0]] === 2 && saved.best[ids[0]] === 25, 'known ids still update');
+}
 check(same(load('{"v":2,"stars":"3"}'), fresh4), 'string stars give fresh progress');
 check(same(load('{"v":2,"stars":[3,3],"unlocked":"x","best":7}'), fresh4), 'junk v2 fields give fresh progress');
 check(same(load('{"v":3,"stars":"x"}'), fresh4), 'junk v3 save gives fresh progress');
@@ -1926,6 +1947,27 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
     ['a', 'b', 'c'],
   );
   check(Object.keys(ghosts).join() === 'a', 'stored ghosts are validated per known level');
+  // Ghosts for unknown level ids are written back, not pruned.
+  const gl = globalThis as unknown as { localStorage?: unknown };
+  const prevLs = gl.localStorage;
+  let stored: string | null = JSON.stringify({ a: { time: 5, data: enc }, zz: { time: 7, data: enc } });
+  gl.localStorage = {
+    getItem: () => stored,
+    setItem: (_k: string, v: string) => {
+      stored = v;
+    },
+  };
+  const loaded = loadGhosts(['a', 'b']);
+  check(Object.keys(loaded).join() === 'a', 'unknown ghosts stay out of memory');
+  loaded.b = { time: 6, data: enc };
+  saveGhosts(loaded);
+  check(
+    Object.keys(JSON.parse(stored as string))
+      .sort()
+      .join() === 'a,b,zz',
+    'ghosts for unknown level ids survive a save',
+  );
+  gl.localStorage = prevLs;
 }
 
 console.log('Accessibility');

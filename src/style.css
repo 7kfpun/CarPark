@@ -10,6 +10,11 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --ui-scale: 1;
+  --btn: 44px; /* corner icon button size */
+  --btn-gap: 8px;
+  --hint-drop: 0px; /* the same drop for the hint, which is zoomed itself so must not be pre-scaled */
+  --hud-drop: 0px; /* extra HUD height when the pills sit below the corner buttons */
+  --corner-w: calc(4 * var(--btn) * var(--ui-scale) + 3 * var(--btn-gap));
   font-family:
     system-ui,
     -apple-system,
@@ -86,7 +91,8 @@ button:focus-visible {
   position: absolute;
   top: calc(12px + var(--safe-t));
   left: calc(16px + var(--safe-l));
-  right: calc(170px + var(--safe-r)); /* room for the three corner buttons */
+  /* Room for the corner buttons: 4 buttons (scaled by the text size) + 3 gaps + the edge margin + a gap. */
+  right: calc(var(--corner-w) + 24px + var(--safe-r));
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -99,6 +105,10 @@ button:focus-visible {
   font-weight: 600;
   font-size: clamp(13px, 3.6vmin, 15px);
   white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
   backdrop-filter: blur(6px);
 }
 
@@ -123,13 +133,13 @@ button:focus-visible {
   top: calc(12px + var(--safe-t));
   right: calc(16px + var(--safe-r));
   display: flex;
-  gap: 8px;
+  gap: var(--btn-gap);
   pointer-events: auto;
 }
 
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: var(--btn);
+  height: var(--btn);
   border-radius: 50%;
   border: none;
   background: var(--panel);
@@ -151,7 +161,7 @@ button:focus-visible {
 
 #hud-hint {
   position: absolute;
-  top: calc(64px + var(--safe-t));
+  top: calc(64px + var(--hint-drop) + var(--safe-t));
   left: 50%;
   transform: translateX(-50%);
   max-width: min(560px, calc(100% - 32px - var(--safe-l) - var(--safe-r)));
@@ -166,7 +176,8 @@ button:focus-visible {
 /* Narrow screens: the pills wrap onto a second row, so drop the hint below it. */
 @media (max-width: 480px) {
   #hud-hint {
-    top: calc(100px + var(--safe-t));
+    top: calc(100px + var(--hint-drop) + var(--safe-t));
+    width: max-content; /* not squeezed into the right half by left: 50% */
   }
 }
 
@@ -1075,12 +1086,31 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   zoom: var(--ui-scale);
 }
 
+/* Narrow screens at a larger text size: the corner buttons take most of the width, so the
+   pills drop to a row of their own below them (and the hint moves down with them). */
+@media (max-width: 480px) {
+  :root[data-text-size='large'],
+  :root[data-text-size='xlarge'] {
+    --hud-drop: calc(var(--btn) * var(--ui-scale) + 8px);
+    --hint-drop: calc(var(--btn) + 8px);
+  }
+  :root[data-text-size='large'] .hud-top,
+  :root[data-text-size='xlarge'] .hud-top {
+    top: calc(12px + var(--hud-drop) + var(--safe-t));
+    right: calc(16px + var(--safe-r));
+  }
+}
+
 /* ---------- Short landscape screens (a phone held sideways) ---------- */
 /* Height is the scarce axis here: keep the HUD to the edges so the road stays visible. */
 @media (orientation: landscape) and (max-height: 520px) {
   :root {
     --wheel: clamp(96px, 30vh, 150px);
     --pedal-h: clamp(80px, 24vh, 120px);
+  }
+  :root {
+    --btn: 36px;
+    --btn-gap: 6px;
   }
   .hud-top {
     top: calc(6px + var(--safe-t));
@@ -1095,8 +1125,6 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
     gap: 6px;
   }
   .icon-btn {
-    width: 36px;
-    height: 36px;
     font-size: 15px;
   }
   /* The hint sits low and small instead of covering the middle of the view. */
