@@ -68,7 +68,7 @@ import {
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { MODEL_SHARED, toTemplate } from '../src/carModels';
+import { MODEL_SHARED, loadCarModels, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
 import {
   applyOrbit,
@@ -85,7 +85,7 @@ import { LEVELS } from '../src/levels';
 import { SOLUTIONS } from '../src/levels.solutions';
 import { loadSettings, parseTextSize, TEXT_SCALE, TEXT_SIZES } from '../src/settings';
 import { ambientLevels } from '../src/lighting';
-import { loadingLabel, withTimeout } from '../src/loading';
+import { backoffMs, loadingLabel, mapLimit, retry, withTimeout } from '../src/loading';
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
 import { evaluateParking, parkChecklist } from '../src/parking';
 import { CarPhysics } from '../src/physics';
@@ -1260,6 +1260,54 @@ console.log('Load timeout');
   check((await withTimeout(Promise.resolve(7), 50)) === 7, 'withTimeout passes a fast result through');
   const rej = await withTimeout(Promise.reject(new Error('boom')), 50).catch((e: Error) => e.message);
   check(rej === 'boom', 'withTimeout passes rejections through');
+  let timedOut = false;
+  await withTimeout(new Promise<void>(() => undefined), 5, 'x', () => (timedOut = true)).catch(() => undefined);
+  check(timedOut, 'withTimeout calls onTimeout so the caller can abort the work');
+  // A stalled download must be aborted so the next attempt issues a new request (three.js would
+  // otherwise dedupe it onto the hung one).
+  (globalThis as { __APP_BUILD__?: string }).__APP_BUILD__ = 'validate'; // normally injected by Vite
+  const realFetch = globalThis.fetch;
+  let hits = 0;
+  let aborted = false;
+  globalThis.fetch = ((input: Request) => {
+    hits++;
+    if (hits > 1) return Promise.resolve(new Response(null, { status: 404 }));
+    // First request never answers; it only ends when aborted.
+    return new Promise<Response>((_res, rej) =>
+      input.signal.addEventListener('abort', () => {
+        aborted = true;
+        rej(new DOMException('aborted', 'AbortError'));
+      }),
+    );
+  }) as typeof fetch;
+  const warn = console.warn;
+  console.warn = () => undefined;
+  await loadCarModels(['__stall_test__'], undefined, 80, 'http://models.test/', 2, 1);
+  console.warn = warn;
+  globalThis.fetch = realFetch;
+  check(aborted, 'a timed-out download is aborted');
+  check(hits === 2, `a second attempt issues a new request after the first times out (saw ${hits})`);
+}
+console.log('Model load retry and concurrency');
+{
+  let active = 0;
+  let peak = 0;
+  const done: number[] = [];
+  await mapLimit([1, 2, 3, 4, 5, 6], 2, async (n) => {
+    peak = Math.max(peak, ++active);
+    await new Promise((r) => setTimeout(r, 5));
+    active--;
+    done.push(n);
+  });
+  check(peak === 2 && done.length === 6, 'mapLimit runs every item with at most `limit` in flight');
+  let calls = 0;
+  const v = await retry(() => (++calls < 3 ? Promise.reject(new Error('flaky')) : Promise.resolve('ok')), 3, 1);
+  check(v === 'ok' && calls === 3, 'retry succeeds after transient failures');
+  let calls2 = 0;
+  const msg = await retry(() => (++calls2, Promise.reject(new Error('down'))), 2, 1).catch((e: Error) => e.message);
+  check(msg === 'down' && calls2 === 2, 'retry gives up after the attempt limit with the last error');
+  check(backoffMs(0, 100, 1000) === 100 && backoffMs(2, 100, 1000) === 400, 'backoff doubles');
+  check(backoffMs(10, 100, 1000) === 1000, 'backoff is capped');
 }
 console.log('Build version');
 check(buildVersion('1.2.3', 'abcdef1234567890') === '1.2.3+abcdef1', 'full sha is shortened to 7 chars');
