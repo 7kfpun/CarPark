@@ -64,7 +64,7 @@ npm run test:e2e:ui  # the same in Playwright's interactive UI
 npm run maps         # regenerate docs/LEVELS.md and docs/maps/*.svg from src/levels.ts
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate, build and format:check on every push to `main` and on ready (non-draft) pull requests. A second workflow (`lgtm.yml`, see `tools/lgtm_gate.py`) sets an `LGTM` status that stays pending until a reviewer's LGTM covers the PR head. Every push to `main` is deployed to GitHub Pages by `deploy.yml`, after the same checks; it also runs daily and can be started by hand. A separate `e2e` job runs the browser tests and uploads the Playwright report and failure screenshots as an artifact; it is not required for deploy.
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, validate, build and format:check on every push to `main` and on ready (non-draft) pull requests. A second workflow (`lgtm.yml`, see `tools/lgtm_gate.py`) sets an `LGTM` status that stays pending until a reviewer's LGTM covers the PR head. Every push to `main` is deployed to GitHub Pages by `deploy.yml`, after the same checks; it also runs daily and can be started by hand. After publishing, a `health` job probes the live site over HTTPS (HTTP 200 and the expected page title, with retries) and fails the workflow if it is unhealthy. A separate `e2e` job runs the browser tests and uploads the Playwright report and failure screenshots as an artifact; it is not required for deploy.
 
 ### Testing
 
