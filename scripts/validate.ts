@@ -7,7 +7,7 @@ import {
   freshHealth,
   hpFor,
   loadHealth,
-  MAX_HP,
+  MAX_HP as HEALTH_MAX_HP,
   parseHealth,
   saveHealth,
 } from '../src/health';
@@ -2449,14 +2449,20 @@ console.log('Car HP');
 check(crashDamage(0) === 0 && crashDamage(NaN) === 0, 'no impact deals no damage');
 check(crashDamage(0.1) === 1, 'a gentle bump still costs 1 HP');
 check(crashDamage(4) > crashDamage(2), 'harder crashes deal more damage');
-check(crashDamage(1000) === MAX_HP, 'damage is capped at full HP');
+check(crashDamage(1000) === HEALTH_MAX_HP, 'damage is capped at full HP');
 {
   const h = freshHealth();
-  check(hpFor(h, 'sedan') === MAX_HP, 'a car starts at full HP');
-  check(applyDamage(h, 'sedan', 30) === MAX_HP - 30 && hpFor(h, 'hatchback') === MAX_HP, 'damage hits only that car');
+  check(hpFor(h, 'sedan') === HEALTH_MAX_HP, 'a car starts at full HP');
+  check(
+    applyDamage(h, 'sedan', 30) === HEALTH_MAX_HP - 30 && hpFor(h, 'hatchback') === HEALTH_MAX_HP,
+    'damage hits only that car',
+  );
   check(applyDamage(h, 'sedan', 500) === 0, 'HP never goes below 0');
   const p = parseHealth({ v: 1, hp: { a: 50.7, b: -5, c: 999, d: 'x', e: null } });
-  check(p.hp.a === 50 && p.hp.b === 0 && p.hp.c === MAX_HP && !('d' in p.hp) && !('e' in p.hp), 'stored HP is cleaned');
+  check(
+    p.hp.a === 50 && p.hp.b === 0 && p.hp.c === HEALTH_MAX_HP && !('d' in p.hp) && !('e' in p.hp),
+    'stored HP is cleaned',
+  );
   check(
     parseHealth('junk').v === 1 && parseHealth({ hp: [1] }).hp['0'] === undefined,
     'junk health falls back to fresh',
@@ -2475,7 +2481,7 @@ check(crashDamage(1000) === MAX_HP, 'damage is capped at full HP');
   saveHealth(h);
   check(hpFor(loadHealth(), 'sedan') === 0, 'HP survives a save and load');
   throws = true;
-  check(hpFor(loadHealth(), 'sedan') === MAX_HP, 'throwing storage gives full HP');
+  check(hpFor(loadHealth(), 'sedan') === HEALTH_MAX_HP, 'throwing storage gives full HP');
   delete (globalThis as { localStorage?: unknown }).localStorage;
 }
 
