@@ -562,10 +562,10 @@ console.log('Multi-storey view helpers');
     'dusk is outdoor light, still bright enough to drive',
   );
   check(lightTarget(true, false, true).sun === 0, 'a deck still switches the sun off at dusk');
-  const themed = LEVELS.filter((l) => l.theme === 'dusk');
+  // Twilight District is gone (CARP-135); the dusk lighting stays, and other worlds keep using it.
   check(
-    themed.length >= 3 && LEVELS.some((l) => (l.arrows?.length ?? 0) > 0),
-    'dusk levels and one-way arrows are in use',
+    LEVELS.some((l) => l.theme === 'dusk') && LEVELS.some((l) => (l.arrows?.length ?? 0) > 0),
+    'dusk lighting and one-way arrows are still in use',
   );
 }
 
@@ -1511,6 +1511,24 @@ console.log('Worlds');
   check(
     lv('basement').location === 'multi-storey' && lv('van-garage').location === 'industrial',
     'levels sit in the right worlds',
+  );
+
+  check(
+    !LEVELS.some((l) => (l.location as string) === 'twilight') && !('twilight' in WORLDS),
+    'Twilight District is removed',
+  );
+  check(
+    [
+      'reverse-gate',
+      'tight-squeeze',
+      'slalom-reverse',
+      'the-finale',
+      'dusk-gate',
+      'twilight-squeeze',
+      'dusk-slalom',
+      'night-finale',
+    ].every((id) => !LEVELS.some((l) => l.id === id)),
+    'no Twilight District stage is in the level list',
   );
 
   // Proving Ground is appended after the older worlds, so nobody who finished them is locked out again.

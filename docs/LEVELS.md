@@ -287,135 +287,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Minibus Parallel](maps/minibus-parallel.svg)
 
-## 18. Reverse Gate
-
-> Pass the wall, then back through the narrow gate into the bay.
-
-| | |
-| --- | --- |
-| Id | `reverse-gate` |
-| Vehicle | Hatchback |
-| Lot | 28 × 40 m |
-| Time limit | 70 s |
-| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
-| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
-| Start pose | x 8, z 12, heading 180° |
-
-![Reverse Gate](maps/reverse-gate.svg)
-
-## 19. Tight Squeeze
-
-> Only a sliver of room either side. Line up early and creep in.
-
-| | |
-| --- | --- |
-| Id | `tight-squeeze` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
-| Start pose | x -10, z -12, heading 90° |
-
-![Tight Squeeze](maps/tight-squeeze.svg)
-
-## 20. Slalom Reverse
-
-> Weave through the cones, then reverse into the free bay on the right.
-
-| | |
-| --- | --- |
-| Id | `slalom-reverse` |
-| Vehicle | Hatchback |
-| Lot | 30 × 60 m |
-| Time limit | 90 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
-| Target bay | x 12, z 18, 2.8 × 5.6 m, facing 270° (nose must point that way) |
-| Start pose | x 0, z -26, heading 0° |
-
-![Slalom Reverse](maps/slalom-reverse.svg)
-
-## 21. The Finale
-
-> Pillars, a wall and a walled-in bay with almost no room. Take it slow.
-
-| | |
-| --- | --- |
-| Id | `the-finale` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 100 s |
-| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
-| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
-| Start pose | x -11, z -15, heading 90° |
-
-![The Finale](maps/the-finale.svg)
-
-## 22. Dusk Gate
-
-> The light is fading. Pass the wall, then back through the narrow gate into the bay.
-
-| | |
-| --- | --- |
-| Id | `dusk-gate` |
-| Vehicle | Hatchback |
-| Lot | 28 × 40 m |
-| Time limit | 70 s |
-| Star times | 3 stars ≤ 24 s, 2 stars ≤ 36 s, 1 star within 70 s |
-| Target bay | x 0, z -13, 3 × 5.6 m, facing 0° (nose must point that way) |
-| Start pose | x -8, z 12, heading 180° |
-
-![Dusk Gate](maps/dusk-gate.svg)
-
-## 23. Twilight Squeeze
-
-> Dusk and a sliver of room either side. Follow the arrows, line up early and creep in.
-
-| | |
-| --- | --- |
-| Id | `twilight-squeeze` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z 12, 2.6 × 5.6 m, facing 0° (either direction) |
-| Start pose | x 10, z -12, heading 270° |
-
-![Twilight Squeeze](maps/twilight-squeeze.svg)
-
-## 24. Dusk Slalom
-
-> Weave through the cones as the sun sets, then reverse into the free bay on the left.
-
-| | |
-| --- | --- |
-| Id | `dusk-slalom` |
-| Vehicle | Hatchback |
-| Lot | 30 × 60 m |
-| Time limit | 90 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 90 s |
-| Target bay | x -12, z 18, 2.8 × 5.6 m, facing 90° (nose must point that way) |
-| Start pose | x 0, z -26, heading 0° |
-
-![Dusk Slalom](maps/dusk-slalom.svg)
-
-## 25. Night Finale
-
-> Dusk, pillars, a wall and a walled-in bay with almost no room. Take it slow.
-
-| | |
-| --- | --- |
-| Id | `night-finale` |
-| Vehicle | Hatchback |
-| Lot | 30 × 40 m |
-| Time limit | 100 s |
-| Star times | 3 stars ≤ 39 s, 2 stars ≤ 58 s, 1 star within 100 s |
-| Target bay | x 0, z 14, 2.6 × 5.8 m, facing 180° (nose must point that way) |
-| Start pose | x 11, z -15, heading 270° |
-
-![Night Finale](maps/night-finale.svg)
-
-## 26. Drive-Through
+## 18. Drive-Through
 
 > Follow the kerbed lane and stop in the bay before the barrier. Keep clear of both kerbs.
 
@@ -431,7 +303,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Drive-Through](maps/drive-through.svg)
 
-## 27. Chevron Bays
+## 19. Chevron Bays
 
 > The bays are slanted. Drive past the free one, then reverse in at the same angle.
 
@@ -447,7 +319,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Chevron Bays](maps/chevron-bays.svg)
 
-## 28. Dead-End Turn
+## 20. Dead-End Turn
 
 > The alley is too narrow for a U-turn. Back out of the dead end, then swing nose-first into the side bay.
 
@@ -463,7 +335,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Dead-End Turn](maps/dead-end-turn.svg)
 
-## 29. S-Bend Reverse
+## 21. S-Bend Reverse
 
 > Back the sedan all the way down the winding lane into the bay at the far end. Small steering, patience.
 
@@ -479,7 +351,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![S-Bend Reverse](maps/s-bend-reverse.svg)
 
-## 30. Double Parallel
+## 22. Double Parallel
 
 > Two lorries, a kerb and a row of cars across the road. Parallel park the SUV in the gap between the lorries.
 
@@ -495,7 +367,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Double Parallel](maps/double-parallel.svg)
 
-## 31. Pillar Hall
+## 23. Pillar Hall
 
 > Weave through the pillars, then reverse into the bay between a pillar and a parked car.
 
@@ -511,7 +383,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Pillar Hall](maps/pillar-hall.svg)
 
-## 32. Delivery Alley
+## 24. Delivery Alley
 
 > Take the van round the tight corner, past the loading bay, then back into it.
 
@@ -527,7 +399,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Delivery Alley](maps/delivery-alley.svg)
 
-## 33. Needle Alley
+## 25. Needle Alley
 
 > A dead end and a bay barely wider than the sedan. Back out, line up and drive nose-first into the bay on the right.
 
@@ -543,7 +415,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Needle Alley](maps/needle-alley.svg)
 
-## 34. Hairpin Deck
+## 26. Hairpin Deck
 
 > Up the narrow ramp, round the barrier on the deck, then reverse into the bay squeezed between two cars.
 
@@ -561,7 +433,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Hairpin Deck, floor upper](maps/hairpin-deck-upper.svg)
 
-## 35. Squeeze Play
+## 27. Squeeze Play
 
 > A narrow aisle and a bay with barely a hand to spare either side. Pull up past it and reverse straight in.
 
@@ -577,7 +449,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Squeeze Play](maps/squeeze-play.svg)
 
-## 36. Switchback Lane
+## 28. Switchback Lane
 
 > A one-way lane with two corners the SUV cannot take in one sweep. Shuffle round each and finish in the bay.
 
@@ -593,7 +465,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Switchback Lane](maps/switchback-lane.svg)
 
-## 37. Gate Runner
+## 29. Gate Runner
 
 > Three walls, three narrow gates on alternate sides. Weave through them, then reverse into the walled bay.
 
@@ -609,7 +481,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ![Gate Runner](maps/gate-runner.svg)
 
-## 38. Dock Master
+## 30. Dock Master
 
 > The box truck needs every metre of the yard. Swing wide, then reverse into the narrow loading dock.
 

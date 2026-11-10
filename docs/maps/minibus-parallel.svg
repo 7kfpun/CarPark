@@ -9,15 +9,15 @@
 <polygon class="wall" points="252,-500 252,-512 -252,-512 -252,-500"/>
 <polygon class="wall" points="252,500 252,-500 240,-500 240,500"/>
 <polygon class="wall" points="-240,500 -240,-500 -252,-500 -252,500"/>
-<polygon class="car" fill="#8a8f98" points="181,-90 181,-174 143,-174 143,-90"/><polyline class="glass" points="146,-108 178,-108"/>
-<polygon class="car" fill="#c8322b" points="181,-198 181,-282 143,-282 143,-198"/><polyline class="glass" points="146,-216 178,-216"/>
-<polygon class="car" fill="#2e8b57" points="181,-308 181,-392 143,-392 143,-308"/><polyline class="glass" points="146,-326 178,-326"/>
-<polygon class="car" fill="#222428" points="181,174 181,90 143,90 143,174"/><polyline class="glass" points="146,156 178,156"/>
-<polygon class="car" fill="#7a4fd0" points="181,282 181,198 143,198 143,282"/><polyline class="glass" points="146,264 178,264"/>
-<polygon class="car" fill="#1fa3b5" points="181,392 181,308 143,308 143,392"/><polyline class="glass" points="146,374 178,374"/>
-<polygon class="car" fill="#2f6fde" points="-181,-322 -181,-238 -143,-238 -143,-322"/><polyline class="glass" points="-146,-304 -178,-304"/>
-<polygon class="car" fill="#e8e8e8" points="-181,-102 -181,-18 -143,-18 -143,-102"/><polyline class="glass" points="-146,-84 -178,-84"/>
-<polygon class="car" fill="#8a8f98" points="-181,118 -181,202 -143,202 -143,118"/><polyline class="glass" points="-146,136 -178,136"/>
+<polygon class="car" fill="#2f6fde" points="181,-90 181,-174 143,-174 143,-90"/><polyline class="glass" points="146,-108 178,-108"/>
+<polygon class="car" fill="#e8e8e8" points="181,-198 181,-282 143,-282 143,-198"/><polyline class="glass" points="146,-216 178,-216"/>
+<polygon class="car" fill="#8a8f98" points="181,-308 181,-392 143,-392 143,-308"/><polyline class="glass" points="146,-326 178,-326"/>
+<polygon class="car" fill="#c8322b" points="181,174 181,90 143,90 143,174"/><polyline class="glass" points="146,156 178,156"/>
+<polygon class="car" fill="#2e8b57" points="181,282 181,198 143,198 143,282"/><polyline class="glass" points="146,264 178,264"/>
+<polygon class="car" fill="#222428" points="181,392 181,308 143,308 143,392"/><polyline class="glass" points="146,374 178,374"/>
+<polygon class="car" fill="#7a4fd0" points="-181,-322 -181,-238 -143,-238 -143,-322"/><polyline class="glass" points="-146,-304 -178,-304"/>
+<polygon class="car" fill="#1fa3b5" points="-181,-102 -181,-18 -143,-18 -143,-102"/><polyline class="glass" points="-146,-84 -178,-84"/>
+<polygon class="car" fill="#2f6fde" points="-181,118 -181,202 -143,202 -143,118"/><polyline class="glass" points="-146,136 -178,136"/>
 <polygon class="start" points="61,-296 61,-424 19,-424 19,-296"/>
 <polyline class="startarrow" points="40,-411.2 40,-308.8"/><polygon class="startarrowf" points="40,-308.8 21.57,-337.47 58.43,-337.47"/>
 </svg>
