@@ -74,6 +74,7 @@ import {
   applyOrbit,
   clampOrbit,
   dragOrbit,
+  inControlZone,
   isDoubleTap,
   isOffCentre,
   orbitCentre,
@@ -2190,6 +2191,20 @@ console.log('Performance budget');
   const extra = [...built, { file: 'assets/new-CCCCCCCC.js', raw: 5000, gzip: 2000 }];
   check(budgetProblems(extra, budget).length >= 1, 'a new unbudgeted chunk still counts towards the total');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
+}
+
+// CARP-134: touches on or just around the wheel / pedals are never a camera drag.
+{
+  const zones = [
+    { left: 16, top: 200, right: 156, bottom: 340 },
+    { left: 700, top: 220, right: 800, bottom: 340 },
+  ];
+  check(inControlZone(80, 270, zones), 'control zone: the wheel itself is guarded');
+  check(inControlZone(160, 270, zones), 'control zone: just outside the wheel is guarded');
+  check(inControlZone(750, 200, zones), 'control zone: just above a pedal is guarded');
+  check(!inControlZone(400, 100, zones), 'control zone: the open game area still orbits');
+  check(!inControlZone(400, 270, zones), 'control zone: far between the groups still orbits');
+  check(!inControlZone(80, 270, []), 'control zone: no controls, no guard');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
