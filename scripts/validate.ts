@@ -44,6 +44,7 @@ import {
   pickNeighbor,
   softReverse,
   REVERSE_DELAY,
+  REVERSE_START,
   pointerAngle,
   steerFromWheel,
   strongest,
