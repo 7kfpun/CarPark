@@ -233,7 +233,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Van |
 | Lot | 28 × 40 m |
 | Time limit | 120 s |
-| Star times | 3 stars ≤ 40 s, 2 stars ≤ 60 s, 1 star within 120 s |
+| Star times | 3 stars ≤ 40 s, 2 stars ≤ 52 s, 1 star within 120 s |
 | Target bay | x 0, z 13, 3.4 × 6.4 m, facing 180° (nose must point that way) |
 | Start pose | x -9, z -12, heading 90° |
 
@@ -249,7 +249,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | City Bus |
 | Lot | 30 × 60 m |
 | Time limit | 130 s |
-| Star times | 3 stars ≤ 42 s, 2 stars ≤ 63 s, 1 star within 130 s |
+| Star times | 3 stars ≤ 42 s, 2 stars ≤ 54 s, 1 star within 130 s |
 | Target bay | x 8, z 0, 4.2 × 12.4 m, facing 0° (nose must point that way) |
 | Start pose | x 2, z -24, heading 0° |
 
@@ -265,7 +265,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Box Truck |
 | Lot | 30 × 40 m |
 | Time limit | 160 s |
-| Star times | 3 stars ≤ 56 s, 2 stars ≤ 84 s, 1 star within 160 s |
+| Star times | 3 stars ≤ 56 s, 2 stars ≤ 72 s, 1 star within 160 s |
 | Target bay | x 0, z 15.8, 3.4 × 8.4 m, facing 180° (nose must point that way) |
 | Start pose | x -9, z -14, heading 90° |
 
@@ -281,7 +281,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Minibus |
 | Lot | 24 × 50 m |
 | Time limit | 120 s |
-| Star times | 3 stars ≤ 36 s, 2 stars ≤ 54 s, 1 star within 120 s |
+| Star times | 3 stars ≤ 36 s, 2 stars ≤ 48 s, 1 star within 120 s |
 | Target bay | x 8.1, z 0, 3 × 8.2 m, facing 0° (either direction) |
 | Start pose | x 2, z -18, heading 0° |
 
@@ -553,7 +553,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 24 × 62 m |
 | Time limit | 79 s |
-| Star times | 3 stars ≤ 34 s, 2 stars ≤ 46 s, 1 star within 79 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 53 s, 1 star within 79 s |
 | Target bay | x -7, z 27.8, 2.6 × 5.6 m, facing 180°, floor `upper` (nose must point that way) |
 | Start pose | x 0, z -26, heading 0° |
 
@@ -571,7 +571,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 32 × 30 m |
 | Time limit | 51 s |
-| Star times | 3 stars ≤ 22 s, 2 stars ≤ 30 s, 1 star within 51 s |
+| Star times | 3 stars ≤ 29 s, 2 stars ≤ 40 s, 1 star within 51 s |
 | Target bay | x 0, z 11, 2.5 × 5.6 m, facing 180° (nose must point that way) |
 | Start pose | x -13, z 5.6, heading 90° |
 
@@ -587,7 +587,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | SUV |
 | Lot | 30 × 44 m |
 | Time limit | 90 s |
-| Star times | 3 stars ≤ 39 s, 2 stars ≤ 53 s, 1 star within 90 s |
+| Star times | 3 stars ≤ 54 s, 2 stars ≤ 73 s, 1 star within 90 s |
 | Target bay | x 7, z 15.2, 3 × 5.6 m, facing 0° (nose must point that way) |
 | Start pose | x -8, z -18, heading 0° |
 
@@ -603,7 +603,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Sedan |
 | Lot | 36 × 44 m |
 | Time limit | 111 s |
-| Star times | 3 stars ≤ 48 s, 2 stars ≤ 65 s, 1 star within 111 s |
+| Star times | 3 stars ≤ 58 s, 2 stars ≤ 78 s, 1 star within 111 s |
 | Target bay | x 10, z 16.8, 2.8 × 5.6 m, facing 180° (nose must point that way) |
 | Start pose | x -12, z -19, heading 0° |
 
@@ -618,8 +618,8 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Id | `dock-master` |
 | Vehicle | Box Truck |
 | Lot | 40 × 40 m |
-| Time limit | 152 s |
-| Star times | 3 stars ≤ 79 s, 2 stars ≤ 106 s, 1 star within 152 s |
+| Time limit | 175 s |
+| Star times | 3 stars ≤ 103 s, 2 stars ≤ 140 s, 1 star within 175 s |
 | Target bay | x 8, z 15.4, 3.4 × 8.4 m, facing 180° (nose must point that way) |
 | Start pose | x -14, z -16, heading 0° |
 
