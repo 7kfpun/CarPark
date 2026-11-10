@@ -30,6 +30,20 @@ import {
   REPLAY_HZ,
 } from '../src/replay';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
+import {
+  COINS_PER_HOUR,
+  HOUR_MS,
+  MAX_HOURS,
+  claim as claimEarn,
+  freshEarn,
+  hoursReady,
+  msToNext,
+  parseEarn,
+  loadEarn,
+  pendingCoins,
+  saveEarn,
+  waitLabel,
+} from '../src/earn';
 import { isUpdateWaiting } from '../src/pwa';
 import {
   canRepair,
@@ -51,6 +65,7 @@ import {
   MISSIONS,
   parseMissions,
   parseWallet,
+  saveWallet,
   progressFor,
   recordPark,
   rollDay,
@@ -2435,6 +2450,48 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+}
+
+{
+  const t0 = 1_000_000_000_000;
+  const e = freshEarn(t0);
+  check(pendingCoins(e, t0 + HOUR_MS - 1) === 0, 'no coins before the first hour');
+  check(pendingCoins(e, t0 + HOUR_MS) === COINS_PER_HOUR, 'one hour earns one hour of coins');
+  check(hoursReady(e, t0 + 100 * HOUR_MS) === MAX_HOURS, 'earning is capped');
+  check(hoursReady(e, t0 - HOUR_MS) === 0, 'a clock set back earns nothing');
+  check(msToNext(e, t0 + 20 * 60_000) === 40 * 60_000, 'time to next hour counts down');
+  const now = t0 + 2.5 * HOUR_MS;
+  check(claimEarn(e, now) === 2 * COINS_PER_HOUR, 'claim pays whole hours');
+  check(e.lastClaim === t0 + 2 * HOUR_MS && msToNext(e, now) === HOUR_MS / 2, 'claim keeps the leftover half hour');
+  check(claimEarn(e, now) === 0, 'claiming twice pays once');
+  claimEarn(e, now + 50 * HOUR_MS);
+  check(e.lastClaim === now + 50 * HOUR_MS, 'a capped claim restarts the clock');
+  const back = parseEarn({ lastClaim: t0 + 5 * HOUR_MS }, t0);
+  check(back.lastClaim === t0, 'a future lastClaim is reset to now');
+  const junk = parseEarn({ lastClaim: 'x' }, t0);
+  check(junk.lastClaim === t0, 'junk storage falls back to a fresh state');
+  check(parseEarn(null, t0).lastClaim === t0, 'missing storage is a fresh state');
+  // Reload before the first claim: the fresh clock is saved, so the next launch keeps counting from it.
+  const store = new Map<string, string>();
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  };
+  saveEarn(loadEarn(t0));
+  check(
+    pendingCoins(loadEarn(t0 + HOUR_MS), t0 + HOUR_MS) === COINS_PER_HOUR,
+    'a reload before the first claim keeps the clock',
+  );
+  check(saveWallet({ v: 1, money: 5 }) === true, 'saveWallet reports a stored wallet');
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: () => null,
+    setItem: () => {
+      throw new Error('quota');
+    },
+  };
+  check(saveWallet({ v: 1, money: 5 }) === false, 'saveWallet reports a failed write');
+  delete (globalThis as { localStorage?: unknown }).localStorage;
+  check(waitLabel(61 * 60_000) === '1h 01m' && waitLabel(1) === '1m', 'wait labels read well');
 }
 
 // Daily missions: progress, claim-once, and the local-day reset.
