@@ -16,6 +16,7 @@ import {
 } from '../src/config';
 import {
   beatsGhost,
+  nextGhost,
   decodeFrames,
   duration,
   encodeFrames,
@@ -2041,6 +2042,15 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
     beatsGhost(undefined, 12) && beatsGhost({ time: 12, data: enc }, 11) && !beatsGhost({ time: 12, data: enc }, 12),
     'only a faster run replaces the ghost',
   );
+  const huge = Array.from({ length: 20_000 }, () => 123456);
+  const old = { time: 12, data: enc };
+  check(
+    nextGhost(old, 11, enc)?.time === 11 &&
+      nextGhost(old, 12, enc) === old &&
+      nextGhost(undefined, 5, huge) === undefined,
+    'nextGhost keeps the faster ghost',
+  );
+  check(nextGhost(old, 11, huge) === undefined, 'a faster run too big to store drops the stale slower ghost');
   check(!beatsGhost(undefined, 0) && !beatsGhost(undefined, NaN), 'a bad time never becomes a ghost');
   const ghosts = parseGhosts(
     { a: { time: 5, data: enc }, b: { time: 5, data: [1] }, zz: { time: 5, data: enc }, c: { time: -1, data: enc } },
