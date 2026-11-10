@@ -1844,6 +1844,9 @@ console.log('Admin mode');
   );
 }
 
+console.log('Street level');
+check(LEVELS.find((l) => l.id === 'main-street')?.location === 'open-air', 'main-street is in the location table');
+
 console.log('Level maps (docs/LEVELS.md, docs/maps)');
 {
   const expected = renderMaps(LEVELS);

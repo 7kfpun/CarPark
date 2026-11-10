@@ -1,6 +1,9 @@
 import type { OBB } from './collision';
 import { CAR_L, CAR_W } from './config';
 
+/** Body types of the code-drawn street cars (src/streetCars.ts). */
+export type StreetBody = 'sedan' | 'hatchback' | 'wagon' | 'suv' | 'pickup' | 'van' | 'bus';
+
 export type ObstacleKind = 'car' | 'wall' | 'cone' | 'pillar';
 
 export interface ObstacleDef {
@@ -14,6 +17,8 @@ export interface ObstacleDef {
   color?: number;
   /** Parked cars: which car model to show (index into the model list). */
   variant?: number;
+  /** Parked cars: draw this code-built street car instead of a Kenney model (same footprint). */
+  body?: StreetBody;
   /** Floor or ramp id this obstacle stands on. Defaults to the first floor. */
   floor?: string;
 }
@@ -114,7 +119,7 @@ export interface LevelDef {
 export function obstacleDims(o: ObstacleDef): { w: number; l: number; h: number } {
   switch (o.kind) {
     case 'car':
-      return { w: CAR_W, l: CAR_L, h: 1.5 };
+      return { w: o.w ?? CAR_W, l: o.l ?? CAR_L, h: 1.5 };
     case 'cone':
       return { w: 0.5, l: 0.5, h: 0.75 };
     case 'pillar':
