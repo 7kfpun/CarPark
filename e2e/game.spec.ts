@@ -309,6 +309,7 @@ const HUD_PARTS = [
   '#hud-level',
   '#hud-timer',
   '#hud-floor',
+  '#hud-hint',
   '#btn-reset-view',
   '#btn-cam',
   '#btn-pause',

@@ -12,6 +12,7 @@
   --ui-scale: 1;
   --btn: 44px; /* corner icon button size */
   --btn-gap: 8px;
+  --hint-drop: 0px; /* the same drop for the hint, which is zoomed itself so must not be pre-scaled */
   --hud-drop: 0px; /* extra HUD height when the pills sit below the corner buttons */
   --corner-w: calc(4 * var(--btn) * var(--ui-scale) + 3 * var(--btn-gap));
   font-family:
@@ -160,7 +161,7 @@ button:focus-visible {
 
 #hud-hint {
   position: absolute;
-  top: calc(64px + var(--hud-drop) + var(--safe-t));
+  top: calc(64px + var(--hint-drop) + var(--safe-t));
   left: 50%;
   transform: translateX(-50%);
   max-width: min(560px, calc(100% - 32px - var(--safe-l) - var(--safe-r)));
@@ -175,7 +176,8 @@ button:focus-visible {
 /* Narrow screens: the pills wrap onto a second row, so drop the hint below it. */
 @media (max-width: 480px) {
   #hud-hint {
-    top: calc(100px + var(--safe-t));
+    top: calc(100px + var(--hint-drop) + var(--safe-t));
+    width: max-content; /* not squeezed into the right half by left: 50% */
   }
 }
 
@@ -1076,6 +1078,7 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   :root[data-text-size='large'],
   :root[data-text-size='xlarge'] {
     --hud-drop: calc(var(--btn) * var(--ui-scale) + 8px);
+    --hint-drop: calc(var(--btn) + 8px);
   }
   :root[data-text-size='large'] .hud-top,
   :root[data-text-size='xlarge'] .hud-top {
