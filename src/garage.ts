@@ -52,7 +52,7 @@ export interface Purse {
 }
 
 /** Spends wallet coins on a car and selects it. Changes `g` and `w` only when it returns 'bought'. */
-export function buyCar(g: Garage, w: Purse, id: string): BuyResult {
+export function buyCar(g: Garage, w: Purse, id: string, h?: Health): BuyResult {
   const price = priceOf(id);
   if (price === undefined) return 'unknown';
   if (g.owned.includes(id)) return 'owned';
@@ -60,6 +60,7 @@ export function buyCar(g: Garage, w: Purse, id: string): BuyResult {
   w.money -= price;
   g.owned.push(id);
   g.selected = id;
+  if (h) delete h.hp[id]; // damage taken before the purchase (as a level's forced vehicle) does not come with the car
   return 'bought';
 }
 

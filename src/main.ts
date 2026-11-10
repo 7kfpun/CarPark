@@ -686,6 +686,7 @@ input.on('Escape', () => {
   if (state === 'playing') pause();
   else if (state === 'paused') resume();
   else if (state === 'done') showMenu();
+  else if (state === 'menu' && garageOpen) closeGarage();
 });
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
@@ -737,19 +738,21 @@ function openGarage(note = ''): void {
           : `Buy ${name}: ${c.price} coins`;
     return {
       label,
-      primary: garage.selected === c.id,
+      primary: false,
       onClick: () => {
         if (owned) selectCar(garage, c.id);
         else {
           const purse = { money: wallet.money };
-          if (buyCar(garage, purse, c.id) !== 'bought') {
+          if (buyCar(garage, purse, c.id, health) !== 'bought') {
             openGarage('Not enough coins for that car.');
             return;
           }
           wallet = { ...wallet, money: purse.money };
           if (persist) {
-            saveWallet(wallet);
+            // Garage and health first, the wallet last: a failed write must not keep the charge and drop the car.
             saveGarage(garage);
+            saveHealth(health);
+            saveWallet(wallet);
           }
           sfx.click();
           showMissions();
@@ -775,8 +778,8 @@ function openGarage(note = ''): void {
         }
         wallet = { ...wallet, money: purse.money };
         if (persist) {
-          saveWallet(wallet);
           saveHealth(health);
+          saveWallet(wallet);
         }
         sfx.click();
         showMissions();
@@ -786,19 +789,19 @@ function openGarage(note = ''): void {
   }
   buttons.push({
     label: 'Done',
-    primary: false,
-    onClick: () => {
-      garageOpen = false;
-      hud.hideModal();
-    },
+    primary: true,
+    onClick: closeGarage,
   });
   hud.showModal(
     'Garage',
     `${note ? `${note} ` : ''}You have ${wallet.money} coins. Levels with their own vehicle keep it; the rest use your car.`,
     null,
     buttons,
-    false,
   );
+}
+function closeGarage(): void {
+  garageOpen = false;
+  hud.hideModal();
 }
 document.getElementById('btn-garage')!.addEventListener('click', () => openGarage());
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
