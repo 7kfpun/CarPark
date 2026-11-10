@@ -19,6 +19,7 @@ import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
+import { buyCar, driveVehicleId, loadGarage, saveGarage, selectCar, SHOP } from './garage';
 import {
   assistMode,
   bodyHidden,
@@ -204,6 +205,10 @@ adminBadge.addEventListener('click', () => {
 });
 adminPrev.addEventListener('click', () => skipLevel(-1));
 adminNext.addEventListener('click', () => skipLevel(1));
+const garage = loadGarage();
+/** The vehicle for a level: its own if it sets one, otherwise the player's selected car. */
+const vehicleFor = (def: LevelDef): VehicleDef => vehicleOf(driveVehicleId(def.vehicle, garage));
+let garageOpen = false;
 const progress = ADMIN ? unlockAll(loadProgress(LEVEL_IDS), LEVEL_IDS) : loadProgress(LEVEL_IDS);
 let state: State = 'menu';
 let levelIndex = 0;
@@ -309,7 +314,7 @@ function onModelsLoaded(): void {
   }
   // The menu shows no ghost (the next startLevel makes one); otherwise put it where the run is.
   if (wasGhost && ghostFrames && state !== 'menu') {
-    ghostCar = ghostFor(vehicleOf(LEVELS[levelIndex].vehicle));
+    ghostCar = ghostFor(vehicleFor(LEVELS[levelIndex]));
     updateGhost(elapsed);
   }
   // Never rebuild the lot under a run: it comes up at the next menu or level start.
@@ -363,12 +368,12 @@ function canRun(): boolean {
 }
 
 function startLevel(i: number): boolean {
-  if (!canRun()) return false;
+  if (!canRun() || garageOpen) return false;
   sfx.unlock();
   sfx.startMusic();
   if (!level || levelIndex !== i || levelStale) loadLevel(i);
   const def = LEVELS[i];
-  const vehicle = vehicleOf(def.vehicle);
+  const vehicle = vehicleFor(def);
   const previous = player.model.root;
   if (player.use(vehicle)) swapPlayerModel(previous);
   replay = null;
@@ -393,7 +398,7 @@ function startLevel(i: number): boolean {
   rig.setFreeLook(false);
   rig.snap(camTarget());
   syncFov();
-  hud.startLevel(i, def);
+  hud.startLevel(i, { ...def, vehicle: vehicle.id });
   if (levelIndex === 0 && shouldShowTip()) {
     hud.showHint(FIRST_RUN_TIP, FIRST_RUN_TIP_SECONDS);
     markTipSeen();
@@ -659,6 +664,45 @@ document.getElementById('btn-settings')!.addEventListener('click', (e) => {
 document.getElementById('btn-settings-menu')!.addEventListener('click', (e) => {
   openSettings(e.detail === 0 ? (e.currentTarget as HTMLElement) : null);
 });
+function openGarage(note = ''): void {
+  garageOpen = true;
+  const buttons = SHOP.map((c) => {
+    const name = vehicleOf(c.id).name;
+    const owned = garage.owned.includes(c.id);
+    const label =
+      garage.selected === c.id ? `✓ ${name} (driving)` : owned ? `Drive ${name}` : `Buy ${name}: ${c.price} coins`;
+    return {
+      label,
+      primary: garage.selected === c.id,
+      onClick: () => {
+        if (owned) selectCar(garage, c.id);
+        else if (buyCar(garage, c.id) !== 'bought') {
+          openGarage('Not enough coins for that car.');
+          return;
+        }
+        saveGarage(garage);
+        sfx.click();
+        openGarage();
+      },
+    };
+  });
+  buttons.push({
+    label: 'Done',
+    primary: false,
+    onClick: () => {
+      garageOpen = false;
+      hud.hideModal();
+    },
+  });
+  hud.showModal(
+    'Garage',
+    `${note ? `${note} ` : ''}You have ${garage.coins} coins. Levels with their own vehicle keep it; the rest use your car.`,
+    null,
+    buttons,
+    false,
+  );
+}
+document.getElementById('btn-garage')!.addEventListener('click', () => openGarage());
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
   if (state === 'playing') hud.showHint(toggleCamera(), 1.2);
@@ -695,7 +739,7 @@ function step(dt: number): void {
   if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controlsFor(car.v), level.surfaces);
-  sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
+  sfx.setEngine(car.v, player.vehicle.maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
   // Collisions: any real touch fails the level (resting contact at zero speed is ignored).

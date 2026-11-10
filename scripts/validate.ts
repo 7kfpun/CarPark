@@ -29,6 +29,7 @@ import {
   Recorder,
   REPLAY_HZ,
 } from '../src/replay';
+import { buyCar, driveVehicleId, freshGarage, parseGarage, selectCar, SHOP, START_COINS } from '../src/garage';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import { isUpdateWaiting } from '../src/pwa';
 import { nextFocusIndex } from '../src/focus';
@@ -2337,6 +2338,49 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+
+// --- Garage (buy / choose a car) -------------------------------------------------
+console.log('Garage');
+{
+  const g = freshGarage();
+  check(
+    g.owned.length === 1 && g.selected === 'hatchback' && g.coins === START_COINS,
+    'a fresh garage owns the starter car',
+  );
+  check(
+    SHOP.every((c) => VEHICLES.some((v) => v.id === c.id)),
+    'every shop car is a known vehicle',
+  );
+  check(SHOP[0].price === 0 && SHOP.every((c) => c.price >= 0), 'the starter car is free and no price is negative');
+  check(buyCar(g, 'nope') === 'unknown' && g.coins === START_COINS, 'an unknown car cannot be bought');
+  check(buyCar(g, 'hatchback') === 'owned' && g.coins === START_COINS, 'an owned car is not charged again');
+  check(
+    buyCar(g, 'suv') === 'bought' && g.coins === START_COINS - 500 && g.selected === 'suv',
+    'buying spends coins and selects the car',
+  );
+  check(
+    buyCar(g, 'sedan') === 'poor' && !g.owned.includes('sedan') && g.coins === 0,
+    'a car you cannot afford changes nothing',
+  );
+  check(selectCar(g, 'hatchback') && g.selected === 'hatchback', 'an owned car can be selected');
+  check(!selectCar(g, 'sedan') && g.selected === 'hatchback', 'an unowned car cannot be selected');
+  check(
+    driveVehicleId('van', g) === 'van' && driveVehicleId(undefined, g) === 'hatchback',
+    'levels with their own vehicle keep it',
+  );
+  const junk = parseGarage({ coins: -5, owned: ['suv', 'suv', 'tank', 7], selected: 'sedan' });
+  check(
+    junk.coins === 0 && junk.owned.join() === 'hatchback,suv' && junk.selected === 'hatchback',
+    'junk storage is cleaned up',
+  );
+  check(
+    parseGarage(null).coins === START_COINS && parseGarage({ coins: 'x' }).coins === START_COINS,
+    'missing or bad coins fall back to the start balance',
+  );
+  check(
+    parseGarage({ coins: 120.9, owned: ['sedan'], selected: 'sedan' }).selected === 'sedan',
+    'a saved owned selection is kept',
+  );
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
