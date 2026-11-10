@@ -2,7 +2,14 @@ import type { LevelDef, LocationId } from './layout';
 import { isUnlocked, starsFor, type Progress } from './progress';
 
 /** Worlds in play order: finish one to open the next. */
-export const LOCATIONS: LocationId[] = ['open-air', 'multi-storey', 'industrial', 'twilight', 'proving'];
+export const LOCATIONS: LocationId[] = [
+  'open-air',
+  'multi-storey',
+  'industrial',
+  'twilight',
+  'proving',
+  'master-class',
+];
 
 export interface WorldInfo {
   id: LocationId;
@@ -48,6 +55,13 @@ export const WORLDS: Record<LocationId, WorldInfo> = {
     blurb: 'Turn-arounds, winding lanes and tight bays.',
     icon: '🧪',
     color: '#2ec4b6',
+  },
+  'master-class': {
+    id: 'master-class',
+    name: 'Master Class',
+    blurb: 'Hairpins, gates and bays with no room to spare.',
+    icon: '🏆',
+    color: '#e63946',
   },
 };
 

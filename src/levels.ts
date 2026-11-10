@@ -783,6 +783,124 @@ const PROVING_LEVELS: RawLevel[] = [
   },
 ];
 
+/** A wall across the lot at `z` from x0 to x1 with a gap of `gapW` centred on `gapX`. */
+function gateRow(z: number, gapX: number, gapW: number, x0: number, x1: number, h = 1.2): ObstacleDef[] {
+  const a = gapX - gapW / 2;
+  const b = gapX + gapW / 2;
+  return [wallSeg(x0, z, a, z, h), wallSeg(b, z, x1, z, h)];
+}
+
+const MASTER_LEVELS: RawLevel[] = [
+  {
+    id: 'hairpin-deck',
+    name: 'Hairpin Deck',
+    hint: 'Up the narrow ramp, round the barrier on the deck, then reverse into the bay squeezed between two cars.',
+    lot: { w: 24, l: 62 },
+    spawn: { x: 0, z: -26, rot: 0 },
+    target: { x: -7, z: 27.8, rot: PI, w: 2.6, l: 5.6, floor: 'upper' },
+    bothWays: false,
+    time: 79,
+    stars: { three: 34, two: 46 },
+    floors: [
+      { id: 'ground', y: 0, area: [{ x: 0, z: -18, hw: 12, hl: 13, rot: 0 }] },
+      { id: 'upper', y: 3, area: [{ x: 0, z: 21, hw: 12, hl: 10, rot: 0 }] },
+    ],
+    ramps: [{ id: 'ramp', from: 'ground', to: 'upper', x: 0, z: 3, rot: 0, w: 3.6, l: 16 }],
+    obstacles: [
+      { kind: 'wall', x: -5, z: 17, w: 14, l: 0.4, h: 1.2, floor: 'upper' },
+      carOn('upper', -9.25, 27.8, 0),
+      carOn('upper', -4.75, 27.8, PI),
+      carOn('upper', 0, 27.8, 0),
+      carOn('upper', 3.2, 27.8, PI),
+      carOn('upper', 6.4, 27.8, 0),
+      carOn('upper', 9.6, 27.8, PI),
+    ],
+  },
+  {
+    id: 'squeeze-play',
+    name: 'Squeeze Play',
+    hint: 'A narrow aisle and a bay with barely a hand to spare either side. Pull up past it and reverse straight in.',
+    lot: { w: 32, l: 30 },
+    spawn: { x: -13, z: 5.6, rot: PI / 2 },
+    target: { x: 0, z: 11, rot: PI, w: 2.5, l: 5.6 },
+    bothWays: false,
+    time: 51,
+    stars: { three: 22, two: 30 },
+    bays: bayRow([-12.4, -9.7, -7, -4.4, -2.2, 0, 2.2, 4.4, 7, 9.7, 12.4], 11, PI, 2.5),
+    obstacles: [
+      ...[-12.4, -9.7, -7, -4.4, -2.2, 2.2, 4.4, 7, 9.7, 12.4].map((x, i) => car(x, 11, i % 2 ? PI : 0)),
+      ...[-13.6, -10.4, -7.2, -4, -0.8, 2.4, 5.6, 8.8, 12].map((x, i) => car(x, 1.3, i % 2 ? PI : 0)),
+    ],
+  },
+  {
+    id: 'switchback-lane',
+    name: 'Switchback Lane',
+    vehicle: 'suv',
+    hint: 'A one-way lane with two corners the SUV cannot take in one sweep. Shuffle round each and finish in the bay.',
+    lot: { w: 30, l: 44 },
+    spawn: { x: -8, z: -18, rot: 0 },
+    target: { x: 7, z: 15.2, rot: 0, w: 3, l: 5.6 },
+    bothWays: false,
+    time: 90,
+    stars: { three: 39, two: 53 },
+    arrows: [
+      ...arrowLine(-8, -12, -8, -8, 0, 4),
+      ...arrowLine(-2, -5, 3, -5, PI / 2, 5),
+      ...arrowLine(7, 2, 7, 8, 0, 3),
+    ],
+    obstacles: [
+      wallSeg(-10.4, -21, -10.4, -2.6),
+      wallSeg(-5.4, -21, -5.4, -7.4),
+      wallSeg(-5.4, -7.4, 9.4, -7.4),
+      wallSeg(-10.4, -2.6, 4.6, -2.6),
+      wallSeg(4.6, -2.6, 4.6, 19.4),
+      wallSeg(9.4, -7.4, 9.4, 19.4),
+      wallSeg(4.6, 19.4, 9.4, 19.4),
+    ],
+  },
+  {
+    id: 'gate-runner',
+    name: 'Gate Runner',
+    vehicle: 'sedan',
+    theme: 'dusk',
+    hint: 'Three walls, three narrow gates on alternate sides. Weave through them, then reverse into the walled bay.',
+    lot: { w: 36, l: 44 },
+    spawn: { x: -12, z: -19, rot: 0 },
+    target: { x: 10, z: 16.8, rot: PI, w: 2.8, l: 5.6 },
+    bothWays: false,
+    time: 111,
+    stars: { three: 48, two: 65 },
+    arrows: arrowLine(-12, -15, -12, -11, 0, 4),
+    obstacles: [
+      ...gateRow(-10, -9, 3.4, -18, 18),
+      ...gateRow(-1, 9, 3.4, -18, 18),
+      ...gateRow(8, -9, 3.4, -18, 18),
+      wallSeg(7.9, 14, 7.9, 22),
+      wallSeg(12.1, 14, 12.1, 22),
+    ],
+  },
+  {
+    id: 'dock-master',
+    name: 'Dock Master',
+    vehicle: 'box-truck',
+    hint: 'The box truck needs every metre of the yard. Swing wide, then reverse into the narrow loading dock.',
+    lot: { w: 40, l: 40 },
+    spawn: { x: -14, z: -16, rot: 0 },
+    target: { x: 8, z: 15.4, rot: PI, w: 3.4, l: 8.4 },
+    bothWays: false,
+    time: 152,
+    stars: { three: 79, two: 106 },
+    obstacles: [
+      { kind: 'wall', x: 4.9, z: 15.4, w: 1.4, l: 8.4, h: 3 },
+      { kind: 'wall', x: 11.1, z: 15.4, w: 1.4, l: 8.4, h: 3 },
+      { kind: 'wall', x: -1, z: -3, w: 12, l: 8, h: 3 },
+      { kind: 'cone', x: 14, z: 2 },
+      { kind: 'cone', x: 14, z: 5 },
+      car(16, 11, PI / 2),
+    ],
+  },
+];
+
 const RAW_LEVELS: RawLevel[] = [
   ...LEVELS_1_12,
   mirrored('angle-of-attack', {
@@ -826,6 +944,7 @@ const RAW_LEVELS: RawLevel[] = [
   }),
   ...VEHICLE_LEVELS,
   ...PROVING_LEVELS,
+  ...MASTER_LEVELS,
 ];
 
 /** Location of every level. Ids are permanent; this is the only place a level is assigned to a world. */
@@ -863,6 +982,11 @@ const LOCATION_OF: Record<string, LocationId> = {
   'pillar-hall': 'proving',
   'delivery-alley': 'proving',
   'needle-alley': 'proving',
+  'hairpin-deck': 'master-class',
+  'squeeze-play': 'master-class',
+  'switchback-lane': 'master-class',
+  'gate-runner': 'master-class',
+  'dock-master': 'master-class',
 };
 
 /** Every level with its location, grouped by world in world order (play order) and otherwise in the order written above. */

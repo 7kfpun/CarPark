@@ -542,3 +542,85 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Start pose | x 0, z 10, heading 0° |
 
 ![Needle Alley](maps/needle-alley.svg)
+
+## 34. Hairpin Deck
+
+> Up the narrow ramp, round the barrier on the deck, then reverse into the bay squeezed between two cars.
+
+| | |
+| --- | --- |
+| Id | `hairpin-deck` |
+| Vehicle | Hatchback |
+| Lot | 24 × 62 m |
+| Time limit | 79 s |
+| Star times | 3 stars ≤ 34 s, 2 stars ≤ 46 s, 1 star within 79 s |
+| Target bay | x -7, z 27.8, 2.6 × 5.6 m, facing 180°, floor `upper` (nose must point that way) |
+| Start pose | x 0, z -26, heading 0° |
+
+![Hairpin Deck, floor ground](maps/hairpin-deck-ground.svg)
+
+![Hairpin Deck, floor upper](maps/hairpin-deck-upper.svg)
+
+## 35. Squeeze Play
+
+> A narrow aisle and a bay with barely a hand to spare either side. Pull up past it and reverse straight in.
+
+| | |
+| --- | --- |
+| Id | `squeeze-play` |
+| Vehicle | Hatchback |
+| Lot | 32 × 30 m |
+| Time limit | 51 s |
+| Star times | 3 stars ≤ 22 s, 2 stars ≤ 30 s, 1 star within 51 s |
+| Target bay | x 0, z 11, 2.5 × 5.6 m, facing 180° (nose must point that way) |
+| Start pose | x -13, z 5.6, heading 90° |
+
+![Squeeze Play](maps/squeeze-play.svg)
+
+## 36. Switchback Lane
+
+> A one-way lane with two corners the SUV cannot take in one sweep. Shuffle round each and finish in the bay.
+
+| | |
+| --- | --- |
+| Id | `switchback-lane` |
+| Vehicle | SUV |
+| Lot | 30 × 44 m |
+| Time limit | 90 s |
+| Star times | 3 stars ≤ 39 s, 2 stars ≤ 53 s, 1 star within 90 s |
+| Target bay | x 7, z 15.2, 3 × 5.6 m, facing 0° (nose must point that way) |
+| Start pose | x -8, z -18, heading 0° |
+
+![Switchback Lane](maps/switchback-lane.svg)
+
+## 37. Gate Runner
+
+> Three walls, three narrow gates on alternate sides. Weave through them, then reverse into the walled bay.
+
+| | |
+| --- | --- |
+| Id | `gate-runner` |
+| Vehicle | Sedan |
+| Lot | 36 × 44 m |
+| Time limit | 111 s |
+| Star times | 3 stars ≤ 48 s, 2 stars ≤ 65 s, 1 star within 111 s |
+| Target bay | x 10, z 16.8, 2.8 × 5.6 m, facing 180° (nose must point that way) |
+| Start pose | x -12, z -19, heading 0° |
+
+![Gate Runner](maps/gate-runner.svg)
+
+## 38. Dock Master
+
+> The box truck needs every metre of the yard. Swing wide, then reverse into the narrow loading dock.
+
+| | |
+| --- | --- |
+| Id | `dock-master` |
+| Vehicle | Box Truck |
+| Lot | 40 × 40 m |
+| Time limit | 152 s |
+| Star times | 3 stars ≤ 79 s, 2 stars ≤ 106 s, 1 star within 152 s |
+| Target bay | x 8, z 15.4, 3.4 × 8.4 m, facing 180° (nose must point that way) |
+| Start pose | x -14, z -16, heading 0° |
+
+![Dock Master](maps/dock-master.svg)

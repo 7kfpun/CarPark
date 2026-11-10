@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-440 -440 880 880" width="880" height="880" role="img" aria-label="Dock Master">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-440" y="-440" width="880" height="880"/>
+<polygon class="floor" points="400,400 400,-400 -400,-400 -400,400"/>
+<polygon class="target" points="126,224 126,392 194,392 194,224"/>
+<polyline class="targetarrow" points="160,343 160,273"/><polygon class="targetarrowf" points="160,273 172.6,292.6 147.4,292.6"/>
+<polygon class="wall" points="112,392 112,224 84,224 84,392"/>
+<polygon class="wall" points="236,392 236,224 208,224 208,392"/>
+<polygon class="wall" points="100,20 100,-140 -140,-140 -140,20"/>
+<circle class="cone" cx="280" cy="40" r="5"/>
+<circle class="cone" cx="280" cy="100" r="5"/>
+<polygon class="wall" points="412,412 412,400 -412,400 -412,412"/>
+<polygon class="wall" points="412,-400 412,-412 -412,-412 -412,-400"/>
+<polygon class="wall" points="412,400 412,-400 400,-400 400,400"/>
+<polygon class="wall" points="-400,400 -400,-400 -412,-400 -412,400"/>
+<polygon class="car" fill="#2e8b57" points="362,201 278,201 278,239 362,239"/><polyline class="glass" points="344,236 344,204"/>
+<polygon class="start" points="-256,-244 -256,-396 -304,-396 -304,-244"/>
+<polyline class="startarrow" points="-280,-380.8 -280,-259.2"/><polygon class="startarrowf" points="-280,-259.2 -301.89,-293.25 -258.11,-293.25"/>
+</svg>

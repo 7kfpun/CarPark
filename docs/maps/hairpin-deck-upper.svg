@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-280 -140 560 800" width="560" height="800" role="img" aria-label="Hairpin Deck upper floor">
+<style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
+<rect class="bg" x="-280" y="-140" width="560" height="800"/>
+<polygon class="floor" points="240,620 240,220 -240,220 -240,620"/>
+<polygon class="ramp" points="36,220 36,-100 -36,-100 -36,220"/>
+<polyline class="ramparrow" points="0,172 0,-52"/><polygon class="ramparrowf" points="0,-52 40.32,10.72 -40.32,10.72"/>
+<text class="label" x="0" y="60" text-anchor="middle">ramp down</text>
+<polygon class="target" points="-166,500 -166,612 -114,612 -114,500"/>
+<polyline class="targetarrow" points="-140,591 -140,521"/><polygon class="targetarrowf" points="-140,521 -127.4,540.6 -152.6,540.6"/>
+<polygon class="wall" points="40,344 40,336 -240,336 -240,344"/>
+<polygon class="wall" points="246,620 246,220 240,220 240,620"/>
+<polygon class="wall" points="-240,620 -240,220 -246,220 -246,620"/>
+<polygon class="wall" points="240,626 240,620 -240,620 -240,626"/>
+<polygon class="wall" points="-35,220 -35,214 -240,214 -240,220"/>
+<polygon class="wall" points="240,220 240,214 35,214 35,220"/>
+<polygon class="wall" points="-36,220 -36,-100 -42,-100 -42,220"/>
+<polygon class="wall" points="42,220 42,-100 36,-100 36,220"/>
+<polygon class="car" fill="#c8322b" points="-166,598 -166,514 -204,514 -204,598"/><polyline class="glass" points="-201,580 -169,580"/>
+<polygon class="car" fill="#2e8b57" points="-114,514 -114,598 -76,598 -76,514"/><polyline class="glass" points="-79,532 -111,532"/>
+<polygon class="car" fill="#222428" points="19,598 19,514 -19,514 -19,598"/><polyline class="glass" points="-16,580 16,580"/>
+<polygon class="car" fill="#7a4fd0" points="45,514 45,598 83,598 83,514"/><polyline class="glass" points="80,532 48,532"/>
+<polygon class="car" fill="#1fa3b5" points="147,598 147,514 109,514 109,598"/><polyline class="glass" points="112,580 144,580"/>
+<polygon class="car" fill="#2f6fde" points="173,514 173,598 211,598 211,514"/><polyline class="glass" points="208,532 176,532"/>
+</svg>
