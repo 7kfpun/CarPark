@@ -2,8 +2,8 @@
 <style>.bg{fill:#f4f5f7}.floor{fill:#d9dce1}.bay{fill:none;stroke:#fff;stroke-width:2}.target{fill:rgba(46,204,113,.45);stroke:#1e9c57;stroke-width:3}.targetarrow{fill:none;stroke:#1e9c57;stroke-width:3}.targetarrowf{fill:#1e9c57}.car{stroke:#111;stroke-width:1.5}.glass{stroke:#111;stroke-width:3;opacity:.55}.wall{fill:#555b66}.pillar{fill:#2b2f36}.cone{fill:#ff8a1f;stroke:#b3540a;stroke-width:1.5}.start{fill:#ffd23f;stroke:#111;stroke-width:2}.startarrow{fill:none;stroke:#111;stroke-width:3}.startarrowf{fill:#111}.ramp{fill:#b7c4d9;stroke:#5b7aa6;stroke-width:2}.roadarrow{fill:none;stroke:#fff;stroke-width:3}.roadarrowf{fill:#fff}.ramparrow{fill:none;stroke:#2d4a73;stroke-width:3}.ramparrowf{fill:#2d4a73}.label{font:12px sans-serif;fill:#1b2a41}</style>
 <rect class="bg" x="-400" y="-480" width="800" height="960"/>
 <polygon class="floor" points="360,440 360,-440 -360,-440 -360,440"/>
-<polyline class="roadarrow" points="-240,-330 -240,-270"/><polygon class="roadarrowf" points="-240,-270 -250.8,-286.8 -229.2,-286.8"/>
-<polyline class="roadarrow" points="-240,-250 -240,-190"/><polygon class="roadarrowf" points="-240,-190 -250.8,-206.8 -229.2,-206.8"/>
+<polyline class="roadarrow" points="-180,-330 -180,-270"/><polygon class="roadarrowf" points="-180,-270 -190.8,-286.8 -169.2,-286.8"/>
+<polyline class="roadarrow" points="-180,-250 -180,-190"/><polygon class="roadarrowf" points="-180,-190 -190.8,-206.8 -169.2,-206.8"/>
 <polygon class="target" points="172,280 172,392 228,392 228,280"/>
 <polyline class="targetarrow" points="200,371 200,301"/><polygon class="targetarrowf" points="200,301 212.6,320.6 187.4,320.6"/>
 <polygon class="wall" points="-214,-204 -360,-204 -360,-196 -214,-196"/>

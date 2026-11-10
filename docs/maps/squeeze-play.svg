@@ -6,9 +6,9 @@
 <polyline class="bay" points="-169,276 -169,164 -219,164 -219,276"/>
 <polyline class="bay" points="-115,276 -115,164 -165,164 -165,276"/>
 <polyline class="bay" points="-63,276 -63,164 -113,164 -113,276"/>
-<polyline class="bay" points="-19,276 -19,164 -69,164 -69,276"/>
-<polyline class="bay" points="25,276 25,164 -25,164 -25,276"/>
-<polyline class="bay" points="69,276 69,164 19,164 19,276"/>
+<polyline class="bay" points="-22,276 -22,164 -66,164 -66,276"/>
+<polyline class="bay" points="22,276 22,164 -22,164 -22,276"/>
+<polyline class="bay" points="66,276 66,164 22,164 22,276"/>
 <polyline class="bay" points="113,276 113,164 63,164 63,276"/>
 <polyline class="bay" points="165,276 165,164 115,164 115,276"/>
 <polyline class="bay" points="219,276 219,164 169,164 169,276"/>
