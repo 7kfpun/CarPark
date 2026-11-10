@@ -43,8 +43,8 @@ import {
   decodeFrames,
   duration,
   encodeFrames,
-  fitsCap,
   loadGhosts,
+  nextGhost,
   poseAt,
   Recorder,
   REPLAY_HZ,
@@ -344,6 +344,7 @@ function startLevel(i: number): boolean {
   rig.vehicle = vehicle;
   mirror.vehicle = vehicle;
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
+  recorder.step(player.physics); // t = 0 is the spawn pose
   player.model.root.visible = true;
   elapsed = 0;
   parkHold = 0;
@@ -445,8 +446,10 @@ function finish(win: boolean, reason: string): void {
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     const id = LEVEL_IDS[levelIndex];
     const data = encodeFrames(lastRun);
-    if (beatsGhost(ghosts[id], elapsed) && fitsCap(data)) {
-      ghosts[id] = { time: elapsed, data };
+    if (beatsGhost(ghosts[id], elapsed)) {
+      const next = nextGhost(ghosts[id], elapsed, data);
+      if (next) ghosts[id] = next;
+      else delete ghosts[id];
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
@@ -625,7 +628,6 @@ function step(dt: number): void {
   if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controlsFor(car.v), level.surfaces);
-  recorder.step(car);
   sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
@@ -635,6 +637,8 @@ function step(dt: number): void {
     hud.flashHit();
     return finish(false, 'You hit something. Ease off near cars, walls and cones.');
   }
+  // Record the resolved pose, so frames never show the car inside an obstacle.
+  recorder.step(car);
 
   // Parking check.
   const park = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer);

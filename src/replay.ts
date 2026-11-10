@@ -101,6 +101,16 @@ export function fitsCap(data: number[]): boolean {
   return data.length > 0 && JSON.stringify(data).length <= MAX_GHOST_CHARS;
 }
 
+/**
+ * The ghost to keep after a win in `time` seconds: the new run when it is faster and fits the cap, `old` when the
+ * run is not faster, and none when it is faster but too big to store (a stale slower ghost would contradict the
+ * best time).
+ */
+export function nextGhost(old: Ghost | undefined, time: number, data: number[]): Ghost | undefined {
+  if (!beatsGhost(old, time)) return old;
+  return fitsCap(data) ? { time, data } : undefined;
+}
+
 /** A stored ghost when well-formed, else undefined. */
 function cleanGhost(g: unknown): Ghost | undefined {
   if (!g || typeof g !== 'object') return undefined;
