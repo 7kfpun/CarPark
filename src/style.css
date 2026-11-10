@@ -511,6 +511,20 @@ body[data-input='pad'] .gear {
   touch-action: pan-y;
 }
 
+/* Pause / finish modal: the backdrop is a drag surface for the free-look orbit (main.ts), so it must
+   not let the browser claim a vertical drag (pointercancel). The panel scrolls itself instead. */
+#modal {
+  overflow: hidden;
+  touch-action: none;
+}
+
+#modal .panel {
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 .panel {
   background: var(--panel);
   border-radius: 20px;
