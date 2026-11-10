@@ -42,6 +42,8 @@ import {
   gearFromKey,
   pedalControls,
   pickNeighbor,
+  softReverse,
+  REVERSE_DELAY,
   pointerAngle,
   steerFromWheel,
   strongest,
@@ -857,6 +859,11 @@ check(
 );
 check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Meta keyup is recognised');
 {
+  check(softReverse(1, 0) === 1 && softReverse(1, 5) === 1, 'soft reverse: forward throttle is untouched');
+  check(softReverse(-1, REVERSE_DELAY - 0.01) === 0, 'soft reverse: a brief tap does not reverse');
+  const a = softReverse(-1, REVERSE_DELAY + 0.05);
+  const b = softReverse(-1, REVERSE_DELAY + 0.3);
+  check(a < 0 && a > -0.6 && b < a && softReverse(-1, 10) === -1, 'soft reverse: eases in to full pull');
   const none = pedalControls(false, false, false);
   const go = pedalControls(true, false, false);
   const rev = pedalControls(true, false, true);

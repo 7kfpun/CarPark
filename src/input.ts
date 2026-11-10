@@ -135,6 +135,20 @@ export function pedalControls(
   return { throttle: accel ? (reverse ? -1 : 1) : 0, handbrake: false };
 }
 
+/** Reverse held shorter than this (s) does nothing: a brush of S or the R gear never backs the car out. */
+export const REVERSE_DELAY = 0.15;
+/** After the delay, reverse pull ramps from REVERSE_START to full over REVERSE_RAMP seconds. */
+export const REVERSE_RAMP = 0.6;
+export const REVERSE_START = 0.35;
+
+/** Soften a throttle command: forward is untouched, reverse is delayed then eased in by how long it has been held. */
+export function softReverse(throttle: number, heldSeconds: number): number {
+  if (throttle >= 0) return throttle;
+  if (heldSeconds < REVERSE_DELAY) return 0;
+  const k = Math.min(1, (heldSeconds - REVERSE_DELAY) / REVERSE_RAMP);
+  return throttle * (REVERSE_START + (1 - REVERSE_START) * k);
+}
+
 /** Gear lever slots: D at the top of the gate (0), R at the bottom (1). */
 export type Gear = 'D' | 'R';
 
@@ -215,6 +229,8 @@ export class Input {
   /** Pointer currently dragging the gear lever, else null. */
   private gearPointer: number | null = null;
   private reverse = false;
+  /** When reverse was first asked for in the current press, or null. */
+  private reverseSince: number | null = null;
   private source: InputSource = 'touch';
   private pad: PadState = { steer: 0, throttle: 0, handbrake: false };
   private readonly padButtons = new Map<number, boolean>();
@@ -594,8 +610,13 @@ export class Input {
     const left = this.any('KeyA', 'ArrowLeft');
     const right = this.any('KeyD', 'ArrowRight');
     const touch = pedalControls(this.accelPointers.size > 0, this.brakePointers.size > 0, this.reverse);
+    const raw = strongest((up ? 1 : 0) - (down ? 1 : 0), touch.throttle, this.pad.throttle);
+    const now = performance.now();
+    if (raw < 0) this.reverseSince ??= now;
+    else this.reverseSince = null;
+    const held = this.reverseSince === null ? 0 : (now - this.reverseSince) / 1000;
     return {
-      throttle: strongest((up ? 1 : 0) - (down ? 1 : 0), touch.throttle, this.pad.throttle),
+      throttle: softReverse(raw, held),
       steer: strongest((right ? 1 : 0) - (left ? 1 : 0), this.touchSteer, this.pad.steer),
       handbrake: touch.handbrake || this.pad.handbrake || this.any('Space'),
     };
