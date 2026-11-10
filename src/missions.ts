@@ -116,11 +116,14 @@ function read(key: string): unknown {
   }
 }
 
-function write(key: string, value: unknown): void {
+/** True when the value was stored. */
+function write(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
     // storage unavailable (private mode etc.) - just won't persist
+    return false;
   }
 }
 
@@ -136,6 +139,7 @@ export function loadWallet(): Wallet {
   return parseWallet(read(WALLET_KEY));
 }
 
-export function saveWallet(w: Wallet): void {
-  write(WALLET_KEY, w);
+/** True when the wallet was stored. */
+export function saveWallet(w: Wallet): boolean {
+  return write(WALLET_KEY, w);
 }
