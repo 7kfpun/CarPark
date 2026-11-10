@@ -1198,3 +1198,13 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
 .settings-pane[hidden] {
   display: none;
 }
+
+.whats-new {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.whats-new:empty {
+  display: none;
+}

@@ -7,15 +7,20 @@
     <title>Park It 3D</title>
     <meta
       name="description"
-      content="Park It 3D: a browser car-parking game. One bay per lot. Steer, reverse and park without scratching the paint."
+      content="Park It 3D: a free browser car-parking game. One bay per lot, six worlds, up to three stars a level. Steer, reverse and park without scratching the paint."
     />
+    <link rel="canonical" href="https://carpark.wahthefox.com/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Park It" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Park It 3D" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Park It 3D" />
     <meta property="og:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
     <meta property="og:url" content="https://carpark.wahthefox.com/" />
@@ -27,6 +32,7 @@
     <meta name="twitter:title" content="Park It 3D" />
     <meta name="twitter:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
     <meta name="twitter:image" content="https://carpark.wahthefox.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Park It 3D: a white P on a blue parking sign" />
   </head>
   <body>
     <canvas id="game" role="img" aria-label="Parking lot, 3D view"></canvas>
@@ -122,6 +128,7 @@
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
         <p class="tagline" id="tagline">One bay per lot. Don't scratch the paint.</p>
+        <p class="whats-new" id="whats-new"></p>
         <div id="world-bar" class="hidden">
           <button id="world-back" aria-label="Back to worlds">← Worlds</button>
           <span id="world-title"></span>
