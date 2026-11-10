@@ -1763,12 +1763,6 @@ console.log('Worlds');
     'one-way-curb': 0.02,
     'van-garage': 0,
     'bus-bay': 0.02,
-    'tight-squeeze': 0,
-    'slalom-reverse': 0.02,
-    'the-finale': 0,
-    'twilight-squeeze': 0,
-    'dusk-slalom': 0.02,
-    'night-finale': 0,
   };
   for (const l of LEVELS) {
     const want = LEGACY_MARGIN[l.id] ?? 0.1;
