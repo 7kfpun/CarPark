@@ -17,7 +17,7 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 | Vehicle | Hatchback |
 | Lot | 30 × 40 m |
 | Time limit | 60 s |
-| Star times | 3 stars ≤ 15 s, 2 stars ≤ 21 s, 1 star within 60 s |
+| Star times | 3 stars ≤ 18 s, 2 stars ≤ 28 s, 1 star within 60 s |
 | Target bay | x 0, z 12, 3 × 5.6 m, facing 0° (either direction) |
 | Start pose | x 0, z -12, heading 0° |
 
