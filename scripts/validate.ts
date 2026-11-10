@@ -31,6 +31,7 @@ import {
 } from '../src/replay';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import { isUpdateWaiting } from '../src/pwa';
+import { canRepair, COST_PER_HP, freshRepair, isDamaged, MAX_HP, parseRepair, repair, repairCost } from '../src/repair';
 import { nextFocusIndex } from '../src/focus';
 import { Sfx, VOLUME_STEPS, engineParams, winNotes } from '../src/audio';
 import { canRunGame, padConfirmAction, runModalAction } from '../src/guards';
@@ -2278,6 +2279,25 @@ console.log('Performance budget');
     isUpdateWaiting({ waiting: {} as ServiceWorker }, true) && !isUpdateWaiting({ waiting: null }, true),
     'a waiting worker under a controller is an update',
   );
+}
+
+{
+  const s = { ...freshRepair(), hp: 40, coins: 500 };
+  check(isDamaged(s) && !isDamaged(freshRepair()), 'a car below full HP is damaged');
+  check(repairCost(s) === (MAX_HP - 40) * COST_PER_HP, 'repair cost scales with missing HP');
+  check(repair(s) && s.hp === MAX_HP && s.coins === 500 - 60 * COST_PER_HP, 'repair restores full HP and spends coins');
+  check(!repair(s) && s.coins === 500 - 60 * COST_PER_HP, 'repairing an undamaged car costs nothing');
+  const poor = { ...freshRepair(), hp: 40, coins: 10 };
+  check(
+    !canRepair(poor) && !repair(poor) && poor.hp === 40 && poor.coins === 10,
+    'too few coins leaves the car and balance alone',
+  );
+  const exact = { ...freshRepair(), hp: 0, coins: MAX_HP * COST_PER_HP };
+  check(repair(exact) && exact.coins === 0 && exact.hp === MAX_HP, 'exact balance repairs a wreck');
+  const junk = parseRepair({ coins: -5, hp: 999 });
+  check(junk.coins === 0 && junk.hp === MAX_HP, 'stored repair state is clamped');
+  const bad = parseRepair('nope');
+  check(bad.coins === 0 && bad.hp === MAX_HP, 'junk storage gives a fresh state');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
