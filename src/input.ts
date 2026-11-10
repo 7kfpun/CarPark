@@ -235,7 +235,8 @@ export class Input {
   private wheelPointer: number | null = null;
   /** When the wheel touch was cancelled by the browser (held for a grace period), else null. */
   private wheelLostAt: number | null = null;
-  private wheelPrev = 0;
+  /** Finger angle at the last wheel event; null until the finger leaves the centre dead zone. */
+  private wheelPrev: number | null = null;
   private wheelAngle = 0;
   private touchSteer = 0;
   /** Pointer id -> time the browser cancelled it (null while it is a live touch). */
@@ -417,7 +418,7 @@ export class Input {
       if (this.wheelPointer !== null && this.wheelLostAt === null) return;
       this.wheelPointer = e.pointerId;
       this.wheelLostAt = null;
-      this.wheelPrev = angleAt(e) ?? 0;
+      this.wheelPrev = angleAt(e);
       capture(el, e.pointerId);
       el.classList.add('active');
     });
@@ -425,7 +426,7 @@ export class Input {
       // clear() (pause / finish / restart) drops the grab while the finger still holds capture: re-adopt it.
       if (this.wheelPointer === null && el.hasPointerCapture(e.pointerId)) {
         this.wheelPointer = e.pointerId;
-        this.wheelPrev = angleAt(e) ?? 0;
+        this.wheelPrev = angleAt(e);
         el.classList.add('active');
       }
       if (e.pointerId !== this.wheelPointer) return;
@@ -438,7 +439,8 @@ export class Input {
       }
       const a = angleAt(e);
       if (a === null) return;
-      this.setWheel(turnWheel(this.wheelAngle, this.wheelPrev, a));
+      // First angle after starting in the dead zone: anchor here instead of jumping by the absolute angle.
+      if (this.wheelPrev !== null) this.setWheel(turnWheel(this.wheelAngle, this.wheelPrev, a));
       this.wheelPrev = a;
     });
     // Only a real pointerup lets go at once; cancel / lost capture (edge swipes) hold for a grace period.
@@ -484,6 +486,7 @@ export class Input {
   private releaseWheel(): void {
     this.wheelPointer = null;
     this.wheelLostAt = null;
+    this.wheelPrev = null;
     this.setWheel(0);
     this.wheelEl?.classList.remove('active');
   }
