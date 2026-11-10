@@ -2338,6 +2338,7 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+}
 
 // --- Garage (buy / choose a car) -------------------------------------------------
 console.log('Garage');
