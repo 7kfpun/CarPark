@@ -13,8 +13,8 @@
 <polygon class="wall" points="312,-440 312,-452 -312,-452 -312,-440"/>
 <polygon class="wall" points="312,440 312,-440 300,-440 300,440"/>
 <polygon class="wall" points="-300,440 -300,-440 -312,-440 -312,440"/>
-<polygon class="car" fill="#e8e8e8" points="188,-283 104,-283 104,-245 188,-245"/><polyline class="glass" points="170,-248 170,-280"/>
-<polygon class="car" fill="#8a8f98" points="188,-195 104,-195 104,-157 188,-157"/><polyline class="glass" points="170,-160 170,-192"/>
+<polygon class="car" fill="#1fa3b5" points="188,-283 104,-283 104,-245 188,-245"/><polyline class="glass" points="170,-248 170,-280"/>
+<polygon class="car" fill="#2f6fde" points="188,-195 104,-195 104,-157 188,-157"/><polyline class="glass" points="170,-160 170,-192"/>
 <polygon class="start" points="18.5,247 18.5,153 -18.5,153 -18.5,247"/>
 <polyline class="startarrow" points="0,162.4 0,237.6"/><polygon class="startarrowf" points="0,237.6 -13.54,216.54 13.54,216.54"/>
 </svg>

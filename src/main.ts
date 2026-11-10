@@ -7,7 +7,7 @@ import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
-import { FIRST_MODELS, LATER_MODELS, loadCarModels } from './carModels';
+import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
@@ -29,11 +29,14 @@ import {
   nextCamMode,
   reverseHold,
 } from './views';
-import { isDoubleTap, pinchFactor, wheelFactor } from './orbit';
+import { inControlZone, isDoubleTap, pinchFactor, wheelFactor } from './orbit';
 import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
+import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
+import type { Missions } from './missions';
+import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -43,15 +46,17 @@ import {
   decodeFrames,
   duration,
   encodeFrames,
-  fitsCap,
   loadGhosts,
+  nextGhost,
   poseAt,
   Recorder,
   REPLAY_HZ,
   saveGhosts,
   type Pose,
 } from './replay';
-import { fetchUpdate, mergeUpdate, reloadUrl, shouldPrompt, type UpdateKind } from './update';
+import { activateUpdate, initPwa } from './pwa';
+import { recoverNow } from './recovery';
+import { fetchUpdate, mergeUpdate, shouldPrompt, type UpdateKind } from './update';
 
 type State = 'menu' | 'playing' | 'paused' | 'done' | 'blocked';
 
@@ -80,8 +85,9 @@ scene.add(sun, sun.target);
 // Created before the renderer so the first frame uses the saved quality.
 const settings = loadSettings();
 const gfx = new Graphics(canvas, scene, sun, {
-  onLost: () => pause(),
-  onRestored: () => undefined, // three.js re-uploads everything lazily; the game stays paused
+  onLost: () => holdForContextLoss(),
+  onRestored: () => pause(), // three.js re-uploads everything lazily; show the pause dialog now that the overlay is gone
+  onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
 gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
@@ -147,14 +153,18 @@ try {
     loadingFill.style.width = `${total > 0 ? Math.round((loaded / total) * 100) : 0}%`;
   });
 } finally {
-  loadingEl.remove();
+  // A ?level= jump keeps the overlay up until the level has started (removed at the bottom).
+  if (!new URLSearchParams(location.search).has('level')) loadingEl.remove();
 }
 /** The other models load while the menu is up; a level only starts once they are in. */
 let modelsDone = false;
-const laterModels = loadCarModels(LATER_MODELS).then(() => {
+// One attempt here keeps Play near the single-timeout ceiling; the background rounds retry the rest.
+const laterModels = loadCarModels(LATER_MODELS, undefined, undefined, undefined, 1).then(() => {
   modelsDone = true;
   // The menu's backdrop lot was built with box cars: rebuild it with the real models.
-  if (state === 'menu' && level) loadLevel(levelIndex);
+  onModelsLoaded();
+  // Every model still missing (the first one too) keeps retrying in the background.
+  void keepLoadingCarModels(ALL_MODELS, onModelsLoaded);
 });
 const player = new PlayerCar();
 const mirror = new RearMirror();
@@ -282,7 +292,44 @@ addEventListener(
 );
 addEventListener('pointerdown', () => stopReplay(), true);
 
+/** The lot on screen was built before some model arrived; rebuilt at the next safe moment. */
+let levelStale = false;
+
+/** A model arrived late: swap the box cars for it everywhere it is cached or built in. */
+function onModelsLoaded(): void {
+  levelStale = true;
+  // Ghost copies are cached per vehicle like the player's; drop them so they rebuild with the template.
+  for (const g of ghostModels.values()) scene.remove(g.root);
+  ghostModels.clear();
+  for (const m of ghostMats.values()) m.dispose();
+  ghostMats.clear();
+  const wasGhost = ghostCar !== null;
+  ghostCar = null;
+  const previous = player.model.root;
+  if (player.refreshModels()) {
+    player.model.root.visible = previous.visible;
+    swapPlayerModel(previous);
+  }
+  // The menu shows no ghost (the next startLevel makes one); otherwise put it where the run is.
+  if (wasGhost && ghostFrames && state !== 'menu') {
+    ghostCar = ghostFor(vehicleOf(LEVELS[levelIndex].vehicle));
+    updateGhost(elapsed);
+  }
+  // Never rebuild the lot under a run: it comes up at the next menu or level start.
+  if (state === 'menu' && level) loadLevel(levelIndex);
+}
+
+function swapPlayerModel(previous: THREE.Object3D): void {
+  previous.remove(cockpit.group);
+  scene.remove(previous);
+  cockpit = cockpitFor(player.vehicle);
+  player.model.root.add(cockpit.group);
+  scene.add(player.model.root);
+  gfx.applyDecor(player.model.root);
+}
+
 function loadLevel(i: number): void {
+  levelStale = false;
   if (level) {
     scene.remove(level.group);
     level.dispose();
@@ -322,18 +369,11 @@ function startLevel(i: number): boolean {
   if (!canRun()) return false;
   sfx.unlock();
   sfx.startMusic();
-  if (!level || levelIndex !== i) loadLevel(i);
+  if (!level || levelIndex !== i || levelStale) loadLevel(i);
   const def = LEVELS[i];
   const vehicle = vehicleOf(def.vehicle);
   const previous = player.model.root;
-  if (player.use(vehicle)) {
-    previous.remove(cockpit.group);
-    scene.remove(previous);
-    cockpit = cockpitFor(vehicle);
-    player.model.root.add(cockpit.group);
-    scene.add(player.model.root);
-    gfx.applyDecor(player.model.root);
-  }
+  if (player.use(vehicle)) swapPlayerModel(previous);
   replay = null;
   hideGhost();
   const stored = ghosts[LEVEL_IDS[i]];
@@ -344,6 +384,7 @@ function startLevel(i: number): boolean {
   rig.vehicle = vehicle;
   mirror.vehicle = vehicle;
   player.physics.reset(def.spawn.x, def.spawn.z, def.spawn.rot, level?.surfaces);
+  recorder.step(player.physics); // t = 0 is the spawn pose
   player.model.root.visible = true;
   elapsed = 0;
   parkHold = 0;
@@ -367,6 +408,25 @@ function startLevel(i: number): boolean {
   return true;
 }
 
+let missions: Missions = loadMissions();
+let wallet = loadWallet();
+
+function showMissions(): void {
+  missions = rollDay(missions, dayKey(new Date()));
+  renderMissions(document.getElementById('missions')!, missions, wallet.money, (id) => {
+    const r = claim(missions, id);
+    if (!r.reward) return;
+    missions = r.missions;
+    wallet = { ...wallet, money: wallet.money + r.reward };
+    if (mayPersist(ADMIN)) {
+      saveMissions(missions);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+  });
+}
+
 function showMenu(): void {
   state = 'menu';
   replay = null;
@@ -376,6 +436,7 @@ function showMenu(): void {
   cockpit.visible = false;
   syncAdminBar();
   if (!level) loadLevel(resumeLevel(progress, LEVELS, ADMIN));
+  else if (levelStale) loadLevel(levelIndex); // a model arrived during play
   player.model.root.visible = false;
   hud.showMenu(LEVELS, progress, ADMIN, (i) => {
     if (state !== 'menu') return;
@@ -384,7 +445,17 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  showMissions();
   applyUpdate();
+}
+
+/** Context lost: halt the run without opening the pause dialog under the graphics overlay (it is shown on restore). */
+function holdForContextLoss(): void {
+  if (state !== 'playing') return;
+  state = 'paused';
+  sfx.stopEngine();
+  syncAdminBar();
+  input.clear();
 }
 
 function pause(): void {
@@ -445,11 +516,17 @@ function finish(win: boolean, reason: string): void {
     const newBest = recordBest(progress, LEVEL_IDS[levelIndex], elapsed);
     const id = LEVEL_IDS[levelIndex];
     const data = encodeFrames(lastRun);
-    if (beatsGhost(ghosts[id], elapsed) && fitsCap(data)) {
-      ghosts[id] = { time: elapsed, data };
+    if (beatsGhost(ghosts[id], elapsed)) {
+      const next = nextGhost(ghosts[id], elapsed, data);
+      if (next) ghosts[id] = next;
+      else delete ghosts[id];
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
+    if (mayPersist(ADMIN)) {
+      missions = recordPark(rollDay(missions, dayKey(new Date())), id, stars);
+      saveMissions(missions);
+    }
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const nextLevel = LEVELS[levelIndex + 1];
     // The next level may sit in a world that is still locked (a world opens when the one before is finished).
@@ -489,7 +566,11 @@ let pendingUpdate: UpdateKind = 'none';
 let pendingBuild: string | null = null;
 let dismissedBuild: string | null = null;
 let lastUpdateCheck = 0;
-const reloadPage = (): void => location.replace(reloadUrl(location.href, Date.now()));
+let swUpdateReady = false;
+// With a waiting service worker, activating it reloads the page onto the new build; otherwise recover (cache-busted reload).
+const reloadPage = (): void => {
+  if (!activateUpdate()) recoverNow();
+};
 
 function applyUpdate(): void {
   if (pendingUpdate === 'none' || state === 'playing' || state === 'paused' || state === 'blocked') return;
@@ -516,11 +597,27 @@ async function runUpdateCheck(): Promise<void> {
     new URL('version.json', document.baseURI).href,
   );
   // A newer answer replaces an older one (even 'none'), but a required update is never downgraded.
-  pendingUpdate = mergeUpdate(pendingUpdate, res.kind);
-  pendingBuild = res.build;
+  pendingUpdate = mergeUpdate(pendingUpdate, res.kind === 'none' && swUpdateReady ? 'optional' : res.kind);
+  pendingBuild = res.build ?? (swUpdateReady ? 'sw' : null);
   applyUpdate();
 }
 document.addEventListener('visibilitychange', () => !document.hidden && void runUpdateCheck());
+
+// --- PWA: offline shell, update banner, install button ---------------------------
+const installBtn = document.getElementById('btn-install')!;
+initPwa({
+  onUpdateReady() {
+    swUpdateReady = true;
+    pendingUpdate = mergeUpdate(pendingUpdate, 'optional');
+    pendingBuild ??= 'sw';
+    applyUpdate();
+  },
+  onInstallable(install) {
+    installBtn.classList.remove('hidden');
+    installBtn.onclick = () => void install().then(() => installBtn.classList.add('hidden'));
+  },
+  onInstalled: () => installBtn.classList.add('hidden'),
+});
 
 // --- Keyboard actions ---------------------------------------------------------
 input.driving = () => state === 'playing';
@@ -625,7 +722,6 @@ function step(dt: number): void {
   if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
   car.step(dt, input.controlsFor(car.v), level.surfaces);
-  recorder.step(car);
   sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
 
@@ -635,6 +731,8 @@ function step(dt: number): void {
     hud.flashHit();
     return finish(false, 'You hit something. Ease off near cars, walls and cones.');
   }
+  // Record the resolved pose, so frames never show the car inside an obstacle.
+  recorder.step(car);
 
   // Parking check.
   const park = evaluateParking(car.obb, car.v, def.target, def.bothWays, car.layer);
@@ -709,6 +807,15 @@ function camTarget(): Parameters<typeof rig.snap>[0] {
   return { x: p.x, y: p.y, z: p.z, heading: p.heading, pitch: p.pitch, steer: p.steer, v: p.v };
 }
 
+// CARP-134: the wheel, gear lever and pedals (plus a guard margin) never start a camera move, even when a
+// finger lands just outside them. Hidden controls (keys / pad input) have no rects and guard nothing.
+function onControls(e: { clientX: number; clientY: number }): boolean {
+  const touch = document.getElementById('touch');
+  if (!touch || touch.classList.contains('hidden') || getComputedStyle(touch).display === 'none') return false;
+  const rects = [...touch.querySelectorAll<HTMLElement>('.touch-group')].map((g) => g.getBoundingClientRect());
+  return inControlZone(e.clientX, e.clientY, rects);
+}
+
 // Free look: drag on the backdrop while paused or after a level to orbit the car (mouse wheel zooms).
 let dragFrom: { id: number; x: number; y: number } | null = null;
 function canOrbit(): boolean {
@@ -716,6 +823,7 @@ function canOrbit(): boolean {
 }
 addEventListener('pointerdown', (e) => {
   if (!canOrbit() || (e.target as Element | null)?.closest('.panel, button, a')) return;
+  if (onControls(e)) return;
   dragFrom = { id: e.pointerId, x: e.clientX, y: e.clientY };
 });
 addEventListener('pointermove', (e) => {
@@ -734,7 +842,7 @@ addEventListener('pointercancel', endDrag);
 addEventListener(
   'wheel',
   (e) => {
-    if (canOrbit() && rig.freeLook) rig.dragFree(0, 0, e.deltaY * 0.01);
+    if (canOrbit() && rig.freeLook && !onControls(e)) rig.dragFree(0, 0, e.deltaY * 0.01);
   },
   { passive: true },
 );
@@ -755,6 +863,7 @@ function resetView(): void {
 addEventListener('pointerdown', (e) => {
   if (!canDriveOrbit() || (e.target as Element | null)?.closest(ORBIT_IGNORE)) return;
   if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
+  if (onControls(e)) return;
   orbitPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   tapStart =
     orbitPtrs.size === 1 ? { id: e.pointerId, t: e.timeStamp, x: e.clientX, y: e.clientY, moved: false } : null;
@@ -793,7 +902,7 @@ addEventListener('pointercancel', endOrbit);
 addEventListener(
   'wheel',
   (e) => {
-    if (canDriveOrbit() && !(e.target as Element | null)?.closest(ORBIT_IGNORE))
+    if (canDriveOrbit() && !(e.target as Element | null)?.closest(ORBIT_IGNORE) && !onControls(e))
       rig.orbitBy(0, 0, wheelFactor(e.deltaY));
   },
   { passive: true },
@@ -826,7 +935,7 @@ function reportFrameError(err: unknown): void {
   console.error('Frame loop error', err);
   const banner = document.getElementById('error-banner')!;
   banner.classList.remove('hidden');
-  document.getElementById('error-reload')!.addEventListener('click', () => location.reload());
+  document.getElementById('error-reload')!.addEventListener('click', recoverNow);
 }
 function frame(now: number): void {
   rafId = 0;
@@ -926,5 +1035,6 @@ if (direct >= 0 && direct < LEVELS.length) {
   await laterModels; // a test jump starts at once, so wait for the parked-car models
   startLevel(direct);
 } else showMenu();
+loadingEl.remove();
 startLoop();
 void runUpdateCheck();

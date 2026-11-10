@@ -1,7 +1,7 @@
 {
   "name": "Park It 3D",
   "short_name": "Park It",
-  "description": "A 3D car-parking puzzle game: one bay per lot. Don't scratch the paint.",
+  "description": "A free browser car-parking game. One bay per lot, six worlds, up to three stars a level. Don't scratch the paint.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
@@ -10,6 +10,8 @@
   "background_color": "#a9cfee",
   "icons": [
     { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
 }

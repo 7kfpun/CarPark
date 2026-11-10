@@ -7,17 +7,25 @@
     <title>Park It 3D</title>
     <meta
       name="description"
-      content="Park It 3D: a browser car-parking game. One bay per lot. Steer, reverse and park without scratching the paint."
+      content="Park It 3D: a free browser car-parking game. One bay per lot, six worlds, up to three stars a level. Steer, reverse and park without scratching the paint."
     />
+    <link rel="canonical" href="https://carpark.wahthefox.com/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Park It" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Park It 3D" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Park It 3D" />
-    <meta property="og:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
+    <meta
+      property="og:description"
+      content="A free browser car-parking game. One bay per lot, six worlds, up to three stars a level. Don't scratch the paint."
+    />
     <meta property="og:url" content="https://carpark.wahthefox.com/" />
     <meta property="og:image" content="https://carpark.wahthefox.com/og-image.png" />
     <meta property="og:image:width" content="1200" />
@@ -25,8 +33,12 @@
     <meta property="og:image:alt" content="Park It 3D: a white P on a blue parking sign" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Park It 3D" />
-    <meta name="twitter:description" content="A browser car-parking game. One bay per lot. Don't scratch the paint." />
+    <meta
+      name="twitter:description"
+      content="A free browser car-parking game. One bay per lot, six worlds, up to three stars a level. Don't scratch the paint."
+    />
     <meta name="twitter:image" content="https://carpark.wahthefox.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Park It 3D: a white P on a blue parking sign" />
   </head>
   <body>
     <canvas id="game" role="img" aria-label="Parking lot, 3D view"></canvas>
@@ -37,6 +49,7 @@
       <div class="panel small">
         <p id="loading-text">Loading…</p>
         <div class="bar" aria-hidden="true"><div id="loading-fill"></div></div>
+        <button id="loading-reload" class="primary hidden">Reload</button>
       </div>
     </div>
 
@@ -122,6 +135,7 @@
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
         <p class="tagline" id="tagline">One bay per lot. Don't scratch the paint.</p>
+        <p class="whats-new" id="whats-new"></p>
         <div id="world-bar" class="hidden">
           <button id="world-back" aria-label="Back to worlds">← Worlds</button>
           <span id="world-title"></span>
@@ -129,6 +143,8 @@
         </div>
         <div id="level-grid" role="group" aria-label="Worlds"></div>
         <div id="menu-total"></div>
+        <section id="missions" class="missions" aria-label="Daily missions"></section>
+        <button class="settings-open hidden" id="btn-install">⤓ Install app</button>
         <button class="settings-open" id="btn-settings-menu">⚙ Settings</button>
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
@@ -277,6 +293,41 @@
       </div>
     </div>
 
+    <script>
+      // Startup watchdog, independent of the game bundle: if loading is still up after 15 s (hung
+      // start, failed script), offer Reload. main.ts removes #loading once it has started.
+      setTimeout(function () {
+        var l = document.getElementById('loading');
+        var b = document.getElementById('loading-reload');
+        if (!l || !b) return;
+        b.classList.remove('hidden');
+        b.focus();
+        b.addEventListener('click', function () {
+          var tries = 0;
+          var prevThrew = false;
+          var timer;
+          addEventListener('pagehide', function () {
+            clearTimeout(timer);
+          });
+          (function go() {
+            var threw = false;
+            tries++;
+            try {
+              var u = new URL(location.href);
+              u.searchParams.set('_u', String(Date.now() + tries));
+              u.hash = '';
+              if (tries === 2 && prevThrew) location.reload();
+              else location.replace(u.href);
+            } catch (e) {
+              threw = true;
+            }
+            // Same ladder as src/recovery.ts: never reload over a replace that is still in flight.
+            prevThrew = threw;
+            if (tries < 3) timer = setTimeout(go, threw ? 3000 : 10000);
+          })();
+        });
+      }, 15000);
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

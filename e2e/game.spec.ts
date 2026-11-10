@@ -369,6 +369,13 @@ test('camera: a drag orbits, Reset view and V restore it, and a drag that starts
   await expect(reset).not.toHaveClass(/off-centre/);
   await fire('#t-wheel', 'pointerup', 3, wx + 60, wy);
 
+  // CARP-134: a drag that lands on the canvas just beside the wheel (inside the guard margin) must not orbit.
+  await fire('#game', 'pointerdown', 7, wb.x + wb.width + 10, wy);
+  await fire('#game', 'pointermove', 7, wb.x + wb.width + 60, wy - 40);
+  await fire('#game', 'pointerup', 7, wb.x + wb.width + 60, wy - 40);
+  await page.clock.runFor(100);
+  await expect(reset).not.toHaveClass(/off-centre/);
+
   // A drag on the empty game area orbits; the other thumb can keep steering meanwhile.
   await fire('#game', 'pointerdown', 4, 420, 120);
   await fire('#game', 'pointermove', 4, 520, 150);
@@ -542,4 +549,16 @@ test('first run shows the short parking tip once, and not on the next level star
   await page.getByRole('button', { name: 'Restart' }).click();
   await expect(page.locator('#hud-hint')).not.toHaveText('Drive in, stop in the glow, then hold still.');
   expect(errors).toEqual([]);
+});
+
+test('PWA: the service worker caches the shell so a revisit opens offline', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await page.reload(); // now controlled by the worker
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator('#menu')).toBeVisible();
 });

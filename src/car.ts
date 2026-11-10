@@ -233,6 +233,8 @@ export class PlayerCar {
   model: CarModel;
   vehicle: VehicleDef;
   private readonly models = new Map<string, CarModel>();
+  /** Vehicles whose cached model is the box car because their template had not loaded yet. */
+  private readonly boxed = new Map<string, VehicleDef>();
 
   constructor(vehicle: VehicleDef = vehicleOf(DEFAULT_VEHICLE)) {
     this.vehicle = vehicle;
@@ -242,8 +244,29 @@ export class PlayerCar {
 
   private modelFor(v: VehicleDef): CarModel {
     let m = this.models.get(v.id);
-    if (!m) this.models.set(v.id, (m = createVehicleModel(v)));
+    if (!m) {
+      this.models.set(v.id, (m = createVehicleModel(v)));
+      if (v.shape === 'model' && v.model && !carTemplate(v.model)) this.boxed.set(v.id, v);
+    }
     return m;
+  }
+
+  /**
+   * Replace box-car fallbacks whose template has since loaded. Returns true when the current
+   * vehicle's model changed (the caller swaps `model.root` in the scene).
+   */
+  refreshModels(): boolean {
+    let changed = false;
+    for (const [id, v] of this.boxed) {
+      if (!v.model || !carTemplate(v.model)) continue;
+      this.boxed.delete(id);
+      this.models.delete(id);
+      if (id === this.vehicle.id) {
+        this.model = this.modelFor(v);
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   /** Drive `v` from now on. Returns true when the model changed (the caller swaps it in the scene). */

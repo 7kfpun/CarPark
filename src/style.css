@@ -581,7 +581,7 @@ h2 {
 
 .tagline {
   color: var(--muted);
-  margin: 6px 0 clamp(12px, 4vmin, 22px);
+  margin: 6px 0 4px;
   font-size: clamp(14px, 3.8vmin, 16px);
 }
 
@@ -1014,6 +1014,11 @@ kbd {
   overflow: hidden;
 }
 
+#loading-reload,
+.gfx-overlay button {
+  margin-top: 14px;
+}
+
 #loading-fill {
   height: 100%;
   width: 0;
@@ -1197,4 +1202,47 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
 }
 .settings-pane[hidden] {
   display: none;
+}
+
+.whats-new {
+  margin: 4px 0 clamp(12px, 4vmin, 22px);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.whats-new:empty {
+  display: none;
+}
+
+/* ---------- Daily missions ---------- */
+.missions {
+  margin-top: 14px;
+  text-align: left;
+}
+
+.missions h2 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.mission {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.mission button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+.mission button:disabled {
+  opacity: 0.5;
 }
