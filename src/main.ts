@@ -620,7 +620,7 @@ function step(dt: number): void {
   elapsed += dt;
   if (settings.timeLimit && elapsed >= def.time) return finish(false, 'Out of time. Try a shorter line to the bay.');
 
-  car.step(dt, input.controls, level.surfaces);
+  car.step(dt, input.controlsFor(car.v), level.surfaces);
   recorder.step(car);
   sfx.setEngine(car.v, vehicleOf(def.vehicle).maxFwd);
   const nearby = car.reachable(level.surfaces, level.obstacles);
