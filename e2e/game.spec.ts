@@ -215,6 +215,80 @@ test('touch wheel and pedal hold through a pointercancel, then release after the
   await context.close();
 });
 
+for (const [name, viewport] of [
+  ['iPhone SE portrait 375x667', { width: 375, height: 667 }],
+  ['iPhone SE landscape 667x375', { width: 667, height: 375 }],
+  ['iPhone 15 landscape 852x393', { width: 852, height: 393 }],
+] as const) {
+  test(`touch hit targets, ${name}: every control is at least 44px and none overlap`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
+    const page = await context.newPage();
+    await openGame(page, '?level=1');
+    const ids = ['#t-wheel', '#t-accel', '#t-brake', '#t-gear'];
+    const boxes = [];
+    for (const id of ids) {
+      const box = (await page.locator(id).boundingBox())!;
+      expect(box.width, `${id} width`).toBeGreaterThanOrEqual(44);
+      expect(box.height, `${id} height`).toBeGreaterThanOrEqual(44);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      boxes.push(box);
+    }
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const overlap = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+        expect(overlap, `${ids[i]} overlaps ${ids[j]}`).toBe(false);
+      }
+    }
+    // Each control is what a finger at its centre actually hits (nothing covers it).
+    for (const [i, id] of ids.entries()) {
+      const hit = await page.evaluate(
+        ([x, y, sel]) => !!document.elementFromPoint(x as number, y as number)?.closest(sel as string),
+        [boxes[i].x + boxes[i].width / 2, boxes[i].y + boxes[i].height / 2, id],
+      );
+      expect(hit, `${id} centre is hittable`).toBe(true);
+    }
+    await context.close();
+  });
+}
+
+test('touch wheel: a touch that starts in the centre dead zone does not jump the wheel', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await openGame(page, '?level=1');
+  const rotation = () =>
+    page.evaluate(() => document.querySelector<HTMLElement>('#t-wheel .wheel-rot')!.style.transform);
+  const fire = (type: string, x: number, y: number) =>
+    page.evaluate(
+      ([t, cx, cy]) =>
+        document.querySelector('#t-wheel')!.dispatchEvent(
+          new PointerEvent(t as string, {
+            pointerId: 5,
+            pointerType: 'touch',
+            clientX: cx as number,
+            clientY: cy as number,
+            bubbles: true,
+            cancelable: true,
+          }),
+        ),
+      [type, x, y],
+    );
+  const box = (await page.locator('#t-wheel').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await fire('pointerdown', cx, cy);
+  // Leaving the dead zone to the right (90 degrees from straight up) must anchor, not turn the wheel 90 degrees.
+  await fire('pointermove', cx + box.width * 0.4, cy);
+  expect(await rotation()).toBe('rotate(0deg)');
+  // A further move then turns it relative to that anchor.
+  await fire('pointermove', cx + box.width * 0.4, cy + 20);
+  expect(await rotation()).not.toBe('rotate(0deg)');
+  await fire('pointerup', cx, cy);
+  expect(await rotation()).toBe('rotate(0deg)');
+  await context.close();
+});
+
 test('gear lever: tap a slot or use arrows to change gear, and a cancelled drag does not flip it', async ({
   browser,
 }) => {
