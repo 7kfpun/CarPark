@@ -818,9 +818,30 @@ console.log('Floors and ramps');
   check(
     at([
       { kind: 'wall', x: 0, z: -20, w: 4, l: 0.4 },
-      { kind: 'wall', x: 1.9, z: -20, w: 4, l: 0.4 },
+      { kind: 'wall', x: 3.9, z: -20, w: 4, l: 0.4 },
     ]) === '',
     'joined wall segments wrongly counted as overlapping',
+  );
+  check(
+    at([
+      { kind: 'wall', x: 0, z: -20, w: 6, l: 0.4 },
+      { kind: 'wall', x: 0, z: -20, w: 0.4, l: 6 },
+    ]).includes('overlap'),
+    'crossing walls not detected',
+  );
+  check(
+    at([
+      { kind: 'wall', x: 0, z: -20, w: 6, l: 0.4 },
+      { kind: 'wall', x: 1, z: -20, w: 6, l: 0.4 },
+    ]).includes('overlap'),
+    'stacked walls not detected',
+  );
+  check(
+    at([
+      { kind: 'wall', x: 0, z: -20, w: 4, l: 0.4 },
+      { kind: 'wall', x: 1.8, z: -18, w: 0.4, l: 4 },
+    ]) === '',
+    'walls meeting at a T-joint wrongly counted as overlapping',
   );
   check(
     probs({ ...lvl, bays: [{ x: 30, z: 0, rot: 0, w: 3, l: 5.6 }] }).includes('decorative bay #0'),

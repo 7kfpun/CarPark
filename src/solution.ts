@@ -82,10 +82,14 @@ function lotProblems(def: LevelDef, startLayer: string, lot: OBB): string[] {
   // Only the level's own obstacles: the generated boundary and edge walls are meant to touch what stands against them.
   const own = def.obstacles.map((o) => ({ ...obstacleOBB(o), layer: o.floor ?? startLayer }));
   for (let i = 0; i < own.length; i++)
-    for (let j = i + 1; j < own.length; j++)
-      if (def.obstacles[i].kind === 'wall' && def.obstacles[j].kind === 'wall')
-        continue; // wall runs join end to end
-      else if (own[i].layer === own[j].layer && sat(own[i], own[j])) out.push(`obstacles #${i} and #${j} overlap`);
+    for (let j = i + 1; j < own.length; j++) {
+      const [a, b] = [own[i], own[j]];
+      if (a.layer !== b.layer || !sat(a, b)) continue;
+      // Wall runs may meet at corners and T-joints (neither centre lies inside the other); crossing, stacked or
+      // heavily overlapping walls have a centre inside the other, and count like any other overlap.
+      const walls = def.obstacles[i].kind === 'wall' && def.obstacles[j].kind === 'wall';
+      if (!walls || pointInOBB(a.x, a.z, b) || pointInOBB(b.x, b.z, a)) out.push(`obstacles #${i} and #${j} overlap`);
+    }
   return out;
 }
 
