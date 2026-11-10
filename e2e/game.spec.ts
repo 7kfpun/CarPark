@@ -437,3 +437,23 @@ test('hiding the tab pauses the level', async ({ page }) => {
   });
   await expect(page.locator('#modal-title')).toHaveText('Paused');
 });
+
+test('a tall pause panel on a small landscape screen can scroll (no ancestor blocks pan-y)', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 110 });
+  await openGame(page, '?level=1');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#modal-title')).toHaveText('Paused');
+  const r = await page.locator('#modal .panel').evaluate((panel) => {
+    // Browsers intersect touch-action up the ancestor chain: any `none` above the panel kills panning.
+    const chain: string[] = [];
+    for (let el: Element | null = panel; el; el = el.parentElement) chain.push(getComputedStyle(el).touchAction);
+    panel.scrollTop = 0; // focusing a button may already have scrolled it
+    const before = panel.scrollTop;
+    panel.scrollTop = 40;
+    return { chain, scrollable: panel.scrollHeight > panel.clientHeight, moved: panel.scrollTop > before };
+  });
+  expect(r.scrollable).toBe(true);
+  expect(r.moved).toBe(true);
+  expect(r.chain.some((t) => t === 'none')).toBe(false);
+  expect(await page.locator('#modal-backdrop').evaluate((el) => getComputedStyle(el).touchAction)).toBe('none');
+});
