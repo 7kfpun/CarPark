@@ -169,17 +169,17 @@ one map per floor and ramps are blue with an arrow pointing uphill.
 
 ## 11. Main Street
 
-> Park in the marked space by the kerb. Reverse in at an angle, then straighten up.
+> Drive down the street and stop in the marked space by the kerb.
 
 | | |
 | --- | --- |
 | Id | `main-street` |
 | Vehicle | Hatchback |
-| Lot | 64 × 26 m |
+| Lot | 48 × 14 m |
 | Time limit | 60 s |
-| Star times | 3 stars ≤ 16 s, 2 stars ≤ 25 s, 1 star within 60 s |
-| Target bay | x 0, z -7.2, 2.5 × 6.8 m, facing 90° (either direction) |
-| Start pose | x -16, z 2, heading 90° |
+| Star times | 3 stars ≤ 18 s, 2 stars ≤ 28 s, 1 star within 60 s |
+| Target bay | x 4, z -3.2, 2.6 × 5.6 m, facing 90° (either direction) |
+| Start pose | x -20, z -3.2, heading 90° |
 
 ![Main Street](maps/main-street.svg)
 

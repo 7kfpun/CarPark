@@ -821,18 +821,18 @@ const MASTER_LEVELS: RawLevel[] = [
   },
 ];
 
-/** Main Street: an empty street with a kerb (Curb Side's gap and spawn, no parked cars). */
+/** Main Street: a plain road with a kerb along one side. Pull up and stop in the marked space by the kerb. */
 const STREET_LEVEL: RawLevel = {
   id: 'main-street',
   name: 'Main Street',
-  hint: 'Park in the marked space by the kerb. Reverse in at an angle, then straighten up.',
-  lot: { w: 64, l: 26 },
-  spawn: { x: -16, z: 2, rot: PI / 2 },
-  target: { x: 0, z: -7.2, rot: PI / 2, w: 2.5, l: 6.8 },
+  hint: 'Drive down the street and stop in the marked space by the kerb.',
+  lot: { w: 48, l: 14 },
+  spawn: { x: -20, z: -3.2, rot: PI / 2 },
+  target: { x: 4, z: -3.2, rot: PI / 2, w: 2.6, l: 5.6 },
   bothWays: true,
   time: 60,
-  stars: { three: 16, two: 25 },
-  obstacles: [{ kind: 'wall', x: 0, z: -9.6, w: 62, l: 0.4, h: 0.25 }],
+  stars: { three: 18, two: 28 },
+  obstacles: [{ kind: 'wall', x: 0, z: -5.4, w: 46, l: 0.4, h: 0.25 }],
 };
 
 const RAW_LEVELS: RawLevel[] = [
