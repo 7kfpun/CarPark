@@ -1,10 +1,9 @@
 /**
- * Hourly earn: in-game money that accrues with real time and is claimed from the menu.
+ * Hourly earn: in-game money that accrues with real time and is claimed from the menu into the shared wallet (src/missions.ts).
  * Client-side only (localStorage, the device clock); a trusted server clock comes with the mobile apps.
  */
 export interface Earn {
   v: 1;
-  balance: number; // whole coins the player holds
   lastClaim: number; // ms epoch: start of the time not yet paid out
 }
 
@@ -20,15 +19,15 @@ function whole(v: unknown, fallback: number): number {
 
 /** A new player starts the clock now and has nothing to claim yet. */
 export function freshEarn(now: number): Earn {
-  return { v: 1, balance: 0, lastClaim: now };
+  return { v: 1, lastClaim: now };
 }
 
 /** Turn whatever was stored into a valid state; a clock set behind the last claim restarts the clock. */
 export function parseEarn(raw: unknown, now: number): Earn {
   if (!raw || typeof raw !== 'object') return freshEarn(now);
-  const p = raw as { balance?: unknown; lastClaim?: unknown };
+  const p = raw as { lastClaim?: unknown };
   const last = whole(p.lastClaim, now);
-  return { v: 1, balance: whole(p.balance, 0), lastClaim: last > now ? now : last };
+  return { v: 1, lastClaim: last > now ? now : last };
 }
 
 /** Whole hours ready to claim, capped at MAX_HOURS. */
@@ -49,12 +48,11 @@ export function msToNext(e: Earn, now: number): number {
   return HOUR_MS - (ms % HOUR_MS);
 }
 
-/** Pays out the ready hours. Returns the coins added. A capped wait restarts the clock; otherwise leftover time is kept. */
+/** Pays out the ready hours. Returns the coins to add to the wallet. A capped wait restarts the clock; otherwise leftover time is kept. */
 export function claim(e: Earn, now: number): number {
   const hours = hoursReady(e, now);
   if (!hours) return 0;
   const coins = hours * COINS_PER_HOUR;
-  e.balance += coins;
   e.lastClaim = hours >= MAX_HOURS ? now : e.lastClaim + hours * HOUR_MS;
   return coins;
 }

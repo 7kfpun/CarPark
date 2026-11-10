@@ -34,7 +34,10 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
-import { claim, loadEarn, msToNext, pendingCoins, saveEarn, waitLabel } from './earn';
+import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
+import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
+import type { Missions } from './missions';
+import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
 import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
@@ -406,21 +409,47 @@ function startLevel(i: number): boolean {
   return true;
 }
 
-// --- Hourly earn: coins over time, claimed from the menu ---------------------------
+let missions: Missions = loadMissions();
+let wallet = loadWallet();
+
+function showMissions(): void {
+  missions = rollDay(missions, dayKey(new Date()));
+  renderMissions(document.getElementById('missions')!, missions, wallet.money, (id) => {
+    const r = claim(missions, id);
+    if (!r.reward) return;
+    missions = r.missions;
+    wallet = { ...wallet, money: wallet.money + r.reward };
+    if (mayPersist(ADMIN)) {
+      saveMissions(missions);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+  });
+}
+
+// --- Hourly earn: coins over time, claimed from the menu into the wallet ---------------
 const earn = loadEarn();
-const earnBalance = document.getElementById('earn-balance')!;
+if (mayPersist(ADMIN)) saveEarn(earn); // a fresh clock must survive a reload before the first claim
+const earnNote = document.getElementById('earn-note')!;
 const earnClaim = document.getElementById('earn-claim') as HTMLButtonElement;
 function renderEarn(): void {
   const now = Date.now();
   const ready = pendingCoins(earn, now);
-  earnBalance.textContent = `🪙 ${earn.balance}`;
   earnClaim.disabled = ready === 0;
-  earnClaim.textContent = ready ? `Claim ${ready} coins` : `Next coins in ${waitLabel(msToNext(earn, now))}`;
+  earnClaim.textContent = ready ? `Claim ${ready} coins` : 'Hourly coins';
+  earnNote.textContent = ready ? '' : `Next coins in ${waitLabel(msToNext(earn, now))}`;
 }
 earnClaim.onclick = () => {
-  const got = claim(earn, Date.now());
-  if (got && mayPersist(ADMIN)) saveEarn(earn);
-  if (got) sfx.click();
+  const got = claimEarn(earn, Date.now());
+  if (!got) return;
+  wallet = { ...wallet, money: wallet.money + got };
+  if (mayPersist(ADMIN)) {
+    saveEarn(earn);
+    saveWallet(wallet);
+  }
+  sfx.click();
+  showMissions();
   renderEarn();
 };
 setInterval(() => state === 'menu' && renderEarn(), 30_000);
@@ -443,6 +472,7 @@ function showMenu(): void {
     if (modelsDone) startLevel(i);
     else void laterModels.then(() => state === 'menu' && startLevel(i));
   });
+  showMissions();
   renderEarn();
   applyUpdate();
 }
@@ -521,6 +551,10 @@ function finish(win: boolean, reason: string): void {
       if (mayPersist(ADMIN)) saveGhosts(ghosts);
     }
     if (mayPersist(ADMIN)) saveProgress(progress);
+    if (mayPersist(ADMIN)) {
+      missions = recordPark(rollDay(missions, dayKey(new Date())), id, stars);
+      saveMissions(missions);
+    }
     const isLastLevel = levelIndex === LEVELS.length - 1;
     const nextLevel = LEVELS[levelIndex + 1];
     // The next level may sit in a world that is still locked (a world opens when the one before is finished).
