@@ -457,3 +457,15 @@ test('a tall pause panel on a small landscape screen can scroll (no ancestor blo
   expect(r.chain.some((t) => t === 'none')).toBe(false);
   expect(await page.locator('#modal-backdrop').evaluate((el) => getComputedStyle(el).touchAction)).toBe('none');
 });
+
+test('first run shows the short parking tip once, and not on the next level start', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page);
+  await page.locator('#level-grid .world-btn').first().click();
+  await page.locator('#level-grid .level-btn').first().click();
+  await expect(page.locator('#hud-hint')).toHaveText('Drive in, stop in the glow, then hold still.');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Restart' }).click();
+  await expect(page.locator('#hud-hint')).not.toHaveText('Drive in, stop in the glow, then hold still.');
+  expect(errors).toEqual([]);
+});
