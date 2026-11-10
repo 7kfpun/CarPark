@@ -744,7 +744,7 @@ addEventListener('pointercancel', endDrag);
 addEventListener(
   'wheel',
   (e) => {
-    if (canOrbit() && rig.freeLook) rig.dragFree(0, 0, e.deltaY * 0.01);
+    if (canOrbit() && rig.freeLook && !onControls(e)) rig.dragFree(0, 0, e.deltaY * 0.01);
   },
   { passive: true },
 );

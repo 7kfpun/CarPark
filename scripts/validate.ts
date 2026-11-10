@@ -2117,9 +2117,6 @@ console.log('Performance budget');
   check(sizeTable(built, budget).includes('| total |'), 'size table has a total row');
 }
 
-console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
-process.exit(failures ? 1 : 0);
-
 // CARP-134: touches on or just around the wheel / pedals are never a camera drag.
 {
   const zones = [
@@ -2133,3 +2130,6 @@ process.exit(failures ? 1 : 0);
   check(!inControlZone(400, 270, zones), 'control zone: far between the groups still orbits');
   check(!inControlZone(80, 270, []), 'control zone: no controls, no guard');
 }
+
+console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
+process.exit(failures ? 1 : 0);
