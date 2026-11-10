@@ -152,6 +152,22 @@ export function softReverse(throttle: number, heldSeconds: number, forwardSpeed 
   return throttle * (REVERSE_START + (1 - REVERSE_START) * k);
 }
 
+/**
+ * Reverse-hold clock. Once a hold has begun it lasts until the command stops being negative, so a slope pushing the car
+ * back over BRAKE_SPEED mid-delay cannot restart it. No hold starts while rolling forward faster than BRAKE_SPEED
+ * (that is braking, and must not pre-load reverse).
+ */
+export function trackReverseHold(
+  since: number | null,
+  throttle: number,
+  forwardSpeed: number,
+  now: number,
+): number | null {
+  if (throttle >= 0) return null;
+  if (since === null && forwardSpeed > BRAKE_SPEED) return null;
+  return since ?? now;
+}
+
 /** Gear lever slots: D at the top of the gate (0), R at the bottom (1). */
 export type Gear = 'D' | 'R';
 
@@ -617,8 +633,7 @@ export class Input {
     const touch = pedalControls(this.accelPointers.size > 0, this.brakePointers.size > 0, this.reverse);
     const raw = strongest((up ? 1 : 0) - (down ? 1 : 0), touch.throttle, this.pad.throttle);
     const now = performance.now();
-    if (raw < 0 && forwardSpeed <= BRAKE_SPEED) this.reverseSince ??= now;
-    else this.reverseSince = null;
+    this.reverseSince = trackReverseHold(this.reverseSince, raw, forwardSpeed, now);
     const held = this.reverseSince === null ? 0 : (now - this.reverseSince) / 1000;
     return {
       throttle: softReverse(raw, held, forwardSpeed),

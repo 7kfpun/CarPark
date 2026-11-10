@@ -45,6 +45,7 @@ import {
   softReverse,
   REVERSE_DELAY,
   REVERSE_START,
+  trackReverseHold,
   pointerAngle,
   steerFromWheel,
   strongest,
@@ -648,6 +649,27 @@ console.log('Floors and ramps');
     );
   }
 
+  // Reverse held on a downhill ramp: slope gravity must not keep restarting the soft-reverse delay.
+  for (const v0 of [0, 2]) {
+    const c = new CarPhysics();
+    c.reset(0, 10, Math.PI, steepSurf);
+    c.layer = 'ramp';
+    c.v = v0;
+    let since: number | null = null;
+    let reversed = false;
+    for (let i = 0; i < Math.round(5 / STEP) && !reversed; i++) {
+      const now = i * STEP;
+      since = trackReverseHold(since, -1, c.v, now);
+      const held = since === null ? 0 : now - since;
+      c.step(STEP, { throttle: softReverse(-1, held, c.v), steer: 0, handbrake: false }, steepSurf);
+      reversed = c.v < -0.3;
+    }
+    check(
+      c.pitch < -0.1 && reversed,
+      `holding reverse downhill from ${v0} m/s still reverses (v ${c.v.toFixed(2)}, pitch ${c.pitch.toFixed(2)})`,
+    );
+  }
+
   // Stopping at the top: brake on the upper floor, the car stays put, level.
   car.reset(0, -10, 0, surf);
   drive(30, (c) => {
@@ -865,6 +887,13 @@ check(isMetaKey('MetaLeft') && isMetaKey('MetaRight') && !isMetaKey('KeyS'), 'Me
   check(softReverse(-1, 0, 3) === -1, 'soft reverse: a tap while rolling forward still brakes at once');
   check(softReverse(-1, 0, 0.05) === 0, 'soft reverse: at rest the delay applies');
   check(softReverse(-1, REVERSE_DELAY, 0) === -REVERSE_START, 'soft reverse: ramp starts at REVERSE_START');
+  check(trackReverseHold(null, -1, 0, 5) === 5, 'reverse hold: starts at rest');
+  check(trackReverseHold(5, -1, 0.2, 6) === 5, 'reverse hold: a slope blip over the brake speed keeps it');
+  check(trackReverseHold(null, -1, 3, 5) === null, 'reverse hold: braking from speed does not start it');
+  check(
+    trackReverseHold(5, 0, 0, 6) === null && trackReverseHold(5, 1, 0, 6) === null,
+    'reverse hold: released clears',
+  );
   const a = softReverse(-1, REVERSE_DELAY + 0.05);
   const b = softReverse(-1, REVERSE_DELAY + 0.3);
   check(a < 0 && a > -0.6 && b < a && softReverse(-1, 10) === -1, 'soft reverse: eases in to full pull');
