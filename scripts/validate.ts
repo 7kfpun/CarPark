@@ -2349,7 +2349,8 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
-=======
+}
+
 {
   const t0 = 1_000_000_000_000;
   const e = freshEarn(t0);
@@ -2370,7 +2371,6 @@ console.log('Performance budget');
   check(junk.balance === 0 && junk.lastClaim === t0, 'junk storage falls back to a fresh state');
   check(parseEarn(null, t0).balance === 0, 'missing storage is a fresh state');
   check(waitLabel(61 * 60_000) === '1h 01m' && waitLabel(1) === '1m', 'wait labels read well');
->>>>>>> b9ac09d (CARP-128: hourly earn (coins over time, claimed from the menu))
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');
