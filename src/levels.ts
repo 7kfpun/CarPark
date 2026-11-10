@@ -147,7 +147,7 @@ const LEVELS_1_12: RawLevel[] = [
     target: { x: 0, z: 12, rot: 0, w: 3, l: 5.6 },
     bothWays: true,
     time: 60,
-    stars: { three: 15, two: 21 },
+    stars: { three: 18, two: 28 },
     bays: bayRow(row7, 12, 0),
     obstacles: [car(-3, 12, 0), car(3, 12, PI), car(-9, 12, PI), car(6, 12, 0)],
   },
