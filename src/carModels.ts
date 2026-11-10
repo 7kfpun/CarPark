@@ -1,5 +1,15 @@
 import { VEHICLES } from './vehicles';
-import { MODEL_TIMEOUT_MS, withTimeout } from './loading';
+import {
+  MODEL_ATTEMPTS,
+  MODEL_BACKGROUND_ROUNDS,
+  MODEL_CONCURRENCY,
+  MODEL_RETRY_BASE_MS,
+  MODEL_TIMEOUT_MS,
+  backoffMs,
+  mapLimit,
+  retry,
+  withTimeout,
+} from './loading';
 import { upgradeCarMaterial } from './materials';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -84,30 +94,48 @@ export function modelUrl(name: string, baseUrl = `${import.meta.env.BASE_URL}mod
 }
 
 /**
- * Load the given car models (all of them by default). Resolves even if some fail: missing
- * models fall back to the built-in box car, so the game always starts.
+ * Load the given car models (all of them by default), a couple at a time, retrying each with
+ * backoff. Resolves even if some still fail: missing models fall back to the built-in box car
+ * (see `keepLoadingCarModels` to keep trying), so the game always starts.
  */
 export async function loadCarModels(
   names: readonly string[] = ALL,
   onProgress?: (loaded: number, total: number) => void,
   timeoutMs = MODEL_TIMEOUT_MS,
   baseUrl?: string,
+  attempts = MODEL_ATTEMPTS,
+  retryBaseMs = MODEL_RETRY_BASE_MS,
 ): Promise<void> {
   const manager = new THREE.LoadingManager();
   if (onProgress) manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
   const loader = new GLTFLoader(manager);
-  await Promise.all(
-    names
-      .filter((name) => !templates.has(name))
-      .map(async (name) => {
-        try {
-          const gltf = await withTimeout(loader.loadAsync(modelUrl(name, baseUrl)), timeoutMs, `Car model "${name}"`);
-          templates.set(name, toTemplate(gltf.scene));
-        } catch (err) {
-          console.warn(`Car model "${name}" failed to load; using the box car.`, err);
-        }
-      }),
+  await mapLimit(
+    names.filter((name) => !templates.has(name)),
+    MODEL_CONCURRENCY,
+    async (name) => {
+      try {
+        const gltf = await retry(
+          () => withTimeout(loader.loadAsync(modelUrl(name, baseUrl)), timeoutMs, `Car model "${name}"`),
+          attempts,
+          retryBaseMs,
+        );
+        templates.set(name, toTemplate(gltf.scene));
+      } catch (err) {
+        console.warn(`Car model "${name}" failed to load; using the box car for now.`, err);
+      }
+    },
   );
+}
+
+/** Keep fetching models that are still missing, with growing pauses; calls `onLoaded` when new ones arrive. */
+export async function keepLoadingCarModels(names: readonly string[], onLoaded: () => void): Promise<void> {
+  for (let round = 0; round < MODEL_BACKGROUND_ROUNDS; round++) {
+    const missing = names.filter((n) => !templates.has(n));
+    if (!missing.length) return;
+    await new Promise((r) => setTimeout(r, backoffMs(round, MODEL_RETRY_BASE_MS * 5)));
+    await loadCarModels(missing, undefined, MODEL_TIMEOUT_MS * 2, undefined, 1);
+    if (missing.some((n) => templates.has(n))) onLoaded();
+  }
 }
 
 export function carTemplate(name: string): CarTemplate | undefined {

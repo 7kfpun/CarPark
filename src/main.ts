@@ -6,7 +6,7 @@ import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
-import { FIRST_MODELS, LATER_MODELS, loadCarModels } from './carModels';
+import { FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
@@ -154,6 +154,10 @@ const laterModels = loadCarModels(LATER_MODELS).then(() => {
   modelsDone = true;
   // The menu's backdrop lot was built with box cars: rebuild it with the real models.
   if (state === 'menu' && level) loadLevel(levelIndex);
+  // Models that still failed keep retrying; the next level load picks them up.
+  void keepLoadingCarModels(LATER_MODELS, () => {
+    if (state === 'menu' && level) loadLevel(levelIndex);
+  });
 });
 const player = new PlayerCar();
 const mirror = new RearMirror();
