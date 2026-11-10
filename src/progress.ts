@@ -33,6 +33,48 @@ function isFutureSave(raw: unknown): boolean {
   return typeof v === 'number' && v > 2;
 }
 
+/** Saved entries for level ids this build doesn't list; written back so an older or smaller build never erases them. */
+interface Extras {
+  stars: Record<string, number>;
+  unlocked: string[];
+  best: Record<string, number>;
+}
+
+function emptyExtras(): Extras {
+  return { stars: {}, unlocked: [], best: {} };
+}
+
+/** The valid stars, unlocks and best times stored for ids outside `ids`. */
+export function unknownEntries(raw: unknown, ids: string[]): Extras {
+  const out = emptyExtras();
+  if (!raw || typeof raw !== 'object') return out;
+  const p = raw as { v?: unknown; stars?: unknown; unlocked?: unknown; best?: unknown };
+  const known = new Set(ids);
+  if (p.best && typeof p.best === 'object' && !Array.isArray(p.best)) {
+    for (const [id, t] of Object.entries(p.best)) if (!known.has(id) && cleanTime(t)) out.best[id] = cleanTime(t);
+  }
+  // Positional v1 saves only ever name the old built-in ids, so only v2+ can carry unknown ones.
+  if (p.v !== undefined && p.v !== 1) {
+    if (p.stars && typeof p.stars === 'object' && !Array.isArray(p.stars)) {
+      for (const [id, n] of Object.entries(p.stars)) if (!known.has(id) && starCount(n)) out.stars[id] = starCount(n);
+    }
+    if (Array.isArray(p.unlocked)) {
+      for (const id of p.unlocked) if (typeof id === 'string' && !known.has(id)) out.unlocked.push(id);
+    }
+  }
+  return out;
+}
+
+/** `p` plus the saved entries for unknown ids; this build's own values win. */
+export function withUnknown(p: Progress, extra: Extras): Progress {
+  return {
+    ...p,
+    stars: { ...extra.stars, ...p.stars },
+    unlocked: [...p.unlocked, ...extra.unlocked.filter((id) => !p.unlocked.includes(id))],
+    best: { ...extra.best, ...p.best },
+  };
+}
+
 /** Turn whatever was stored (v1, v2 or junk) into progress for the current level list. */
 export function parseProgress(raw: unknown, ids: string[]): Progress {
   const out = freshProgress(ids);
@@ -117,14 +159,18 @@ export function recordWin(p: Progress, ids: string[], index: number, stars: numb
 
 /** Set when the stored save is from a newer version: the best-effort parse of it, so we never overwrite it unchanged. */
 let futureSnapshot: string | null = null;
+/** Stored entries for level ids this build doesn't know, kept from the last load. */
+let unknownSaved: Extras = emptyExtras();
 
 export function loadProgress(ids: string[]): Progress {
   futureSnapshot = null;
+  unknownSaved = emptyExtras();
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return freshProgress(ids);
     const data: unknown = JSON.parse(raw);
     const p = parseProgress(data, ids);
+    unknownSaved = unknownEntries(data, ids);
     if (isFutureSave(data)) futureSnapshot = JSON.stringify(p);
     return p;
   } catch {
@@ -139,7 +185,7 @@ export function saveProgress(p: Progress): void {
     futureSnapshot = null;
   }
   try {
-    localStorage.setItem(KEY, JSON.stringify(p));
+    localStorage.setItem(KEY, JSON.stringify(withUnknown(p, unknownSaved)));
   } catch {
     // storage unavailable (private mode etc.) - progress just won't persist
   }
