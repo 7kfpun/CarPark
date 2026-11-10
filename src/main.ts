@@ -566,6 +566,7 @@ function openSettings(opener: HTMLElement | null = null): void {
   const wasPlaying = state === 'playing';
   if (wasPlaying) {
     state = 'paused';
+    sfx.stopEngine();
     input.clear();
   }
   settingsPanel.open(() => {
