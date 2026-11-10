@@ -81,6 +81,26 @@ test('Escape pauses and resumes; the game does not run under Settings', async ({
   expect(await timer(page)).not.toBe(t1);
 });
 
+test('Settings tabs: arrow keys, Home and End move between tabs', async ({ page }) => {
+  await openGame(page);
+  await page.locator('#btn-settings-menu').click();
+  await expect(page.locator('#settings')).toBeVisible();
+  const selected = page.locator('[data-tab][aria-selected="true"]');
+  await expect(selected).toHaveAttribute('data-tab', 'sound');
+  await page.locator('[data-tab="sound"]').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(selected).toHaveAttribute('data-tab', 'display');
+  await expect(page.locator('[data-tab="display"]')).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(selected).toHaveAttribute('data-tab', 'controls');
+  await page.keyboard.press('ArrowRight');
+  await expect(selected).toHaveAttribute('data-tab', 'sound');
+  await page.keyboard.press('ArrowLeft');
+  await expect(selected).toHaveAttribute('data-tab', 'controls');
+  await page.keyboard.press('Home');
+  await expect(selected).toHaveAttribute('data-tab', 'sound');
+});
+
 for (const [name, viewport] of [
   ['portrait 390x844', { width: 390, height: 844 }],
   ['landscape 844x390', { width: 844, height: 390 }],

@@ -1,6 +1,8 @@
 import { nextFocusIndex } from './focus';
 import { CAM_MODES, parseCamMode, type CamMode } from './views';
 
+const NAV_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
 export const TEXT_SIZES = ['normal', 'large', 'xlarge'] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
 /** UI zoom factor for each text size. */
@@ -113,12 +115,24 @@ export class SettingsPanel {
     this.tabs.forEach((tab) => {
       tab.addEventListener('click', () => this.showTab(tab.dataset.tab!));
       tab.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-        const i = this.tabs.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : -1);
-        const next = this.tabs[(i + this.tabs.length) % this.tabs.length];
+        const last = this.tabs.length - 1;
+        const at = this.tabs.indexOf(tab);
+        const to =
+          e.key === 'ArrowRight'
+            ? (at + 1) % this.tabs.length
+            : e.key === 'ArrowLeft'
+              ? (at + last) % this.tabs.length
+              : e.key === 'Home'
+                ? 0
+                : e.key === 'End'
+                  ? last
+                  : -1;
+        if (to < 0) return;
+        const next = this.tabs[to];
         this.showTab(next.dataset.tab!);
         next.focus();
         e.preventDefault();
+        e.stopPropagation(); // keep the arrows away from the game's own key handlers
       });
     });
     this.showTab(this.tabs[0].dataset.tab!);
@@ -127,6 +141,8 @@ export class SettingsPanel {
       'keydown',
       (e) => {
         if (!this.isOpen) return;
+        // Tablist navigation reaches the tab's own handler (which stops it there).
+        if (NAV_KEYS.has(e.key) && (e.target as Element | null)?.closest?.('[data-tab]')) return;
         e.stopImmediatePropagation();
         if (e.code === 'Escape') this.close();
         else if (e.key === 'Tab') this.trapTab(e);
