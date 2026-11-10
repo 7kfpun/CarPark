@@ -176,7 +176,8 @@ export class Hud {
 
   showHint(text: string, seconds: number): void {
     this.hint.textContent = text;
-    this.hint.classList.remove('fade');
+    // An empty hint hides the pill (it has its own background and padding).
+    this.hint.classList.toggle('fade', !text);
     this.hintTimer = seconds;
     this.announce(text);
   }
