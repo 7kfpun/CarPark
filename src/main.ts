@@ -295,6 +295,7 @@ function onModelsLoaded(): void {
   // Ghost copies are cached per vehicle like the player's; drop them so they rebuild with the template.
   for (const g of ghostModels.values()) scene.remove(g.root);
   ghostModels.clear();
+  for (const m of ghostMats.values()) m.dispose();
   ghostMats.clear();
   const wasGhost = ghostCar !== null;
   ghostCar = null;
@@ -303,9 +304,10 @@ function onModelsLoaded(): void {
     player.model.root.visible = previous.visible;
     swapPlayerModel(previous);
   }
-  if (wasGhost && ghostFrames) {
+  // The menu shows no ghost (the next startLevel makes one); otherwise put it where the run is.
+  if (wasGhost && ghostFrames && state !== 'menu') {
     ghostCar = ghostFor(vehicleOf(LEVELS[levelIndex].vehicle));
-    updateGhost(state === 'playing' ? elapsed : 0);
+    updateGhost(elapsed);
   }
   // Never rebuild the lot under a run: it comes up at the next menu or level start.
   if (state === 'menu' && level) loadLevel(levelIndex);
