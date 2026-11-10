@@ -65,6 +65,7 @@ import {
   MISSIONS,
   parseMissions,
   parseWallet,
+  saveWallet,
   progressFor,
   recordPark,
   rollDay,
@@ -2478,6 +2479,14 @@ console.log('Performance budget');
     pendingCoins(loadEarn(t0 + HOUR_MS), t0 + HOUR_MS) === COINS_PER_HOUR,
     'a reload before the first claim keeps the clock',
   );
+  check(saveWallet({ v: 1, money: 5 }) === true, 'saveWallet reports a stored wallet');
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: () => null,
+    setItem: () => {
+      throw new Error('quota');
+    },
+  };
+  check(saveWallet({ v: 1, money: 5 }) === false, 'saveWallet reports a failed write');
   delete (globalThis as { localStorage?: unknown }).localStorage;
   check(waitLabel(61 * 60_000) === '1h 01m' && waitLabel(1) === '1m', 'wait labels read well');
 }

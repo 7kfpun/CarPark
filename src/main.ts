@@ -445,8 +445,8 @@ earnClaim.onclick = () => {
   if (!got) return;
   wallet = { ...wallet, money: wallet.money + got };
   if (mayPersist(ADMIN)) {
-    saveWallet(wallet); // coins first: if the second write fails the player keeps them, never loses them
-    saveEarn(earn);
+    // Coins first, and the clock only once they are stored: a failed wallet write must not eat the payout.
+    if (saveWallet(wallet)) saveEarn(earn);
   }
   sfx.click();
   showMissions();
