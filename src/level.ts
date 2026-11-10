@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CAR_SHARED, createCarModel } from './car';
+import { buildStreetCar } from './streetCars';
 import { parkedModel } from './carModels';
 import type { OBB } from './collision';
 import { levelObstacleDefs, levelObstacles, Surfaces } from './floors';
@@ -116,7 +117,7 @@ const shared = new Set<THREE.Material>([
 
 function shadowed<T extends THREE.Object3D>(o: T): T {
   o.traverse((c) => {
-    if ((c as THREE.Mesh).isMesh) {
+    if ((c as THREE.Mesh).isMesh && !c.userData.noShadow) {
       c.castShadow = true;
       c.receiveShadow = true;
     }
@@ -193,7 +194,9 @@ function obstacleMesh(o: ObstacleDef, y: number): THREE.Object3D {
   let obj: THREE.Object3D;
   switch (o.kind) {
     case 'car':
-      obj = createCarModel(o.color ?? 0x888888, parkedModel(o.variant ?? 0)).root;
+      obj = o.body
+        ? buildStreetCar(o.body, o.color ?? 0x888888)
+        : createCarModel(o.color ?? 0x888888, parkedModel(o.variant ?? 0)).root;
       break;
     case 'cone':
       throw new Error('cones are drawn as instances in buildLevel');
