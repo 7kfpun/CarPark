@@ -1090,6 +1090,18 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
     top: calc(12px + var(--hud-drop) + var(--safe-t));
     right: calc(16px + var(--safe-r));
   }
+  /* The zoomed hint wraps to many lines here; a smaller font keeps it clear of the gear pill
+     even where the system font is wider (e.g. Linux). */
+  :root[data-text-size='large'] #hud-hint,
+  :root[data-text-size='xlarge'] #hud-hint {
+    font-size: 11px;
+    line-height: 1.3;
+    /* Never grow into the gear pill above the cockpit, whatever font wraps the text. */
+    max-height: calc(
+      100dvh / var(--ui-scale) - (100px + var(--hint-drop) + var(--safe-t)) - var(--wheel) - 28px - 30px - 8px
+    );
+    overflow: hidden;
+  }
 }
 
 /* ---------- Short landscape screens (a phone held sideways) ---------- */
