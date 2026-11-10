@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { LEVELS } from '../src/levels';
 import { LOCATIONS, worldLevels } from '../src/worlds';
 import { collectErrors, driveSolution, openGame, run } from './helpers';
@@ -305,17 +305,49 @@ test('camera: a drag orbits, Reset view and V restore it, and a drag that starts
 });
 
 // FOX-240 quality pass: HUD clarity on the smallest phones, and robustness to resize and missing storage.
-const HUD_PARTS = ['#hud-level', '#hud-timer', '#btn-cam', '#btn-pause', '#btn-settings', '#hud-gear', '#t-wheel'];
+const HUD_PARTS = [
+  '#hud-level',
+  '#hud-timer',
+  '#hud-floor',
+  '#hud-hint',
+  '#btn-reset-view',
+  '#btn-cam',
+  '#btn-pause',
+  '#btn-settings',
+  '#hud-gear',
+  '#t-wheel',
+];
 
 for (const [name, viewport] of [
   ['portrait 360x640', { width: 360, height: 640 }],
   ['landscape 844x390', { width: 844, height: 390 }],
 ] as const) {
-  test(`HUD, ${name}: no HUD element overlaps another or leaves the screen`, async ({ browser }) => {
+  for (const textSize of ['normal', 'large', 'xlarge'] as const) {
+    test(`HUD, ${name}, ${textSize} text: no HUD element overlaps another or leaves the screen`, async ({
+      browser,
+    }) => {
+      await hudOverlapCheck(browser, viewport, textSize);
+    });
+  }
+}
+
+async function hudOverlapCheck(
+  browser: Browser,
+  viewport: { width: number; height: number },
+  textSize: 'normal' | 'large' | 'xlarge',
+): Promise<void> {
+  {
     const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
     const page = await context.newPage();
     const errors = collectErrors(page);
+    await page.addInitScript((size) => {
+      localStorage.setItem(
+        'car-parking-3d:settings:v1',
+        JSON.stringify({ sound: false, quality: 'low', camera: 'chase', mirror: false, wheel: 'left', textSize: size }),
+      );
+    }, textSize);
     await openGame(page, '?level=1');
+    await expect(page.locator('#hud')).toBeVisible();
     await run(page, 0.5);
     const boxes: { id: string; x: number; y: number; w: number; h: number }[] = [];
     for (const id of HUD_PARTS) {
@@ -337,7 +369,7 @@ for (const [name, viewport] of [
     }
     expect(errors).toEqual([]);
     await context.close();
-  });
+  }
 }
 
 test('resizing and rotating mid-level keeps the game running with no errors', async ({ page }) => {
