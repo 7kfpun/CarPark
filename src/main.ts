@@ -7,7 +7,7 @@ import { Sfx, VOLUME_STEPS } from './audio';
 import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
-import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
+import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels, skyUrl } from './carModels';
 import { sensorInterval } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
@@ -93,7 +93,7 @@ const gfx = new Graphics(canvas, scene, sun, {
   onReload: recoverNow,
 });
 gfx.setQuality(settings.quality);
-gfx.loadEnvironment(`${import.meta.env.BASE_URL}env/sky.hdr`);
+gfx.loadEnvironment(skyUrl());
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 const rig = new CameraRig(camera);
