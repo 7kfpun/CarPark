@@ -94,6 +94,11 @@ export function modelUrl(name: string, baseUrl = `${import.meta.env.BASE_URL}mod
   return `${baseUrl}${name}.glb?v=${__APP_BUILD__}`;
 }
 
+/** URL of the HDR sky; the build id in the query makes a lighting change bypass a stale cached copy. */
+export function skyUrl(baseUrl = import.meta.env.BASE_URL): string {
+  return `${baseUrl}env/sky.hdr?v=${__APP_BUILD__}`;
+}
+
 /**
  * One download attempt. Uses its own FileLoader so a timeout can abort the fetch: three.js dedupes
  * every load of a URL onto the one in-flight request, so an un-aborted stall would swallow retries.

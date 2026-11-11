@@ -134,7 +134,7 @@ import {
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, maxClimbSlope, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { MODEL_SHARED, loadCarModels, toTemplate } from '../src/carModels';
+import { MODEL_SHARED, loadCarModels, skyUrl, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
 import {
   applyOrbit,
@@ -1467,6 +1467,7 @@ console.log('Load timeout');
   // A stalled download must be aborted so the next attempt issues a new request (three.js would
   // otherwise dedupe it onto the hung one).
   (globalThis as { __APP_BUILD__?: string }).__APP_BUILD__ = 'validate'; // normally injected by Vite
+  check(skyUrl('/app/') === '/app/env/sky.hdr?v=validate', 'sky HDR URL carries the build id');
   const realFetch = globalThis.fetch;
   let hits = 0;
   let aborted = false;
