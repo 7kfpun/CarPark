@@ -40,6 +40,7 @@ import {
   REPLAY_HZ,
   REPLAY_SPEEDS,
   advanceReplay,
+  replayClock,
   nextReplaySpeed,
   speedLabel,
 } from '../src/replay';
@@ -2343,6 +2344,10 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
       advanceReplay(1, 0.5, NaN) === 1.5 &&
       advanceReplay(1, -1, 2) === 1,
     'advanceReplay scales time by speed and ignores bad speeds',
+  );
+  check(
+    replayClock(1, 0.5, 2, 5) === 2 && replayClock(5, 0.5, 2, 5) === 5.5 && replayClock(6, 0.5, 0.5, 5) === 6.5,
+    'replayClock scales by speed during the run and plays the tail in real time',
   );
   check(
     REPLAY_SPEEDS.includes(1) &&

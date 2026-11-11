@@ -324,7 +324,7 @@ body.replaying #touch {
   -webkit-touch-callout: none;
 }
 
-body:has(#touch:not(.hidden)) .gear {
+body:not(.replaying):has(#touch:not(.hidden)) .gear {
   bottom: calc(var(--wheel) + 28px + env(safe-area-inset-bottom));
 }
 

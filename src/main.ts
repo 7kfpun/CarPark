@@ -45,7 +45,7 @@ import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
 import {
-  advanceReplay,
+  replayClock,
   beatsGhost,
   decodeFrames,
   duration,
@@ -704,6 +704,7 @@ input.on('KeyM', () => {
   if (state === 'playing') hud.showHint(sfx.muted ? 'Sound off' : 'Sound on', 1.2);
 });
 input.on('Escape', () => {
+  if (replay) return stopReplay(); // gamepad Start reaches here without a keydown
   if (state === 'playing') pause();
   else if (state === 'paused') resume();
   else if (state === 'done') showMenu();
@@ -1112,9 +1113,7 @@ function frameBody(now: number): void {
     // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
     const p = player.physics;
     const before = { x: p.x, z: p.z };
-    const end = duration(replay.frames);
-    // The one-second tail after the run ends plays in real time, whatever the speed.
-    replay.t = replay.t >= end ? replay.t + dt : advanceReplay(replay.t, dt, replaySpeed);
+    replay.t = replayClock(replay.t, dt, replaySpeed, duration(replay.frames));
     const pose = poseAt(replay.frames, replay.t);
     if (pose) {
       p.x = pose.x;
@@ -1133,13 +1132,13 @@ function frameBody(now: number): void {
     level.marker.position.y = level.markerY + Math.sin(now / 400) * 0.25;
   }
   if (level) {
-    const playing = state === 'playing';
+    const playing = state === 'playing' || replay !== null; // a replay is a drive: same floors and light
     const orbiting = rig.freeLook && (state === 'paused' || state === 'done');
     level.setView(
       playing || orbiting ? player.physics.y : 0,
-      (playing || orbiting) && hidesCeilings(rig.mode, orbiting || rig.orbited),
+      (playing || orbiting) && hidesCeilings(rig.mode, orbiting || rig.freeLook || rig.orbited),
     );
-    if (playing) hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
+    if (state === 'playing') hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
     updateLighting(dt, playing ? level.def : null);
   }
 

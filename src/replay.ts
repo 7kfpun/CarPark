@@ -37,6 +37,11 @@ export function advanceReplay(t: number, dt: number, speed: number): number {
   return t + Math.max(0, dt) * s;
 }
 
+/** Replay clock for one frame: scaled by `speed` until the run ends at `end`, then real time for the closing tail. */
+export function replayClock(t: number, dt: number, speed: number, end: number): number {
+  return t >= end ? t + Math.max(0, dt) : advanceReplay(t, dt, speed);
+}
+
 /** The speed after `speed` in the list, wrapping round; an unknown speed goes back to 1×. */
 export function nextReplaySpeed(speed: number): number {
   const i = REPLAY_SPEEDS.indexOf(speed);
