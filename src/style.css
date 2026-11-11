@@ -195,10 +195,18 @@ button:focus-visible {
 }
 
 /* Parking sensors: one row of four bars per end, lit nearest-first (1 far ... 4 very close). */
-.sensor {
+#sensors {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  bottom: calc(22% + 4.5rem + var(--safe-b));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.sensor {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -210,12 +218,6 @@ button:focus-visible {
 }
 .sensor.hidden {
   display: none;
-}
-#sensor-front {
-  bottom: calc(30% + var(--safe-b));
-}
-#sensor-rear {
-  bottom: calc(30% - 34px + var(--safe-b));
 }
 .sensor-bars {
   display: flex;
@@ -1169,7 +1171,7 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
 .pill,
 #hud-hint,
 #park-meter,
-.sensor,
+#sensors,
 .icon-btn {
   zoom: var(--ui-scale);
 }
@@ -1244,6 +1246,9 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   }
   #park-meter {
     bottom: calc(40px + var(--safe-b));
+  }
+  #sensors {
+    bottom: calc(40px + 4.5rem + var(--safe-b));
   }
 }
 

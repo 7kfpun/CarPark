@@ -195,11 +195,13 @@ export class Hud {
 
   /** Parking-sensor bars; 0 hides an end, else 1..4 lights that many bars (4 = very close). */
   setSensors(front: number, rear: number): void {
-    for (const [el, n] of [
-      [this.sensorFront, front],
-      [this.sensorRear, rear],
+    const names = ['', 'far', 'close', 'very close', 'stop'];
+    for (const [el, n, end] of [
+      [this.sensorFront, front, 'Front'],
+      [this.sensorRear, rear, 'Rear'],
     ] as const) {
       el.dataset.level = String(n);
+      el.setAttribute('aria-label', n > 0 ? `${end} parking sensor: ${names[Math.min(n, 4)]}` : `${end} parking sensor`);
       el.classList.toggle('hidden', n <= 0);
     }
   }

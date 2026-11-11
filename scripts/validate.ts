@@ -1237,6 +1237,13 @@ console.log('Broad phase');
   const sideWall: OBB = { x: 3 + 0.05, z: 0, hw: 0.05, hl: 5, rot: 0 };
   const along = sensorReading(carBox(3 - CAR_W / 2 - 0.05, 0, 0), [sideWall]);
   check(along.front === 0 && along.rear === 0, 'sensor: a wall alongside the car should not light either end');
+  // Heading +x (rot π/2): a wall on the +x side is ahead, one on -x is behind.
+  const eastWall: OBB = { x: CAR_L / 2 + 0.1 + 0.1 + 0.2, z: 0, hw: 0.1, hl: 5, rot: 0 };
+  const turned = sensorReading(carBox(0, 0, Math.PI / 2), [eastWall]);
+  check(turned.front === 3 && turned.rear === 0, 'sensor: rot π/2 with a wall on +x should light only the front');
+  const westWall: OBB = { ...eastWall, x: -eastWall.x };
+  const turnedBack = sensorReading(carBox(0, 0, Math.PI / 2), [westWall]);
+  check(turnedBack.rear === 3 && turnedBack.front === 0, 'sensor: rot π/2 with a wall on -x should light only the rear');
   check(sensorInterval(0) === null, 'sensor: level 0 has no beep');
   check(sensorInterval(4) === 0, 'sensor: level 4 is the solid tone');
   check(
