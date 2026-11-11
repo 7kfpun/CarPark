@@ -194,6 +194,62 @@ button:focus-visible {
   transition: none;
 }
 
+/* Parking sensors: one row of four bars per end, lit nearest-first (1 far ... 4 very close). */
+.sensor {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sensor.hidden {
+  display: none;
+}
+#sensor-front {
+  bottom: calc(30% + var(--safe-b));
+}
+#sensor-rear {
+  bottom: calc(30% - 34px + var(--safe-b));
+}
+.sensor-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+}
+.sensor-bars i {
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.sensor-bars i:nth-child(2) {
+  height: 15px;
+}
+.sensor-bars i:nth-child(3) {
+  height: 18px;
+}
+.sensor-bars i:nth-child(4) {
+  height: 21px;
+}
+.sensor[data-level='1'] i:nth-child(-n + 1) {
+  background: #2ee66b;
+}
+.sensor[data-level='2'] i:nth-child(-n + 2) {
+  background: #ffe14d;
+}
+.sensor[data-level='3'] i:nth-child(-n + 3) {
+  background: #ffa31a;
+}
+.sensor[data-level='4'] i:nth-child(-n + 4) {
+  background: #ff3b30;
+}
+
 #park-meter {
   position: absolute;
   bottom: calc(22% + var(--safe-b));
@@ -1113,6 +1169,7 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
 .pill,
 #hud-hint,
 #park-meter,
+.sensor,
 .icon-btn {
   zoom: var(--ui-scale);
 }

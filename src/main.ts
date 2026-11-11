@@ -8,7 +8,7 @@ import { CameraRig } from './camera';
 import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
 import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels } from './carModels';
-import { sensorInterval } from './collision';
+import { sensorInterval, sensorReading, type SensorReading } from './collision';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
 import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
@@ -223,7 +223,9 @@ let elapsed = 0;
 let parkHold = 0;
 let sensorTimer = 0;
 let sensorCheckTimer = 0;
-let sensorBeep = 0;
+let sensorBeep: number | null = null;
+let sensorEnd: 1 | -1 = 1;
+let sensorShown: SensorReading = { front: 0, rear: 0 };
 const SENSOR_CHECK_HZ = 20;
 let accumulator = 0;
 
@@ -396,6 +398,8 @@ function startLevel(i: number): boolean {
   player.model.root.visible = true;
   elapsed = 0;
   parkHold = 0;
+  sensorTimer = 0;
+  resetSensors();
   accumulator = 0;
   input.clear();
   input.setReverse(false);
@@ -539,6 +543,7 @@ function finish(win: boolean, reason: string): void {
   syncAdminBar();
   input.clear();
   hud.setPark(null, '');
+  resetSensors();
   const def = LEVELS[levelIndex];
   lastRun = recorder.frames;
   const replayButton: ModalButton[] = lastRun.length > 1 ? [{ label: 'Replay', onClick: () => startReplay(show) }] : [];
@@ -876,22 +881,35 @@ function step(dt: number): void {
   } else hud.setPark(null, '', '');
   if (holdComplete(parkHold)) return finish(true, '');
 
-  // Parking sensor beeps when slow and close to something. The proximity test
-  // only runs at SENSOR_CHECK_HZ; the beep timer still ticks every step.
+  // Parking sensors, active when slow. The proximity test only runs at
+  // SENSOR_CHECK_HZ; the beep timer still ticks every step. The HUD bars show
+  // both ends whenever slow (also when stopped); the beep needs the car to move.
   sensorTimer -= dt;
-  if (Math.abs(car.v) > 0.05 && Math.abs(car.v) < 4) {
+  if (Math.abs(car.v) < 4) {
     sensorCheckTimer -= dt;
     if (sensorCheckTimer <= 0) {
       sensorCheckTimer = 1 / SENSOR_CHECK_HZ;
-      sensorBeep = sensorInterval(car.obb, nearby);
+      const r = sensorReading(car.obb, nearby);
+      sensorEnd = r.front >= r.rear ? 1 : -1;
+      sensorBeep = sensorInterval(Math.max(r.front, r.rear));
+      if (r.front !== sensorShown.front || r.rear !== sensorShown.rear) {
+        sensorShown = r;
+        hud.setSensors(r.front, r.rear);
+      }
     }
-    if (sensorBeep && sensorTimer <= 0) {
-      sfx.beep();
-      sensorTimer = sensorBeep;
+    if (Math.abs(car.v) > 0.05 && sensorBeep !== null && sensorTimer <= 0) {
+      sfx.sensor(sensorEnd, sensorBeep === 0);
+      sensorTimer = sensorBeep || 0.1;
     }
-  } else {
-    sensorCheckTimer = 0;
-    sensorBeep = 0;
+  } else resetSensors();
+}
+
+function resetSensors(): void {
+  sensorCheckTimer = 0;
+  sensorBeep = null;
+  if (sensorShown.front || sensorShown.rear) {
+    sensorShown = { front: 0, rear: 0 };
+    hud.setSensors(0, 0);
   }
 }
 

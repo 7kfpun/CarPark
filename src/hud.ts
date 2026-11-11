@@ -54,6 +54,8 @@ export class Hud {
   private readonly meterFill = $('park-fill');
   private readonly meterLabel = $('park-label');
   private readonly meterChecks = $('park-checks');
+  private readonly sensorFront = $('sensor-front');
+  private readonly sensorRear = $('sensor-rear');
   private readonly flash = $('flash');
   private readonly live = $('sr-status');
   private hintTimer = 0;
@@ -189,6 +191,17 @@ export class Hud {
     clearTimeout(this.liveTimer);
     this.live.textContent = '';
     this.liveTimer = window.setTimeout(() => (this.live.textContent = text), 60);
+  }
+
+  /** Parking-sensor bars; 0 hides an end, else 1..4 lights that many bars (4 = very close). */
+  setSensors(front: number, rear: number): void {
+    for (const [el, n] of [
+      [this.sensorFront, front],
+      [this.sensorRear, rear],
+    ] as const) {
+      el.dataset.level = String(n);
+      el.classList.toggle('hidden', n <= 0);
+    }
   }
 
   /** fraction null hides the meter. */
