@@ -3,7 +3,7 @@ import { runModalAction } from './guards';
 import type { LevelDef } from './layout';
 import type { FloorHud } from './storey';
 import { bestFor, starsFor, type Progress } from './progress';
-import { levelPlayable, LOCATIONS, WORLDS, worldLevels, worldStars, worldUnlocked } from './worlds';
+import { levelPlayable, LOCATIONS, type HomePlay, WORLDS, worldLevels, worldStars, worldUnlocked } from './worlds';
 import type { LocationId } from './layout';
 import { vehicleOf } from './vehicles';
 import { APP_VERSION } from './version';
@@ -42,6 +42,7 @@ export function bestLabel(t: number): string {
 export class Hud {
   private readonly hud = $('hud');
   private readonly menu = $('menu');
+  private readonly home = $('home');
   private readonly modal = $('modal');
   private readonly touch = $('touch');
   private readonly level = $('hud-level');
@@ -67,8 +68,42 @@ export class Hud {
   /** World whose levels the menu is showing; null shows the world list. Kept when a level ends, so Menu returns to it. */
   private menuWorld: LocationId | null = null;
 
-  showMenu(levels: LevelDef[], progress: Progress, openAll: boolean, onSelect: (i: number) => void): void {
+  /** The landing page: title, coins and stars, the primary Play/Continue action and the entries to other screens. */
+  showHome(levels: LevelDef[], progress: Progress, coins: number, play: HomePlay, onPlay: () => void): void {
     $('tagline').textContent = `${levels.length} lots in ${LOCATIONS.length} locations. Don't scratch the paint.`;
+    this.setHomeStats(levels, progress, coins);
+    $('home-play-label').textContent = play.label;
+    $('home-play-detail').textContent = play.detail;
+    $('home-play').setAttribute('aria-label', `${play.label}, ${play.detail}`);
+    $('home-play').onclick = onPlay;
+    $('menu-version').textContent = `v${APP_VERSION}`;
+    $('whats-new').textContent = WHATS_NEW;
+    this.menu.classList.add('hidden');
+    this.home.classList.remove('hidden');
+    this.hud.classList.add('hidden');
+    this.touch.classList.add('hidden');
+    this.hideModal();
+  }
+
+  /** Coins and total stars on the home screen (also refreshed after a claim or a Garage purchase). */
+  setHomeStats(levels: LevelDef[], progress: Progress, coins: number): void {
+    const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
+    $('home-coins').innerHTML = `<span aria-hidden="true">🪙</span> ${coins} <span class="sr-only">coins</span>`;
+    $('home-stars').innerHTML =
+      `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
+  }
+
+  /** The screen that takes keyboard focus while no level is open: home or the level list. */
+  get menuRoot(): HTMLElement {
+    return this.home.classList.contains('hidden') ? this.menu : this.home;
+  }
+
+  /** True while the level list (not home) is the open screen. */
+  get levelListOpen(): boolean {
+    return !this.menu.classList.contains('hidden');
+  }
+
+  showMenu(levels: LevelDef[], progress: Progress, openAll: boolean, onSelect: (i: number) => void): void {
     const grid = $('level-grid');
     const worldBar = $('world-bar');
     grid.replaceChildren();
@@ -132,8 +167,7 @@ export class Hud {
     const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('menu-total').innerHTML =
       `${total} / ${levels.length * 3} <span aria-hidden="true">★</span><span class="sr-only">stars</span>`;
-    $('menu-version').textContent = `v${APP_VERSION}`;
-    $('whats-new').textContent = WHATS_NEW;
+    this.home.classList.add('hidden');
     this.menu.classList.remove('hidden');
     this.hud.classList.add('hidden');
     this.touch.classList.add('hidden');

@@ -13,7 +13,7 @@ export function collectErrors(page: Page): string[] {
  * Open the game with a fake clock, so the car can be driven for exact simulated seconds
  * (headless software rendering is far slower than real time). Time stands still until `run()`.
  */
-export async function openGame(page: Page, query = ''): Promise<void> {
+export async function openGame(page: Page, query = '', opts: { stayHome?: boolean } = {}): Promise<void> {
   // Low graphics and no rear mirror keep software-rendered frames cheap (set once per browser context).
   await page.addInitScript(() => {
     const key = 'car-parking-3d:settings:v1';
@@ -32,11 +32,13 @@ export async function openGame(page: Page, query = ''): Promise<void> {
   for (let margin = 500; ; margin *= 4) {
     try {
       await page.clock.pauseAt((await page.evaluate(() => Date.now())) + margin);
-      return;
+      break;
     } catch (e) {
       if (margin > 20_000) throw e;
     }
   }
+  // The game opens on home; most tests want the level list one step in.
+  if (!opts.stayHome && (await page.locator('#home').isVisible())) await page.locator('#home-levels').click();
 }
 
 /** Advance the game by `seconds` of simulated time (one frame per 1/60 s). */

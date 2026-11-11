@@ -88,3 +88,19 @@ export function resumeLevel(p: Progress, levels: LevelDef[], openAll = false): n
   });
   return at;
 }
+
+export interface HomePlay {
+  /** Level the home screen's primary button starts. */
+  index: number;
+  /** Button text: "Play" on a fresh save, otherwise "Continue". */
+  label: string;
+  /** Level name under the label. */
+  detail: string;
+}
+
+/** The home screen's primary action: Play on a fresh save, otherwise resume at the furthest open level. */
+export function homePlay(p: Progress, levels: LevelDef[], openAll = false): HomePlay {
+  const index = resumeLevel(p, levels, openAll);
+  const fresh = levels.every((l) => starsFor(p, l.id) === 0);
+  return { index, label: fresh ? 'Play' : 'Continue', detail: `Level ${index + 1} · ${levels[index].name}` };
+}

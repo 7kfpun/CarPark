@@ -209,6 +209,7 @@ import {
 import {
   LOCATIONS,
   levelPlayable,
+  homePlay,
   resumeLevel,
   WORLDS,
   worldComplete,
@@ -1799,6 +1800,17 @@ console.log('Worlds');
   check(!levelPlayable(p, LEVELS, locked), 'an unlocked level in a locked world is not playable');
   check(resumeLevel(parseProgress(null, ids), LEVELS) === 0, 'a fresh save resumes at the first level');
   check(LEVELS[resumeLevel(p, LEVELS)].location === w2, 'resume never lands in a locked world');
+  const fresh = homePlay(parseProgress(null, ids), LEVELS);
+  check(fresh.label === 'Play' && fresh.index === 0, 'home offers Play at the first level on a fresh save');
+  const resumed = homePlay(p, LEVELS);
+  check(
+    resumed.label === 'Continue' && resumed.index === resumeLevel(p, LEVELS),
+    'home offers Continue at the resume level once there is progress',
+  );
+  check(
+    resumed.detail === `Level ${resumed.index + 1} · ${LEVELS[resumed.index].name}`,
+    'home names the level it resumes',
+  );
   check(
     lv('basement').location === 'multi-storey' && lv('van-garage').location === 'industrial',
     'levels sit in the right worlds',
