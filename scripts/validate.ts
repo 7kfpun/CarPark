@@ -137,7 +137,7 @@ import {
 import { detailLayout, detailProblems, POLE_CLEAR } from '../src/detail';
 import { floorProblems, levelObstacles, maxClimbSlope, Surfaces } from '../src/floors';
 import { allObstacles, obstacleOBB, type LevelDef } from '../src/layout';
-import { MODEL_SHARED, loadCarModels, toTemplate } from '../src/carModels';
+import { MODEL_SHARED, loadCarModels, skyUrl, toTemplate } from '../src/carModels';
 import { mirrorAllowed } from '../src/mirror';
 import {
   applyOrbit,
@@ -1243,7 +1243,10 @@ console.log('Broad phase');
   check(turned.front === 3 && turned.rear === 0, 'sensor: rot π/2 with a wall on +x should light only the front');
   const westWall: OBB = { ...eastWall, x: -eastWall.x };
   const turnedBack = sensorReading(carBox(0, 0, Math.PI / 2), [westWall]);
-  check(turnedBack.rear === 3 && turnedBack.front === 0, 'sensor: rot π/2 with a wall on -x should light only the rear');
+  check(
+    turnedBack.rear === 3 && turnedBack.front === 0,
+    'sensor: rot π/2 with a wall on -x should light only the rear',
+  );
   check(sensorInterval(0) === null, 'sensor: level 0 has no beep');
   check(sensorInterval(4) === 0, 'sensor: level 4 is the solid tone');
   check(
@@ -1493,6 +1496,7 @@ console.log('Load timeout');
   // A stalled download must be aborted so the next attempt issues a new request (three.js would
   // otherwise dedupe it onto the hung one).
   (globalThis as { __APP_BUILD__?: string }).__APP_BUILD__ = 'validate'; // normally injected by Vite
+  check(skyUrl('/app/') === '/app/env/sky.hdr?v=validate', 'sky HDR URL carries the build id');
   const realFetch = globalThis.fetch;
   let hits = 0;
   let aborted = false;
@@ -1982,7 +1986,13 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
       start: () => {},
       stop: () => {},
       frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
-      gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
+      gain: {
+        setValueAtTime: () => {},
+        exponentialRampToValueAtTime: () => {},
+        linearRampToValueAtTime: () => {},
+        cancelScheduledValues: () => {},
+        value: 0,
+      },
     };
     return n;
   };
@@ -2032,6 +2042,13 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   sfx.unlock();
   sfx.beep();
   check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
+  // Solid sensor tone: repeats hold one oscillator; switching ends starts exactly one more.
+  const before = oscillators;
+  sfx.sensor(1, true);
+  sfx.sensor(1, true);
+  check(oscillators === before + 1, 'solid sensor tone holds one oscillator across repeats');
+  sfx.sensor(-1, true);
+  check(oscillators === before + 2, 'changing the sensor end starts exactly one new oscillator');
   g.AudioContext = prev;
 }
 

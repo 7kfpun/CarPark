@@ -201,7 +201,10 @@ export class Hud {
       [this.sensorRear, rear, 'Rear'],
     ] as const) {
       el.dataset.level = String(n);
-      el.setAttribute('aria-label', n > 0 ? `${end} parking sensor: ${names[Math.min(n, 4)]}` : `${end} parking sensor`);
+      el.setAttribute(
+        'aria-label',
+        n > 0 ? `${end} parking sensor: ${names[Math.min(n, 4)]}` : `${end} parking sensor`,
+      );
       el.classList.toggle('hidden', n <= 0);
     }
   }
