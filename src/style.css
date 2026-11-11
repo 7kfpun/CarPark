@@ -194,6 +194,31 @@ button:focus-visible {
   transition: none;
 }
 
+/* CARP-133: replay controls, low in the middle where the touch wheel and pedals are not shown. */
+#replay-bar {
+  position: absolute;
+  bottom: calc(24px + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+#replay-bar.hidden {
+  display: none;
+}
+.replay-btn {
+  min-width: 56px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 24px;
+  background: var(--panel);
+  color: inherit;
+  font-size: 15px;
+  touch-action: manipulation;
+}
+
 #park-meter {
   position: absolute;
   bottom: calc(22% + var(--safe-b));

@@ -45,6 +45,7 @@ import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
 import {
+  advanceReplay,
   beatsGhost,
   decodeFrames,
   duration,
@@ -53,8 +54,10 @@ import {
   nextGhost,
   poseAt,
   Recorder,
+  nextReplaySpeed,
   REPLAY_HZ,
   saveGhosts,
+  speedLabel,
   type Pose,
 } from './replay';
 import { activateUpdate, initPwa } from './pwa';
@@ -234,6 +237,9 @@ let recorder = new Recorder(GHOST_EVERY);
 let lastRun: Pose[] = [];
 let ghostFrames: Pose[] | null = null;
 let replay: { frames: Pose[]; t: number; show: () => void } | null = null;
+let replaySpeed = 1;
+const replayBar = document.getElementById('replay-bar')!;
+const replaySpeedBtn = document.getElementById('replay-speed')!;
 const ghostMats = new Map<string, THREE.MeshBasicMaterial>();
 const ghostModels = new Map<string, ReturnType<typeof createVehicleModel>>();
 /** A translucent copy of the vehicle that replays the best run. */
@@ -277,6 +283,7 @@ function stopReplay(): void {
   if (!replay) return;
   const { show } = replay;
   replay = null;
+  replayBar.classList.add('hidden');
   hud.showHint('', 0);
   show();
 }
@@ -285,12 +292,14 @@ function startReplay(show: () => void): void {
   hud.hideModal();
   rig.setFreeLook(false);
   replay = { frames: lastRun, t: 0, show };
-  hud.showHint('Replay: press any key or tap to stop', 600);
+  replayBar.classList.remove('hidden');
+  hud.showHint('Replay: drag to look around, Esc or Stop to end', 6);
 }
+// Drag / pinch / scroll look around during a replay; only Esc or the Stop button ends it.
 addEventListener(
   'keydown',
   (e) => {
-    if (replay && !e.repeat) {
+    if (replay && !e.repeat && e.code === 'Escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
       stopReplay();
@@ -298,7 +307,12 @@ addEventListener(
   },
   true,
 );
-addEventListener('pointerdown', () => stopReplay(), true);
+replaySpeedBtn.addEventListener('click', () => {
+  replaySpeed = nextReplaySpeed(replaySpeed);
+  replaySpeedBtn.textContent = speedLabel(replaySpeed);
+});
+document.getElementById('replay-stop')!.addEventListener('click', () => stopReplay());
+document.getElementById('replay-reset')!.addEventListener('click', () => rig.resetView());
 
 /** The lot on screen was built before some model arrived; rebuilt at the next safe moment. */
 let levelStale = false;
@@ -977,7 +991,7 @@ const orbitPtrs = new Map<number, { x: number; y: number }>();
 let lastTap: { t: number; x: number; y: number } | null = null;
 let tapStart: { id: number; t: number; x: number; y: number; moved: boolean } | null = null;
 function canDriveOrbit(): boolean {
-  return state === 'playing' && !settingsPanel.isOpen && !gfx.contextLost;
+  return (state === 'playing' || (state === 'done' && replay !== null)) && !settingsPanel.isOpen && !gfx.contextLost;
 }
 function resetView(): void {
   rig.resetView();
@@ -1033,12 +1047,12 @@ addEventListener('contextmenu', (e) => {
   if (state === 'playing' && (e.target as Element | null)?.id === 'game') e.preventDefault();
 });
 input.on('KeyV', () => {
-  if (state === 'playing') resetView();
+  if (state === 'playing' || replay) resetView();
 });
 const resetBtn = document.getElementById('btn-reset-view')!;
 resetBtn.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
-  if (state === 'playing') resetView();
+  if (state === 'playing' || replay) resetView();
 });
 
 // --- Main loop ---------------------------------------------------------------
@@ -1091,7 +1105,7 @@ function frameBody(now: number): void {
     // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
     const p = player.physics;
     const before = { x: p.x, z: p.z };
-    replay.t += dt;
+    replay.t = advanceReplay(replay.t, dt, replaySpeed);
     const pose = poseAt(replay.frames, replay.t);
     if (pose) {
       p.x = pose.x;
@@ -1100,7 +1114,7 @@ function frameBody(now: number): void {
       p.heading = pose.heading;
       p.pitch = pose.pitch;
       const fwd = (p.x - before.x) * Math.sin(p.heading) + (p.z - before.z) * Math.cos(p.heading);
-      p.v = dt > 0 ? fwd / dt : 0;
+      p.v = dt > 0 ? fwd / dt : 0; // on screen speed: the camera follows what is seen
     }
     if (replay.t >= duration(replay.frames) + 1) stopReplay();
   }
