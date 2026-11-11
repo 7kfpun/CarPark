@@ -204,6 +204,9 @@ button:focus-visible {
   gap: 10px;
   pointer-events: auto;
 }
+body.replaying #touch {
+  display: none;
+}
 #replay-bar.hidden {
   display: none;
 }
