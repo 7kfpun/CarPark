@@ -28,6 +28,31 @@ export class Recorder {
   }
 }
 
+/** Playback speeds offered during a replay (CARP-133). */
+export const REPLAY_SPEEDS: readonly number[] = [0.5, 1, 2];
+
+/** Replay clock after `dt` real seconds at `speed`; a speed that isn't a finite positive number plays at 1×. */
+export function advanceReplay(t: number, dt: number, speed: number): number {
+  const s = Number.isFinite(speed) && speed > 0 ? speed : 1;
+  return t + Math.max(0, dt) * s;
+}
+
+/** Replay clock for one frame: scaled by `speed` until the run ends at `end`, then real time for the closing tail. */
+export function replayClock(t: number, dt: number, speed: number, end: number): number {
+  return t >= end ? t + Math.max(0, dt) : advanceReplay(t, dt, speed);
+}
+
+/** The speed after `speed` in the list, wrapping round; an unknown speed goes back to 1×. */
+export function nextReplaySpeed(speed: number): number {
+  const i = REPLAY_SPEEDS.indexOf(speed);
+  return i < 0 ? 1 : REPLAY_SPEEDS[(i + 1) % REPLAY_SPEEDS.length];
+}
+
+/** Label for a speed button, e.g. `0.5×`. */
+export function speedLabel(speed: number): string {
+  return `${speed}×`;
+}
+
 /** Length in seconds of a recording. */
 export function duration(frames: Pose[]): number {
   return Math.max(0, frames.length - 1) / REPLAY_HZ;
