@@ -347,6 +347,7 @@ function onModelsLoaded(): void {
   }
   // Never rebuild the lot under a run: it comes up at the next menu or level start.
   if (state === 'menu' && level) loadLevel(levelIndex);
+  if (garageOpen) garageView.reload(); // the car on show may have just come in as a real model
 }
 
 function swapPlayerModel(previous: THREE.Object3D): void {
@@ -682,11 +683,13 @@ input.actionsEnabled = () => !settingsPanel.isOpen;
 input.navRoot = () =>
   settingsPanel.isOpen
     ? document.getElementById('settings')
-    : hud.modalOpen
-      ? document.getElementById('modal')
-      : state === 'menu'
-        ? document.getElementById('menu')
-        : null;
+    : garageOpen
+      ? document.getElementById('garage')
+      : hud.modalOpen
+        ? document.getElementById('modal')
+        : state === 'menu'
+          ? document.getElementById('menu')
+          : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
 // Routes through settings so the panel shows it and it is saved (the frame loop applies the view).
 function toggleCamera(): string {

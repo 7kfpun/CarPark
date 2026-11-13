@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { CAR_SHARED, createVehicleModel } from './car';
+import { nextFocusIndex } from './focus';
 import { carCard, startIndex, stepCar } from './garageCards';
 import type { Garage, ShopCar } from './garage';
 import type { Health } from './health';
@@ -51,7 +52,8 @@ export class GarageView {
   }
 
   open(): void {
-    this.opener = document.activeElement as HTMLElement | null;
+    this.stopRenderer(); // a second open must not leak the first renderer or its frame loop
+    if (!this.isOpen) this.opener = document.activeElement as HTMLElement | null;
     this.index = startIndex(this.d.shop, this.d.garage);
     this.note = '';
     this.root.classList.remove('hidden');
@@ -59,7 +61,13 @@ export class GarageView {
     this.bind();
     this.startRenderer();
     this.refresh();
-    $('garage-act').focus();
+    // The action button is disabled on the driven car, so focus a control that is always enabled.
+    $('garage-done').focus();
+  }
+
+  /** Re-draw the car being shown, e.g. when its model finishes loading. */
+  reload(): void {
+    if (this.isOpen) this.showModel(this.cur());
   }
 
   /** Hide the Garage and free the renderer and its WebGL context. */
@@ -92,6 +100,19 @@ export class GarageView {
     on($('garage-done'), 'click', () => this.d.close());
     on($('garage-act'), 'click', () => this.act());
     on($('garage-repair'), 'click', () => this.run(this.d.repair(this.cur())));
+    this.root.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        const btns = [...this.root.querySelectorAll<HTMLButtonElement>('button')].filter((b) => !b.disabled);
+        if (!btns.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const at = btns.indexOf(document.activeElement as HTMLButtonElement);
+        btns[nextFocusIndex(btns.length, at, e.shiftKey ? -1 : 1)].focus();
+      },
+      { capture: true, signal: ac.signal },
+    );
     on(this.root, 'keydown', (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') this.step(-1);
       else if (e.key === 'ArrowRight') this.step(1);
