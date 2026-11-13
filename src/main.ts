@@ -45,6 +45,7 @@ import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
 import {
+  replayClock,
   beatsGhost,
   decodeFrames,
   duration,
@@ -53,8 +54,10 @@ import {
   nextGhost,
   poseAt,
   Recorder,
+  nextReplaySpeed,
   REPLAY_HZ,
   saveGhosts,
+  speedLabel,
   type Pose,
 } from './replay';
 import { activateUpdate, initPwa } from './pwa';
@@ -236,6 +239,9 @@ let recorder = new Recorder(GHOST_EVERY);
 let lastRun: Pose[] = [];
 let ghostFrames: Pose[] | null = null;
 let replay: { frames: Pose[]; t: number; show: () => void } | null = null;
+let replaySpeed = 1;
+const replayBar = document.getElementById('replay-bar')!;
+const replaySpeedBtn = document.getElementById('replay-speed')!;
 const ghostMats = new Map<string, THREE.MeshBasicMaterial>();
 const ghostModels = new Map<string, ReturnType<typeof createVehicleModel>>();
 /** A translucent copy of the vehicle that replays the best run. */
@@ -275,10 +281,16 @@ function updateGhost(t: number): void {
   ghostCar.root.rotation.y = pose.heading;
   ghostCar.root.rotation.x = -pose.pitch;
 }
+/** End any replay and put the screen back: bar hidden, touch controls returned. */
+function clearReplay(): void {
+  replay = null;
+  replayBar.classList.add('hidden');
+  document.body.classList.remove('replaying');
+}
 function stopReplay(): void {
   if (!replay) return;
   const { show } = replay;
-  replay = null;
+  clearReplay();
   hud.showHint('', 0);
   show();
 }
@@ -287,12 +299,15 @@ function startReplay(show: () => void): void {
   hud.hideModal();
   rig.setFreeLook(false);
   replay = { frames: lastRun, t: 0, show };
-  hud.showHint('Replay: press any key or tap to stop', 600);
+  replayBar.classList.remove('hidden');
+  document.body.classList.add('replaying'); // hides the touch wheel and pedals that would cover the bar
+  hud.showHint('Replay: drag to look around, Esc or Stop to end', 6);
 }
+// Drag / pinch / scroll look around during a replay; only Esc or the Stop button ends it.
 addEventListener(
   'keydown',
   (e) => {
-    if (replay && !e.repeat) {
+    if (replay && !e.repeat && e.code === 'Escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
       stopReplay();
@@ -300,7 +315,13 @@ addEventListener(
   },
   true,
 );
-addEventListener('pointerdown', () => stopReplay(), true);
+replaySpeedBtn.addEventListener('click', () => {
+  replaySpeed = nextReplaySpeed(replaySpeed);
+  replaySpeedBtn.textContent = speedLabel(replaySpeed);
+  replaySpeedBtn.setAttribute('aria-label', `Replay speed ${speedLabel(replaySpeed)}`);
+});
+document.getElementById('replay-stop')!.addEventListener('click', () => stopReplay());
+document.getElementById('replay-reset')!.addEventListener('click', () => rig.resetView());
 
 /** The lot on screen was built before some model arrived; rebuilt at the next safe moment. */
 let levelStale = false;
@@ -384,7 +405,7 @@ function startLevel(i: number): boolean {
   const vehicle = vehicleFor(def);
   const previous = player.model.root;
   if (player.use(vehicle)) swapPlayerModel(previous);
-  replay = null;
+  clearReplay();
   hideGhost();
   const stored = ghosts[LEVEL_IDS[i]];
   ghostFrames = stored ? decodeFrames(stored.data) : null;
@@ -467,7 +488,7 @@ setInterval(() => state === 'menu' && renderEarn(), 30_000);
 
 function showMenu(): void {
   state = 'menu';
-  replay = null;
+  clearReplay();
   hideGhost();
   rig.setFreeLook(false);
   player.model.body.visible = true;
@@ -688,6 +709,7 @@ input.on('KeyM', () => {
   if (state === 'playing') hud.showHint(sfx.muted ? 'Sound off' : 'Sound on', 1.2);
 });
 input.on('Escape', () => {
+  if (replay) return stopReplay(); // gamepad Start reaches here without a keydown
   if (state === 'playing') pause();
   else if (state === 'paused') resume();
   else if (state === 'done') showMenu();
@@ -959,7 +981,7 @@ function onControls(e: { clientX: number; clientY: number }): boolean {
 // Free look: drag on the backdrop while paused or after a level to orbit the car (mouse wheel zooms).
 let dragFrom: { id: number; x: number; y: number } | null = null;
 function canOrbit(): boolean {
-  return (state === 'paused' || state === 'done') && !settingsPanel.isOpen && !gfx.contextLost;
+  return (state === 'paused' || (state === 'done' && !replay)) && !settingsPanel.isOpen && !gfx.contextLost;
 }
 addEventListener('pointerdown', (e) => {
   if (!canOrbit() || (e.target as Element | null)?.closest('.panel, button, a')) return;
@@ -995,7 +1017,7 @@ const orbitPtrs = new Map<number, { x: number; y: number }>();
 let lastTap: { t: number; x: number; y: number } | null = null;
 let tapStart: { id: number; t: number; x: number; y: number; moved: boolean } | null = null;
 function canDriveOrbit(): boolean {
-  return state === 'playing' && !settingsPanel.isOpen && !gfx.contextLost;
+  return (state === 'playing' || (state === 'done' && replay !== null)) && !settingsPanel.isOpen && !gfx.contextLost;
 }
 function resetView(): void {
   rig.resetView();
@@ -1048,15 +1070,15 @@ addEventListener(
   { passive: true },
 );
 addEventListener('contextmenu', (e) => {
-  if (state === 'playing' && (e.target as Element | null)?.id === 'game') e.preventDefault();
+  if ((state === 'playing' || replay) && (e.target as Element | null)?.id === 'game') e.preventDefault();
 });
 input.on('KeyV', () => {
-  if (state === 'playing') resetView();
+  if (state === 'playing' || replay) resetView();
 });
 const resetBtn = document.getElementById('btn-reset-view')!;
 resetBtn.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
-  if (state === 'playing') resetView();
+  if (state === 'playing' || replay) resetView();
 });
 
 // --- Main loop ---------------------------------------------------------------
@@ -1109,7 +1131,7 @@ function frameBody(now: number): void {
     // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
     const p = player.physics;
     const before = { x: p.x, z: p.z };
-    replay.t += dt;
+    replay.t = replayClock(replay.t, dt, replaySpeed, duration(replay.frames));
     const pose = poseAt(replay.frames, replay.t);
     if (pose) {
       p.x = pose.x;
@@ -1118,7 +1140,7 @@ function frameBody(now: number): void {
       p.heading = pose.heading;
       p.pitch = pose.pitch;
       const fwd = (p.x - before.x) * Math.sin(p.heading) + (p.z - before.z) * Math.cos(p.heading);
-      p.v = dt > 0 ? fwd / dt : 0;
+      p.v = dt > 0 ? fwd / dt : 0; // on screen speed: the camera follows what is seen
     }
     if (replay.t >= duration(replay.frames) + 1) stopReplay();
   }
@@ -1128,13 +1150,13 @@ function frameBody(now: number): void {
     level.marker.position.y = level.markerY + Math.sin(now / 400) * 0.25;
   }
   if (level) {
-    const playing = state === 'playing';
+    const playing = state === 'playing' || replay !== null; // a replay is a drive: same floors and light
     const orbiting = rig.freeLook && (state === 'paused' || state === 'done');
     level.setView(
       playing || orbiting ? player.physics.y : 0,
-      (playing || orbiting) && hidesCeilings(rig.mode, orbiting || rig.orbited),
+      (playing || orbiting) && hidesCeilings(rig.mode, orbiting || rig.freeLook || rig.orbited),
     );
-    if (playing) hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
+    if (state === 'playing') hud.setFloor(floorHud(level.def, player.physics.layer, player.physics.y));
     updateLighting(dt, playing ? level.def : null);
   }
 
