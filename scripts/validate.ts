@@ -38,6 +38,11 @@ import {
   poseAt,
   Recorder,
   REPLAY_HZ,
+  REPLAY_SPEEDS,
+  advanceReplay,
+  replayClock,
+  nextReplaySpeed,
+  speedLabel,
 } from '../src/replay';
 import {
   buyCar,
@@ -2333,6 +2338,26 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   );
   check(poseAt(frames, 99)!.x === 2 && poseAt(frames, -1)!.x === 0 && poseAt([], 1) === null, 'poseAt clamps');
   check(duration(frames) === 1 / REPLAY_HZ, 'duration comes from the sample count');
+  check(
+    advanceReplay(1, 0.5, 2) === 2 &&
+      advanceReplay(1, 0.5, 0.5) === 1.25 &&
+      advanceReplay(1, 0.5, 0) === 1.5 &&
+      advanceReplay(1, 0.5, NaN) === 1.5 &&
+      advanceReplay(1, -1, 2) === 1,
+    'advanceReplay scales time by speed and ignores bad speeds',
+  );
+  check(
+    replayClock(1, 0.5, 2, 5) === 2 && replayClock(5, 0.5, 2, 5) === 5.5 && replayClock(6, 0.5, 0.5, 5) === 6.5,
+    'replayClock scales by speed during the run and plays the tail in real time',
+  );
+  check(
+    REPLAY_SPEEDS.includes(1) &&
+      REPLAY_SPEEDS.every((s) => nextReplaySpeed(s) !== s) &&
+      nextReplaySpeed(REPLAY_SPEEDS[REPLAY_SPEEDS.length - 1]) === REPLAY_SPEEDS[0] &&
+      nextReplaySpeed(3) === 1 &&
+      speedLabel(0.5) === '0.5×',
+    'replay speeds cycle round and fall back to 1×',
+  );
   check(
     beatsGhost(undefined, 12) && beatsGhost({ time: 12, data: enc }, 11) && !beatsGhost({ time: 12, data: enc }, 12),
     'only a faster run replaces the ghost',
