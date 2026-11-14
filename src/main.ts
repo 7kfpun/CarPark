@@ -19,7 +19,8 @@ import { LEVELS } from './levels';
 import { loadingLabel } from './loading';
 import { mirrorAllowed, RearMirror } from './mirror';
 import { vehicleOf, type VehicleDef } from './vehicles';
-import { buyCar, driveVehicleId, loadGarage, repairCar, repairCostFor, saveGarage, selectCar, SHOP } from './garage';
+import { GarageView } from './garageView';
+import { buyCar, driveVehicleId, loadGarage, repairCar, saveGarage, selectCar, SHOP } from './garage';
 import {
   assistMode,
   bodyHidden,
@@ -35,7 +36,7 @@ import { ambientLevels } from './lighting';
 import { ceilingAbove, floorHud, lightTarget, SUN_OUTDOOR } from './storey';
 import { Graphics } from './graphics';
 import { evaluateParking, parkChecklist } from './parking';
-import { applyDamage, crashDamage, hpFor, loadHealth, saveHealth } from './health';
+import { applyDamage, crashDamage, loadHealth, saveHealth } from './health';
 import { loadEarn, msToNext, pendingCoins, saveEarn, waitLabel, claim as claimEarn } from './earn';
 import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissions, saveWallet } from './missions';
 import type { Missions } from './missions';
@@ -346,6 +347,7 @@ function onModelsLoaded(): void {
   }
   // Never rebuild the lot under a run: it comes up at the next menu or level start.
   if (state === 'menu' && level) loadLevel(levelIndex);
+  if (garageOpen) garageView.reload(); // the car on show may have just come in as a real model
 }
 
 function swapPlayerModel(previous: THREE.Object3D): void {
@@ -681,11 +683,13 @@ input.actionsEnabled = () => !settingsPanel.isOpen;
 input.navRoot = () =>
   settingsPanel.isOpen
     ? document.getElementById('settings')
-    : hud.modalOpen
-      ? document.getElementById('modal')
-      : state === 'menu'
-        ? document.getElementById('menu')
-        : null;
+    : garageOpen
+      ? document.getElementById('garage')
+      : hud.modalOpen
+        ? document.getElementById('modal')
+        : state === 'menu'
+          ? document.getElementById('menu')
+          : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
 // Routes through settings so the panel shows it and it is saved (the frame loop applies the view).
 function toggleCamera(): string {
@@ -744,86 +748,54 @@ document.getElementById('btn-settings')!.addEventListener('click', (e) => {
 document.getElementById('btn-settings-menu')!.addEventListener('click', (e) => {
   openSettings(e.detail === 0 ? (e.currentTarget as HTMLElement) : null);
 });
-function openGarage(note = ''): void {
+const garageView = new GarageView({
+  shop: SHOP,
+  garage,
+  health,
+  money: () => wallet.money,
+  reducedMotion: () => reducedMotion.matches,
+  buy: (id) => {
+    const purse = { money: wallet.money };
+    if (buyCar(garage, purse, id, health) !== 'bought') return 'Not enough coins for that car.';
+    wallet = { ...wallet, money: purse.money };
+    if (mayPersist(ADMIN)) {
+      // Garage and health first, the wallet last: a failed write must not keep the charge and drop the car.
+      saveGarage(garage);
+      saveHealth(health);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+    return '';
+  },
+  select: (id) => {
+    selectCar(garage, id);
+    if (mayPersist(ADMIN)) saveGarage(garage);
+    sfx.click();
+    return '';
+  },
+  repair: (id) => {
+    const purse = { money: wallet.money };
+    if (repairCar(health, purse, id) !== 'repaired')
+      return 'Not enough coins to repair. Buy or drive another car instead.';
+    wallet = { ...wallet, money: purse.money };
+    if (mayPersist(ADMIN)) {
+      saveHealth(health);
+      saveWallet(wallet);
+    }
+    sfx.click();
+    showMissions();
+    return '';
+  },
+  close: () => closeGarage(),
+});
+function openGarage(): void {
   garageOpen = true;
-  const persist = mayPersist(ADMIN);
-  const buttons = SHOP.map((c) => {
-    const name = vehicleOf(c.id).name;
-    const owned = garage.owned.includes(c.id);
-    const hp = hpFor(health, c.id);
-    const hpTag = owned ? ` · ${hp} HP${hp === 0 ? ' wrecked' : ''}` : '';
-    const label =
-      garage.selected === c.id
-        ? `✓ ${name} (driving${hpTag})`
-        : owned
-          ? `Drive ${name}${hpTag}`
-          : `Buy ${name}: ${c.price} coins`;
-    return {
-      label,
-      primary: false,
-      onClick: () => {
-        if (owned) selectCar(garage, c.id);
-        else {
-          const purse = { money: wallet.money };
-          if (buyCar(garage, purse, c.id, health) !== 'bought') {
-            openGarage('Not enough coins for that car.');
-            return;
-          }
-          wallet = { ...wallet, money: purse.money };
-          if (persist) {
-            // Garage and health first, the wallet last: a failed write must not keep the charge and drop the car.
-            saveGarage(garage);
-            saveHealth(health);
-            saveWallet(wallet);
-          }
-          sfx.click();
-          showMissions();
-          openGarage();
-          return;
-        }
-        if (persist) saveGarage(garage);
-        sfx.click();
-        openGarage();
-      },
-    };
-  });
-  const cost = repairCostFor(health, garage.selected);
-  if (cost > 0) {
-    buttons.push({
-      label: `Repair ${vehicleOf(garage.selected).name}: ${cost} coins`,
-      primary: false,
-      onClick: () => {
-        const purse = { money: wallet.money };
-        if (repairCar(health, purse, garage.selected) !== 'repaired') {
-          openGarage('Not enough coins to repair. Buy or drive another car instead.');
-          return;
-        }
-        wallet = { ...wallet, money: purse.money };
-        if (persist) {
-          saveHealth(health);
-          saveWallet(wallet);
-        }
-        sfx.click();
-        showMissions();
-        openGarage();
-      },
-    });
-  }
-  buttons.push({
-    label: 'Done',
-    primary: true,
-    onClick: closeGarage,
-  });
-  hud.showModal(
-    'Garage',
-    `${note ? `${note} ` : ''}You have ${wallet.money} coins. Levels with their own vehicle keep it; the rest use your car.`,
-    null,
-    buttons,
-  );
+  garageView.open();
 }
 function closeGarage(): void {
   garageOpen = false;
-  hud.hideModal();
+  garageView.close();
 }
 document.getElementById('btn-garage')!.addEventListener('click', () => openGarage());
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {

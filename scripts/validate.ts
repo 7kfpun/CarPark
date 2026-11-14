@@ -54,6 +54,7 @@ import {
   selectCar,
   SHOP,
 } from '../src/garage';
+import { carCard, startIndex, stepCar } from '../src/garageCards';
 import { cacheName, precacheList, serviceWorkerSource } from './serviceWorker';
 import {
   COINS_PER_HOUR,
@@ -2663,6 +2664,54 @@ console.log('Performance budget');
       check(text.includes('willReadFrequently'), `${f}: getImageData only on a willReadFrequently (CPU) canvas`);
     }
   }
+}
+
+// --- Garage browser (what each car's card shows) ---------------------------------
+console.log('Garage cards');
+{
+  const g = freshGarage();
+  const h = freshHealth();
+  check(
+    stepCar(3, 0, -1) === 2 && stepCar(3, 2, 1) === 0 && stepCar(3, 1, 1) === 2 && stepCar(0, 0, 1) === 0,
+    'browsing wraps around at both ends',
+  );
+  check(
+    startIndex(SHOP, g) === 0 && startIndex(SHOP, { ...g, selected: 'zzz' }) === 0,
+    'browsing starts on the driven car',
+  );
+  const stepped = new Set<number>();
+  for (let i = 0, k = 0; i < SHOP.length; i++, k = stepCar(SHOP.length, k, 1)) stepped.add(k);
+  check(stepped.size === SHOP.length, 'stepping forward visits every car in the shop');
+  const starter = carCard(SHOP, g, h, 0, 'hatchback');
+  check(
+    starter.status === 'selected' && starter.hp === 100 && !starter.damaged && !starter.canSelect,
+    'the driven car is selected at full HP',
+  );
+  const locked = carCard(SHOP, g, h, 299, 'sedan');
+  check(
+    locked.status === 'locked' && locked.price === 300 && !locked.canBuy && locked.repairCost === 0,
+    'a car you cannot afford is locked',
+  );
+  check(carCard(SHOP, g, h, 300, 'sedan').canBuy, 'a locked car can be bought with enough coins');
+  applyDamage(h, 'sedan', 30);
+  check(
+    carCard(SHOP, g, h, 999, 'sedan').hp === 100 && !carCard(SHOP, g, h, 999, 'sedan').damaged,
+    'a car you do not own shows full HP',
+  );
+  g.owned.push('sedan');
+  const hurt = carCard(SHOP, g, h, 0, 'sedan');
+  check(
+    hurt.status === 'owned' && hurt.damaged && hurt.hp === hpFor(h, 'sedan') && hurt.canSelect && hurt.price === 0,
+    'an owned damaged car shows its HP',
+  );
+  check(
+    hurt.repairCost === repairCostFor(h, 'sedan') &&
+      !hurt.canRepair &&
+      carCard(SHOP, g, h, hurt.repairCost, 'sedan').canRepair,
+    'repair is offered only when affordable',
+  );
+  applyDamage(h, 'sedan', 100);
+  check(carCard(SHOP, g, h, 0, 'sedan').wrecked, 'a car at 0 HP is wrecked');
 }
 
 // --- Garage (buy / choose a car, spending the shared wallet) ---------------------
