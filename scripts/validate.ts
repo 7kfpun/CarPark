@@ -12,7 +12,15 @@ import {
   saveHealth,
 } from '../src/health';
 import { mayPersist, resolveAdmin, showSkipButtons, skipTarget, unlockAll } from '../src/admin';
-import { corners, sat, sensorInterval, type Contact, type OBB } from '../src/collision';
+import {
+  corners,
+  sat,
+  sensorInterval,
+  sensorReading,
+  type Contact,
+  type OBB,
+  type SensorReading,
+} from '../src/collision';
 import {
   holdComplete,
   PARK_HOLD,
@@ -1218,13 +1226,39 @@ console.log('Broad phase');
   const far: OBB = { x: 50, z: 50, hw: 1, hl: 1, rot: 0.4 };
   check(sat(carBox(0, 0, 0), far) === null, 'far obstacle should be rejected');
 
-  // Parking sensor bands: nearest band wins, nothing in range gives 0.
+  // Parking sensors: strength per end from the gap to a wall, solid tone when very close.
   const wall: OBB = { x: 0, z: 0, hw: 5, hl: 0.1, rot: 0 };
-  const gap = (g: number): number => sensorInterval(carBox(0, -(CAR_L / 2 + 0.1 + g), 0), [wall]);
-  check(gap(0.1) === 0.09, 'sensor: 0.1 m gap should use the fastest band');
-  check(gap(0.4) === 0.22, 'sensor: 0.4 m gap should use the middle band');
-  check(gap(0.9) === 0.45, 'sensor: 0.9 m gap should use the slowest band');
-  check(gap(1.5) === 0 && sensorInterval(carBox(0, -40, 0), [wall]) === 0, 'sensor: nothing in range should be 0');
+  // A car south of the wall facing +z has it ahead; north of it facing +z, behind.
+  const facing = (g: number): SensorReading => sensorReading(carBox(0, -(CAR_L / 2 + 0.1 + g), 0), [wall]);
+  const reversed = (g: number): SensorReading => sensorReading(carBox(0, CAR_L / 2 + 0.1 + g, 0), [wall]);
+  check(facing(0.1).front === 4 && facing(0.1).rear === 0, 'sensor: 0.1 m gap ahead should be level 4, rear clear');
+  check(facing(0.3).front === 3, 'sensor: 0.3 m gap should be level 3');
+  check(facing(0.55).front === 2, 'sensor: 0.55 m gap should be level 2');
+  check(facing(1.0).front === 1, 'sensor: 1.0 m gap should be level 1');
+  check(facing(1.5).front === 0 && facing(1.5).rear === 0, 'sensor: nothing in range should be 0');
+  check(
+    reversed(0.1).rear === 4 && reversed(0.1).front === 0,
+    'sensor: wall behind a reversed car lights only the rear',
+  );
+  const sideWall: OBB = { x: 3 + 0.05, z: 0, hw: 0.05, hl: 5, rot: 0 };
+  const along = sensorReading(carBox(3 - CAR_W / 2 - 0.05, 0, 0), [sideWall]);
+  check(along.front === 0 && along.rear === 0, 'sensor: a wall alongside the car should not light either end');
+  // Heading +x (rot π/2): a wall on the +x side is ahead, one on -x is behind.
+  const eastWall: OBB = { x: CAR_L / 2 + 0.1 + 0.1 + 0.2, z: 0, hw: 0.1, hl: 5, rot: 0 };
+  const turned = sensorReading(carBox(0, 0, Math.PI / 2), [eastWall]);
+  check(turned.front === 3 && turned.rear === 0, 'sensor: rot π/2 with a wall on +x should light only the front');
+  const westWall: OBB = { ...eastWall, x: -eastWall.x };
+  const turnedBack = sensorReading(carBox(0, 0, Math.PI / 2), [westWall]);
+  check(
+    turnedBack.rear === 3 && turnedBack.front === 0,
+    'sensor: rot π/2 with a wall on -x should light only the rear',
+  );
+  check(sensorInterval(0) === null, 'sensor: level 0 has no beep');
+  check(sensorInterval(4) === 0, 'sensor: level 4 is the solid tone');
+  check(
+    sensorInterval(3)! < sensorInterval(2)! && sensorInterval(2)! < sensorInterval(1)!,
+    'sensor: beeps should speed up as the gap closes',
+  );
 }
 
 console.log('Collision response');
@@ -1958,7 +1992,13 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
       start: () => {},
       stop: () => {},
       frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
-      gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, value: 0 },
+      gain: {
+        setValueAtTime: () => {},
+        exponentialRampToValueAtTime: () => {},
+        linearRampToValueAtTime: () => {},
+        cancelScheduledValues: () => {},
+        value: 0,
+      },
     };
     return n;
   };
@@ -2008,6 +2048,13 @@ check(padConfirmAction(false, false) === 'none', 'pad A does nothing behind Sett
   sfx.unlock();
   sfx.beep();
   check(resumes === 3 && oscillators === 1, 'a running context plays tones without resume');
+  // Solid sensor tone: repeats hold one oscillator; switching ends starts exactly one more.
+  const before = oscillators;
+  sfx.sensor(1, true);
+  sfx.sensor(1, true);
+  check(oscillators === before + 1, 'solid sensor tone holds one oscillator across repeats');
+  sfx.sensor(-1, true);
+  check(oscillators === before + 2, 'changing the sensor end starts exactly one new oscillator');
   g.AudioContext = prev;
 }
 

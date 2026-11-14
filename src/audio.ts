@@ -181,8 +181,49 @@ export class Sfx {
     osc.stop(t + dur + 0.02);
   }
 
+  private solid: { osc: OscillatorNode; gain: GainNode; freq: number } | null = null;
+
   beep(): void {
     this.tone(1250, 0.07, 'square', 0.05);
+  }
+
+  /**
+   * Parking-sensor note: a short beep, or with `solid` a flat tone long enough that
+   * back-to-back calls (every 0.1 s) run together. The front sensor is higher than the rear.
+   */
+  sensor(end: 1 | -1, solid = false): void {
+    const freq = end === 1 ? 1500 : 1000;
+    if (!solid) return this.tone(freq, 0.07, 'square', 0.05);
+    const ctx = this.ctx;
+    const dest = this.out;
+    if (!ctx || !dest || this.muted || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+    let h = this.solid;
+    if (h && h.freq !== freq) {
+      h.osc.stop(t);
+      h = this.solid = null;
+    }
+    if (!h) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(0.05, t + 0.01);
+      osc.connect(gain).connect(dest);
+      osc.start(t);
+      const held = { osc, gain, freq };
+      osc.onended = () => {
+        if (this.solid === held) this.solid = null;
+      };
+      h = this.solid = held;
+    }
+    // One oscillator per run: each call pushes the release 0.14 s out, so it never restarts.
+    h.gain.gain.cancelScheduledValues(t);
+    h.gain.gain.setValueAtTime(0.05, t);
+    h.gain.gain.setValueAtTime(0.05, t + 0.12);
+    h.gain.gain.linearRampToValueAtTime(0.0001, t + 0.14);
+    h.osc.stop(t + 0.16);
   }
 
   click(): void {

@@ -83,20 +83,53 @@ export function sat(a: OBB, b: OBB, hx = 0, hz = 0): Contact | null {
   return { depth, nx: nx * sign, nz: nz * sign };
 }
 
-/** Parking-sensor bands: [margin around the car (m), beep interval (s)], nearest first. */
+/**
+ * Parking-sensor bands, nearest first: [reach beyond the bumper (m), beep interval (s)].
+ * An interval of 0 is the solid tone, used when very close.
+ */
 export const SENSOR_BANDS = [
-  [0.25, 0.09],
-  [0.6, 0.22],
-  [1.1, 0.45],
+  [0.2, 0],
+  [0.4, 0.09],
+  [0.7, 0.22],
+  [1.2, 0.45],
 ] as const;
 
-/** Beep interval of the closest sensor band that touches an obstacle, or 0. */
-export function sensorInterval(car: OBB, obstacles: readonly OBB[]): number {
-  for (const [margin, interval] of SENSOR_BANDS) {
-    const e: OBB = { x: car.x, z: car.z, hw: car.hw + margin, hl: car.hl + margin, rot: car.rot };
-    for (const o of obstacles) if (sat(e, o)) return interval;
+/** Sensor strength: 0 nothing in range, 1 far ... SENSOR_BANDS.length very close (solid tone). */
+export type SensorLevel = number;
+
+/** Strength (see SensorLevel) at one end of the car: end = 1 front (+z), -1 rear. */
+export function sensorLevelAt(car: OBB, end: 1 | -1, obstacles: readonly OBB[]): SensorLevel {
+  const sin = Math.sin(car.rot);
+  const cos = Math.cos(car.rot);
+  for (let i = 0; i < SENSOR_BANDS.length; i++) {
+    const reach = SENSOR_BANDS[i][0];
+    const mid = car.hl + reach / 2;
+    const probe: OBB = {
+      x: car.x + sin * mid * end,
+      z: car.z + cos * mid * end,
+      hw: car.hw,
+      hl: reach / 2,
+      rot: car.rot,
+    };
+    for (const o of obstacles) if (sat(probe, o)) return SENSOR_BANDS.length - i;
   }
   return 0;
+}
+
+export interface SensorReading {
+  front: SensorLevel;
+  rear: SensorLevel;
+}
+
+/** Front and rear sensor strengths for a car against nearby obstacles. */
+export function sensorReading(car: OBB, obstacles: readonly OBB[]): SensorReading {
+  return { front: sensorLevelAt(car, 1, obstacles), rear: sensorLevelAt(car, -1, obstacles) };
+}
+
+/** Beep interval (s) for a sensor level; 0 is the solid tone. null when nothing is in range. */
+export function sensorInterval(level: SensorLevel): number | null {
+  if (level <= 0) return null;
+  return SENSOR_BANDS[SENSOR_BANDS.length - Math.min(level, SENSOR_BANDS.length)][1];
 }
 
 export function corners(o: OBB): Vec[] {
