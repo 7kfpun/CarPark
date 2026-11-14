@@ -9,6 +9,31 @@ const FIRST = LEVELS[0].id;
 const savedProgress = (page: Page) => page.evaluate((k) => localStorage.getItem(k), PROGRESS_KEY);
 const timer = (page: Page) => page.locator('#hud-timer').innerText();
 
+test('the game opens on home, not the level list, and the list is one step in and back', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page, '', { stayHome: true });
+  await expect(page.locator('#home')).toBeVisible();
+  await expect(page.locator('#menu')).toBeHidden();
+  await expect(page.locator('#home-play-label')).toHaveText('Play');
+  await expect(page.locator('#home-coins')).toContainText('coins');
+  await expect(page.locator('#home-stars')).toContainText('stars');
+  await expect(page.locator('#btn-garage')).toBeVisible();
+  await expect(page.locator('#btn-settings-menu')).toBeVisible();
+  await page.locator('#home-levels').click();
+  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#home')).toBeHidden();
+  await page.locator('#menu-back').click();
+  await expect(page.locator('#home')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('Play on home starts the first level on a fresh save', async ({ page }) => {
+  await openGame(page, '', { stayHome: true });
+  await page.locator('#home-play').click();
+  await expect(page.locator('#hud')).toBeVisible();
+  await expect(page.locator('#hud-level')).toContainText('1.');
+});
+
 test('menu loads with every level and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await openGame(page);
@@ -94,7 +119,7 @@ test('Escape pauses and resumes; the game does not run under Settings', async ({
 });
 
 test('Settings tabs: arrow keys, Home and End move between tabs', async ({ page }) => {
-  await openGame(page);
+  await openGame(page, '', { stayHome: true });
   await page.locator('#btn-settings-menu').click();
   await expect(page.locator('#settings')).toBeVisible();
   const selected = page.locator('[data-tab][aria-selected="true"]');
@@ -170,7 +195,9 @@ test('saved progress survives a reload', async ({ page }) => {
 
   await page.reload();
   await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#home')).toBeVisible();
+  await expect(page.locator('#home-play-label')).toHaveText('Continue');
+  await page.locator('#home-levels').click();
   await page.locator('#level-grid .world-btn').first().click();
   const buttons = page.locator('#level-grid .level-btn');
   await expect(buttons.first()).toHaveAttribute('aria-label', /3 of 3 stars/);
@@ -572,5 +599,5 @@ test('PWA: the service worker caches the shell so a revisit opens offline', asyn
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator('#loading')).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#home')).toBeVisible();
 });

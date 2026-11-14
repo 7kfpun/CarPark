@@ -42,7 +42,7 @@ import { claim, dayKey, loadMissions, loadWallet, recordPark, rollDay, saveMissi
 import type { Missions } from './missions';
 import { renderMissions } from './missionsView';
 import { bestFor, loadProgress, recordBest, recordWin, saveProgress } from './progress';
-import { levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
+import { homePlay, levelPlayable, resumeLevel, WORLDS, worldComplete } from './worlds';
 import { canRunGame } from './guards';
 import { loadSettings, SettingsPanel, TEXT_SCALE, type Settings } from './settings';
 import {
@@ -459,6 +459,7 @@ function showMissions(): void {
     }
     sfx.click();
     showMissions();
+    refreshHomeStats();
   });
 }
 
@@ -485,10 +486,42 @@ earnClaim.onclick = () => {
   sfx.click();
   showMissions();
   renderEarn();
+  refreshHomeStats();
 };
 setInterval(() => state === 'menu' && renderEarn(), 30_000);
 
-function showMenu(): void {
+/** The landing page. Play/Continue goes straight to a level, Levels goes one step in to the level list. */
+function showHome(): void {
+  enterMenuState();
+  hud.showHome(LEVELS, progress, wallet.money, homePlay(progress, LEVELS, ADMIN), () => {
+    if (state !== 'menu') return;
+    startFromMenu(homePlay(progress, LEVELS, ADMIN).index);
+  });
+  showMissions();
+  renderEarn();
+  applyUpdate();
+}
+document.getElementById('home-levels')!.addEventListener('click', () => {
+  sfx.click();
+  showMenu();
+  hud.menuRoot.querySelector<HTMLButtonElement>('.world-btn:not(:disabled)')?.focus();
+});
+document.getElementById('menu-back')!.addEventListener('click', () => {
+  sfx.click();
+  showHome();
+  document.getElementById('home-play')!.focus();
+});
+const refreshHomeStats = (): void => hud.setHomeStats(LEVELS, progress, wallet.money);
+
+function startFromMenu(i: number): void {
+  sfx.unlock();
+  sfx.click();
+  if (modelsDone) startLevel(i);
+  else void laterModels.then(() => state === 'menu' && startLevel(i));
+}
+
+/** Common to home and the level list: back to the idle lot backdrop with no run. */
+function enterMenuState(): void {
   state = 'menu';
   clearReplay();
   hideGhost();
@@ -499,15 +532,15 @@ function showMenu(): void {
   if (!level) loadLevel(resumeLevel(progress, LEVELS, ADMIN));
   else if (levelStale) loadLevel(levelIndex); // a model arrived during play
   player.model.root.visible = false;
+}
+
+/** The level list (worlds, then a world's levels), one step in from home. */
+function showMenu(): void {
+  enterMenuState();
   hud.showMenu(LEVELS, progress, ADMIN, (i) => {
     if (state !== 'menu') return;
-    sfx.unlock();
-    sfx.click();
-    if (modelsDone) startLevel(i);
-    else void laterModels.then(() => state === 'menu' && startLevel(i));
+    startFromMenu(i);
   });
-  showMissions();
-  renderEarn();
   applyUpdate();
 }
 
@@ -693,7 +726,7 @@ input.navRoot = () =>
       : hud.modalOpen
         ? document.getElementById('modal')
         : state === 'menu'
-          ? document.getElementById('menu')
+          ? hud.menuRoot
           : null;
 input.on('KeyR', () => (state === 'playing' || state === 'paused' || state === 'done') && startLevel(levelIndex));
 // Routes through settings so the panel shows it and it is saved (the frame loop applies the view).
@@ -718,6 +751,7 @@ input.on('Escape', () => {
   else if (state === 'paused') resume();
   else if (state === 'done') showMenu();
   else if (state === 'menu' && garageOpen) closeGarage();
+  else if (state === 'menu' && hud.levelListOpen && !settingsPanel.isOpen) showHome();
 });
 input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? resume() : undefined));
 // Only reached when no button is focused (a focused button gets its native activation).
@@ -801,6 +835,7 @@ function openGarage(): void {
 function closeGarage(): void {
   garageOpen = false;
   garageView.close();
+  refreshHomeStats();
 }
 document.getElementById('btn-garage')!.addEventListener('click', () => openGarage());
 document.getElementById('btn-cam')!.addEventListener('click', (e) => {
@@ -1168,7 +1203,7 @@ const direct = byId >= 0 ? byId : qs ? Number(qs) - 1 : -1;
 if (direct >= 0 && direct < LEVELS.length) {
   await laterModels; // a test jump starts at once, so wait for the parked-car models
   startLevel(direct);
-} else showMenu();
+} else showHome();
 loadingEl.remove();
 startLoop();
 void runUpdateCheck();

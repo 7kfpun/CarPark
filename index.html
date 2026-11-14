@@ -146,11 +146,40 @@
       </div>
     </div>
 
-    <div id="menu" class="screen hidden">
+    <div id="home" class="screen hidden">
       <div class="panel">
         <h1>Park&nbsp;It <span>3D</span></h1>
         <p class="tagline" id="tagline">One bay per lot. Don't scratch the paint.</p>
         <p class="whats-new" id="whats-new"></p>
+        <div id="home-stats">
+          <span id="home-coins"></span>
+          <span id="home-stars"></span>
+        </div>
+        <button class="primary home-play" id="home-play">
+          <span id="home-play-label">Play</span>
+          <span id="home-play-detail"></span>
+        </button>
+        <button class="home-btn" id="home-levels">Levels</button>
+        <div class="home-row">
+          <button class="home-btn" id="btn-garage">🚗 Garage</button>
+          <button class="home-btn" id="btn-settings-menu">⚙ Settings</button>
+        </div>
+        <section id="missions" class="missions" aria-label="Daily missions"></section>
+        <div id="earn">
+          <span id="earn-note"></span>
+          <button class="settings-open" id="earn-claim"></button>
+        </div>
+        <button class="settings-open hidden" id="btn-install">⤓ Install app</button>
+        <div id="menu-version"></div>
+      </div>
+    </div>
+
+    <div id="menu" class="screen hidden">
+      <div class="panel">
+        <div id="menu-bar">
+          <button id="menu-back" aria-label="Back to home">← Home</button>
+          <h1>Park&nbsp;It <span>3D</span></h1>
+        </div>
         <div id="world-bar" class="hidden">
           <button id="world-back" aria-label="Back to worlds">← Worlds</button>
           <span id="world-title"></span>
@@ -158,14 +187,6 @@
         </div>
         <div id="level-grid" role="group" aria-label="Worlds"></div>
         <div id="menu-total"></div>
-        <section id="missions" class="missions" aria-label="Daily missions"></section>
-        <div id="earn">
-          <span id="earn-note"></span>
-          <button class="settings-open" id="earn-claim"></button>
-        </div>
-        <button class="settings-open hidden" id="btn-install">⤓ Install app</button>
-        <button class="settings-open" id="btn-garage">🚗 Garage</button>
-        <button class="settings-open" id="btn-settings-menu">⚙ Settings</button>
         <div class="controls">
           <div><kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> drive · brake · reverse</div>
           <div><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> steer · <kbd>Space</kbd> handbrake</div>
@@ -174,7 +195,6 @@
             <kbd>Esc</kbd> pause · <kbd>M</kbd> mute
           </div>
         </div>
-        <div id="menu-version"></div>
       </div>
     </div>
 
