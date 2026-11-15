@@ -56,6 +56,26 @@ test('Play while the car models are still downloading shows a loading state, the
   await expect(page.locator('#hud-level')).toContainText('1.');
 });
 
+test('home: Hourly coins looks disabled while waiting yet answers a tap, and no home control is dead', async ({
+  page,
+}) => {
+  await openGame(page, '', { stayHome: true });
+  const claim = page.locator('#earn-claim');
+  await expect(claim).toHaveAttribute('aria-disabled', 'true');
+  expect(await claim.evaluate((el) => getComputedStyle(el).opacity)).toBe('0.5');
+  await expect(page.locator('#earn-note')).toContainText('Next coins in');
+  await claim.dispatchEvent('click'); // the fake clock is paused, so no scroll-into-view or stability wait
+  await expect(page.locator('#earn-note')).toHaveClass(/nudge/);
+  await expect(page.locator('#earn-note')).toContainText('Next coins in');
+  // Any visible home control that is truly disabled must look it; the others must be enabled.
+  const dead = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLButtonElement>('#home button')]
+      .filter((b) => b.offsetParent && b.disabled && getComputedStyle(b).opacity === '1')
+      .map((b) => b.id),
+  );
+  expect(dead).toEqual([]);
+});
+
 test('menu loads with every level and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await openGame(page);

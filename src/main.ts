@@ -515,13 +515,21 @@ const earnClaim = document.getElementById('earn-claim') as HTMLButtonElement;
 function renderEarn(): void {
   const now = Date.now();
   const ready = pendingCoins(earn, now);
-  earnClaim.disabled = ready === 0;
+  // aria-disabled, not disabled: a tap while waiting must still answer (see the click handler).
+  earnClaim.setAttribute('aria-disabled', String(ready === 0));
   earnClaim.textContent = ready ? `Claim ${ready} coins` : 'Hourly coins';
   earnNote.textContent = ready ? '' : `Next coins in ${waitLabel(msToNext(earn, now))}`;
 }
 earnClaim.onclick = () => {
   const got = claimEarn(earn, Date.now());
-  if (!got) return;
+  if (!got) {
+    // Nothing to claim yet: say when, and flash the note so the tap visibly did something.
+    renderEarn();
+    earnNote.classList.remove('nudge');
+    void earnNote.offsetWidth;
+    earnNote.classList.add('nudge');
+    return;
+  }
   wallet = { ...wallet, money: wallet.money + got };
   if (mayPersist(ADMIN)) {
     // Coins first, and the clock only once they are stored: a failed wallet write must not eat the payout.
