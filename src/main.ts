@@ -541,6 +541,7 @@ function showHome(): void {
     if (state !== 'menu') return;
     startFromMenu(homePlay(progress, LEVELS, ADMIN).index);
   });
+  hud.setHomeLoading(pendingStart !== null);
   showMissions();
   renderEarn();
   applyUpdate();
@@ -557,11 +558,31 @@ document.getElementById('menu-back')!.addEventListener('click', () => {
 });
 const refreshHomeStats = (): void => hud.setHomeStats(LEVELS, progress, wallet.money);
 
+/** The level a Play/level click is waiting to start while the car models download; null when nothing waits. */
+let pendingStart: number | null = null;
+/** After this long a start no longer waits for the models: the rest show as box cars until they arrive. */
+const START_WAIT_MS = 12_000;
+
 function startFromMenu(i: number): void {
   sfx.unlock();
   sfx.click();
-  if (modelsDone) startLevel(i);
-  else void laterModels.then(() => state === 'menu' && startLevel(i));
+  if (modelsDone) {
+    startLevel(i);
+    return;
+  }
+  if (pendingStart !== null) return; // already waiting: the first click wins, the button says so
+  pendingStart = i;
+  hud.setHomeLoading(true);
+  let timer = 0;
+  const go = (): void => {
+    clearTimeout(timer);
+    if (pendingStart !== i) return;
+    pendingStart = null;
+    hud.setHomeLoading(false);
+    if (state === 'menu') startLevel(i);
+  };
+  timer = window.setTimeout(go, START_WAIT_MS);
+  void laterModels.then(go, go);
 }
 
 /** Common to home and the level list: back to the idle lot backdrop with no run. */
@@ -807,7 +828,7 @@ input.on('KeyP', () => (state === 'playing' ? pause() : state === 'paused' ? res
 // Only reached when no button is focused (a focused button gets its native activation).
 input.on('Enter', () => {
   if (!canRun()) return;
-  if (state === 'menu' && modelsDone) startLevel(resumeLevel(progress, LEVELS, ADMIN));
+  if (state === 'menu') startFromMenu(resumeLevel(progress, LEVELS, ADMIN));
   else if (hud.modalOpen) hud.clickPrimary();
 });
 

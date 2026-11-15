@@ -62,6 +62,7 @@ export class Hud {
   private hintTimer = 0;
   private parkLabel = '';
   private liveTimer = 0;
+  private homeDetail = '';
 
   readonly touchEnabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
@@ -73,7 +74,7 @@ export class Hud {
     $('tagline').textContent = `${levels.length} lots in ${LOCATIONS.length} locations. Don't scratch the paint.`;
     this.setHomeStats(levels, progress, coins);
     $('home-play-label').textContent = play.label;
-    $('home-play-detail').textContent = play.detail;
+    $('home-play-detail').textContent = this.homeDetail = play.detail;
     $('home-play').setAttribute('aria-label', `${play.label}, ${play.detail}`);
     $('home-play').onclick = onPlay;
     $('menu-version').textContent = `v${APP_VERSION}`;
@@ -86,6 +87,14 @@ export class Hud {
   }
 
   /** Coins and total stars on the home screen (also refreshed after a claim or a Garage purchase). */
+  /** Play/Continue while the car models are still downloading: say so, and ignore further clicks. */
+  setHomeLoading(loading: boolean): void {
+    const btn = $('home-play') as HTMLButtonElement;
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+    $('home-play-detail').textContent = loading ? 'Getting the cars ready…' : this.homeDetail;
+  }
+
   setHomeStats(levels: LevelDef[], progress: Progress, coins: number): void {
     const total = levels.reduce((a, l) => a + starsFor(progress, l.id), 0);
     $('home-coins').innerHTML = `<span aria-hidden="true">🪙</span> ${coins} <span class="sr-only">coins</span>`;

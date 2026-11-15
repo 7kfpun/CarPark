@@ -1621,3 +1621,8 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   margin: 0 0 8px;
   font-size: 14px;
 }
+
+.home-play:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}

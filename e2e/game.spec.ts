@@ -1,10 +1,12 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { FIRST_MODELS } from '../src/carModels';
 import { LEVELS } from '../src/levels';
 import { LOCATIONS, worldLevels } from '../src/worlds';
 import { collectErrors, driveSolution, openGame, run } from './helpers';
 
 const PROGRESS_KEY = 'car-parking-3d:progress';
 const FIRST = LEVELS[0].id;
+const FIRST_MODEL = FIRST_MODELS[0];
 
 const savedProgress = (page: Page) => page.evaluate((k) => localStorage.getItem(k), PROGRESS_KEY);
 const timer = (page: Page) => page.locator('#hud-timer').innerText();
@@ -31,6 +33,26 @@ test('Play on home starts the first level on a fresh save', async ({ page }) => 
   await openGame(page, '', { stayHome: true });
   await page.locator('#home-play').click();
   await expect(page.locator('#hud')).toBeVisible();
+  await expect(page.locator('#hud-level')).toContainText('1.');
+});
+
+test('Play while the car models are still downloading shows a loading state, then starts', async ({ page }) => {
+  // Hold every model but the first back until released (the first one gates the loading screen).
+  let release: () => void = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  const first = new RegExp(`/models/cars/${FIRST_MODEL}\\.glb`);
+  await page.route(/\/models\/cars\/[^/]+\.glb/, async (route) => {
+    if (!first.test(route.request().url())) await gate;
+    await route.continue();
+  });
+  await openGame(page, '', { stayHome: true });
+  const play = page.locator('#home-play');
+  await play.click();
+  await expect(play).toBeDisabled();
+  await expect(page.locator('#home-play-detail')).toContainText('ready');
+  await expect(page.locator('#home')).toBeVisible();
+  release();
+  await expect(page.locator('#hud')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#hud-level')).toContainText('1.');
 });
 
