@@ -1,4 +1,5 @@
 import { contactPoint, sat, type OBB } from './collision';
+import { pickHit, type Hit } from './crash';
 import type { Surfaces } from './floors';
 import { DEFAULT_FLOOR, type LayeredOBB } from './layout';
 import {
@@ -51,6 +52,8 @@ export class CarPhysics {
   private readonly gyration2: number;
   /** resolveCollisions call count, and the call each obstacle was last touched. */
   private calls = 0;
+  /** The hardest new contact of the last resolveCollisions call (where and what), or null. */
+  lastHit: Hit | null = null;
   private lastContact = new WeakMap<OBB, number>();
 
   constructor(readonly vehicle: VehicleDef = vehicleOf()) {
@@ -178,6 +181,10 @@ export class CarPhysics {
   resolveCollisions(obstacles: OBB[], surfaces?: Surfaces): number {
     let impact = 0;
     let yaw = 0;
+    this.lastHit = null;
+    // The overlap as integrated, before any push-out: contacts are located on this box.
+    const pre = { ...this.currentBox() };
+    const prePose = { x: this.x, z: this.z, heading: this.heading };
     const call = ++this.calls;
     const freshNow = new Map<OBB, boolean>();
     for (let iter = 0; iter < 4; iter++) {
@@ -210,7 +217,13 @@ export class CarPhysics {
         const vn = vpx * c.nx + vpz * c.nz;
 
         if (vn < 0) {
-          if (fresh) impact = Math.max(impact, -vn);
+          if (fresh) {
+            impact = Math.max(impact, -vn);
+            // Locate the hit on the pre-resolution overlap; earlier pushes may have moved the car already.
+            const pc = sat(pre, o, -fx * dir, -fz * dir);
+            const [hx, hz] = pc ? contactPoint(pre, o, pc) : [px, pz];
+            this.lastHit = pickHit(this.lastHit, { x: hx, z: hz, speed: -vn, obstacle: o, car: prePose });
+          }
           const s = -vn;
           // Hard new hits bounce; gentle or sustained contacts just stop.
           const ramp = Math.min(1, Math.max(0, (s - RESTITUTION_MIN) / (RESTITUTION_FULL - RESTITUTION_MIN)));

@@ -26,6 +26,7 @@ import {
   type Orbit,
   type ResetAnim,
 } from './orbit';
+import { crashFocus, easeCrash, stepCrashZoom } from './crash';
 import { vehicleOf, type VehicleDef } from './vehicles';
 
 export type { CamMode } from './views';
@@ -59,6 +60,9 @@ export class CameraRig {
   private offset: Orbit = orbitCentre();
   private resetAnim: ResetAnim | null = null;
   private orbitT = 0;
+  /** CARP-141: zoom in on a crash. `k` runs 0..1 (eased on use); `zoom` is the distance multiplier at k = 1. */
+  private crash: { x: number; z: number; zoom: number } | null = null;
+  private crashK = 0;
   private readonly ray = new THREE.Raycaster();
   private readonly origin = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
@@ -136,6 +140,18 @@ export class CameraRig {
     if (r.done) this.resetAnim = null;
   }
 
+  /** Smoothly move and zoom in to a crash point; the player can still orbit and zoom out from there. */
+  focusCrash(x: number, z: number, zoom: number): void {
+    this.crash = { x, z, zoom };
+    this.crashK = this.reduced() ? 1 : 0;
+  }
+
+  /** Back to the normal view (snap() does this too). */
+  clearCrash(): void {
+    this.crash = null;
+    this.crashK = 0;
+  }
+
   dragFree(dyaw: number, dpitch: number, ddist = 0): void {
     if (this.free) this.free = dragFreeLook(this.free, dyaw, dpitch, ddist);
   }
@@ -154,6 +170,18 @@ export class CameraRig {
       : applyOrbit(viewPose(this._mode, vt, this.reversing, this.vehicle), this.offset, this._mode, t);
     this.pos.set(p.px, p.py, p.pz);
     this.look.set(p.lx, p.ly, p.lz);
+    if (this.crash) {
+      // Slide the look point toward the car/contact midpoint and pull the eye in around it.
+      const e = easeCrash(this.crashK);
+      const [fx, fz] = crashFocus(t, this.crash);
+      const rx = this.pos.x - this.look.x;
+      const ry = this.pos.y - this.look.y;
+      const rz = this.pos.z - this.look.z;
+      this.look.x += (fx - this.look.x) * e;
+      this.look.z += (fz - this.look.z) * e;
+      const s = 1 + (this.crash.zoom - 1) * e;
+      this.pos.set(this.look.x + rx * s, this.look.y + ry * s, this.look.z + rz * s);
+    }
   }
 
   /**
@@ -196,6 +224,7 @@ export class CameraRig {
     this.offset = orbitCentre();
     this.resetAnim = null;
     this.blend = 1;
+    this.clearCrash();
     this.desired(t);
     this.clear(t, this.pos);
     this.cur.copy(this.pos);
@@ -210,6 +239,7 @@ export class CameraRig {
     this.reversing = reverseHold(this.reversing, t.v);
     this.blend = advanceBlend(this.blend, dt, this.reduced());
     this.stepOffset(dt);
+    if (this.crash) this.crashK = stepCrashZoom(this.crashK, dt);
     this.desired(t);
     this.clear(t, this.pos);
     if (isRigid(this._mode) && !this.free) this.cur.copy(this.pos);

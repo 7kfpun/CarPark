@@ -1598,3 +1598,26 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
     height: 130px;
   }
 }
+
+/* CARP-141: a failed level keeps the crash visible: the dialog sits compact at the bottom, the scene is not dimmed. */
+#modal.crash {
+  align-items: flex-end;
+  background: none;
+}
+
+#modal.crash .panel {
+  margin: 0;
+  max-height: 45%;
+  padding: 12px 16px;
+  border-radius: 16px;
+}
+
+#modal.crash h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+#modal.crash #modal-body {
+  margin: 0 0 8px;
+  font-size: 14px;
+}

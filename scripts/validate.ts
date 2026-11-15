@@ -165,6 +165,17 @@ import { backoffMs, loadingLabel, mapLimit, retry, withTimeout } from '../src/lo
 import { classifyTexel, normalFromHeight, paintControlPixels, surfacePixels, tileBoxUV } from '../src/materials';
 import { evaluateParking, parkChecklist } from '../src/parking';
 import { CarPhysics } from '../src/physics';
+import { CrashMarker } from '../src/crashMarker';
+import {
+  CRASH_ZOOM_MAX,
+  CRASH_ZOOM_MIN,
+  crashFocus,
+  crashZoom,
+  easeCrash,
+  pickHit,
+  stepCrashZoom,
+  viewShiftPx,
+} from '../src/crash';
 import { DEFAULT_VEHICLE, minTurnRadius, VEHICLES, vehicleOf, type VehicleDef } from '../src/vehicles';
 import { isTouch, nextStarTime, starsForTime } from '../src/rules';
 import { replaySolution, staticProblems } from '../src/solution';
@@ -2973,6 +2984,135 @@ check(crashDamage(1000) === HEALTH_MAX_HP, 'damage is capped at full HP');
     parseMissions(null, day).parks === 0 && parseWallet('x').money === 0 && parseWallet({ money: 250.9 }).money === 250,
     'bad storage parses to defaults',
   );
+}
+
+// CARP-141: crash view logic.
+{
+  const wall = { x: 0, z: 5, hw: 10, hl: 0.2, rot: 0 };
+  const cone = { x: 1, z: 5, hw: 0.2, hl: 0.2, rot: 0 };
+  const a = { x: 0, z: 1, speed: 2, obstacle: cone };
+  const b = { x: 0, z: 2, speed: 5, obstacle: wall };
+  check(pickHit(null, a) === a, 'first contact is kept');
+  check(pickHit(a, b) === b && pickHit(b, a) === b, 'the faster contact wins in either order');
+  check(pickHit(b, { ...a, speed: 5 }) === b, 'a tie keeps the earlier contact');
+  const [fx, fz] = crashFocus({ x: 0, z: 0 }, { x: 2, z: 4 });
+  check(fx === 1 && fz === 2, 'crash focus is the car/contact midpoint');
+  check(
+    crashZoom(2.3, wall) >= CRASH_ZOOM_MIN && crashZoom(2.3, wall) <= CRASH_ZOOM_MAX,
+    'zoom stays in range for a long wall',
+  );
+  check(
+    crashZoom(2.3, cone) < crashZoom(2.3, wall) || crashZoom(2.3, cone) === CRASH_ZOOM_MIN,
+    'a small obstacle zooms in at least as far as a wall',
+  );
+  check(crashZoom(2.3, cone) < 1, 'the crash view is closer than the normal view');
+  check(stepCrashZoom(0, 10) === 1 && stepCrashZoom(1, -10) === 0, 'zoom progress is clamped');
+  check(easeCrash(0) === 0 && easeCrash(1) === 1 && easeCrash(0.5) === 0.5, 'ease endpoints');
+  check(
+    viewShiftPx(200, 800) === 100 && viewShiftPx(900, 800) === 240 && viewShiftPx(-5, 800) === 0,
+    'view shift follows the dialog height, capped',
+  );
+  // The recorded hit lies on the real overlap of the pre-resolution car box and the obstacle it names.
+  {
+    const wall: OBB = { x: 0, z: 10, hw: 6, hl: 0.15, rot: 0 };
+    const parked: OBB = { x: 0, z: 10, hw: 0.95, hl: 2.1, rot: 0 };
+    const cone: OBB = { x: 0, z: 10, hw: 0.2, hl: 0.2, rot: 0 };
+    const inside = (px: number, pz: number, o: OBB, m: number): boolean => {
+      const dx = px - o.x;
+      const dz = pz - o.z;
+      const lx = dx * Math.cos(o.rot) - dz * Math.sin(o.rot);
+      const lz = dx * Math.sin(o.rot) + dz * Math.cos(o.rot);
+      return Math.abs(lx) <= o.hw + m && Math.abs(lz) <= o.hl + m;
+    };
+    // The car is driven along its heading (backwards when reversing) from 12 m away until its box first touches.
+    const cases: [string, OBB, number, number, number, number][] = [];
+    for (const [on, o] of [
+      ['wall', wall],
+      ['parked car', parked],
+      ['cone', cone],
+    ] as const) {
+      const run = (name: string, lx: number, heading: number, dir: 1 | -1): void => {
+        const car = new CarPhysics();
+        const sx = Math.sin(heading) * dir;
+        const sz = Math.cos(heading) * dir;
+        let x = lx - sx * 12;
+        let z = o.z - sz * 12;
+        car.reset(x, z, heading);
+        while (sat(car.obb, o, 0, 0) === null && Math.abs(z - o.z) < 20) {
+          x += sx * 0.02;
+          z += sz * 0.02;
+          car.reset(x, z, heading);
+        }
+        cases.push([`${on} ${name}`, o, x, z, heading, dir * 4]);
+      };
+      run('head-on', 0, 0, 1);
+      run('angled', 0.3, -0.5, 1);
+      run('corner', o.hw, 0.25, 1);
+      run('side-swipe', o.hw + 0.5, -0.1, 1);
+      run('reversing', 0, 0, -1);
+      run('reversing at an angle', 0.4, 0.3, -1);
+    }
+    for (const [name, o, cx, cz, heading, v] of cases) {
+      const car = new CarPhysics();
+      car.reset(cx, cz, heading);
+      car.v = v;
+      const pre = car.obb;
+      const overlap = sat(pre, o, 0, 0) !== null;
+      car.resolveCollisions([o]);
+      const hit = car.lastHit;
+      check(overlap && hit !== null && hit.obstacle === o, `${name}: the reported obstacle is the one overlapped`);
+      if (!hit) continue;
+      check(
+        inside(hit.x, hit.z, pre, 0.06) && inside(hit.x, hit.z, o, 0.06),
+        `${name}: the hit point lies on the overlap of the two boxes`,
+      );
+      check(
+        hit.car?.x === cx && hit.car?.z === cz && hit.car?.heading === heading,
+        `${name}: the pre-resolution pose is kept`,
+      );
+    }
+    // Several nearby obstacles: the one with the largest fresh impact is reported, located on the pre-resolution box.
+    {
+      const near: OBB = { x: 2.2, z: 7.3, hw: 0.2, hl: 0.2, rot: 0 }; // a cone brushed by the right side
+      const car = new CarPhysics();
+      car.reset(0, 8, 0);
+      car.v = 5;
+      const pre = car.obb;
+      const impact = car.resolveCollisions([near, wall]);
+      const hit = car.lastHit;
+      check(
+        hit !== null && hit.obstacle === wall && Math.abs(hit.speed - impact) < 1e-9,
+        'the hit names the obstacle with the largest fresh impact',
+      );
+      check(
+        hit !== null && inside(hit.x, hit.z, pre, 0.06) && inside(hit.x, hit.z, wall, 0.06),
+        'with several obstacles the point still lies on the pre-resolution overlap',
+      );
+    }
+    const car0 = new CarPhysics();
+    car0.reset(0, -20, 0);
+    car0.v = 4;
+    car0.resolveCollisions([wall]);
+    check(car0.lastHit === null, 'no contact leaves no hit');
+  }
+  // The marker frees everything it built.
+  let freed = 0;
+  const marker = new CrashMarker({ x: 0, z: 1, speed: 3, obstacle: { x: 0, z: 10, hw: 6, hl: 0.15, rot: 0 } }, 0);
+  const scene = new THREE.Scene();
+  scene.add(marker.group);
+  const geos: THREE.BufferGeometry[] = [];
+  const mats: THREE.Material[] = [];
+  marker.group.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.geometry) return;
+    geos.push(m.geometry);
+    mats.push(...(Array.isArray(m.material) ? m.material : [m.material]));
+  });
+  for (const x of [...new Set<THREE.BufferGeometry | THREE.Material>([...geos, ...mats])])
+    x.addEventListener('dispose', () => freed++);
+  marker.dispose();
+  check(scene.children.length === 0, 'the marker leaves the scene');
+  check(freed === new Set([...geos, ...mats]).size && freed > 0, 'the marker disposes every geometry and material');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll checks passed');

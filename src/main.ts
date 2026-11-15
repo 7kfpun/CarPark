@@ -9,6 +9,8 @@ import { Cockpit } from './cockpit';
 import { createVehicleModel, PlayerCar } from './car';
 import { ALL_MODELS, FIRST_MODELS, LATER_MODELS, keepLoadingCarModels, loadCarModels, skyUrl } from './carModels';
 import { sensorInterval, sensorReading, type SensorReading } from './collision';
+import { CrashMarker } from './crashMarker';
+import { crashZoom, viewShiftPx, type Hit } from './crash';
 import { isTouch, nextStarTime, starsForTime } from './rules';
 import { holdComplete, PARK_HOLD, STEP, TOUCH_MIN_SPEED } from './config';
 import { bestLabel, Hud, starRequirement, type ModalButton } from './hud';
@@ -119,6 +121,45 @@ function resize(): void {
   camera.aspect = w / h;
   camera.fov = (w < h ? 70 : 55) + fovBoost(rig.mode);
   camera.updateProjectionMatrix();
+  applyCrashShift();
+}
+
+// --- Crash view (CARP-141) ----------------------------------------------------
+// A failed level zooms in on the contact, marks it and the obstacle, and moves the dialog to the bottom.
+let crashHit: Hit | null = null;
+let crashMarker: CrashMarker | null = null;
+const modalEl = document.getElementById('modal')!;
+/** Slide the picture up so the crash sits in the free area above the bottom dialog. */
+function applyCrashShift(): void {
+  const panel = modalEl.querySelector('.panel');
+  const crashShown =
+    crashMarker !== null && !modalEl.classList.contains('hidden') && modalEl.classList.contains('crash');
+  const w = innerWidth;
+  const h = innerHeight;
+  const shift = crashShown && panel ? viewShiftPx(panel.getBoundingClientRect().height, h) : 0;
+  if (shift > 0) camera.setViewOffset(w, h, 0, shift, w, h);
+  else if (camera.view?.enabled) camera.clearViewOffset();
+}
+/** Drop the marker, the zoom, the view shift and the bottom dialog (Try again, Menu, a new level). */
+function clearCrash(): void {
+  crashHit = null;
+  crashMarker?.dispose();
+  crashMarker = null;
+  rig.clearCrash();
+  modalEl.classList.remove('crash');
+  applyCrashShift();
+}
+/** After the failure dialog is up: marker, zoom in on the contact, dialog at the bottom. */
+function enterCrashView(): void {
+  if (!crashHit) return;
+  const p = player.physics;
+  if (!crashMarker) {
+    crashMarker = new CrashMarker(crashHit, p.y);
+    scene.add(crashMarker.group);
+  }
+  rig.focusCrash(crashHit.x, crashHit.z, crashZoom(player.vehicle.length / 2, crashHit.obstacle));
+  modalEl.classList.add('crash');
+  applyCrashShift();
 }
 addEventListener('resize', resize);
 resize();
@@ -299,6 +340,8 @@ function startReplay(show: () => void): void {
   if (!lastRun.length || state !== 'done') return;
   hud.hideModal();
   rig.setFreeLook(false);
+  rig.clearCrash(); // the replay drives the car back to the contact; the marker stays
+  applyCrashShift();
   replay = { frames: lastRun, t: 0, show };
   replayBar.classList.remove('hidden');
   document.body.classList.add('replaying'); // hides the touch wheel and pedals that would cover the bar
@@ -408,6 +451,7 @@ function startLevel(i: number): boolean {
   const previous = player.model.root;
   if (player.use(vehicle)) swapPlayerModel(previous);
   clearReplay();
+  clearCrash();
   hideGhost();
   const stored = ghosts[LEVEL_IDS[i]];
   ghostFrames = stored ? decodeFrames(stored.data) : null;
@@ -524,6 +568,7 @@ function startFromMenu(i: number): void {
 function enterMenuState(): void {
   state = 'menu';
   clearReplay();
+  clearCrash();
   hideGhost();
   rig.setFreeLook(false);
   player.model.body.visible = true;
@@ -651,6 +696,11 @@ function finish(win: boolean, reason: string): void {
         ...replayButton,
         { label: 'Menu', onClick: showMenu },
       ]);
+    const showFail = show;
+    show = () => {
+      showFail();
+      enterCrashView();
+    };
   }
   show();
   applyUpdate();
@@ -883,6 +933,7 @@ function step(dt: number): void {
     sfx.crash();
     hud.flashHit();
     const damage = crashDamage(impact);
+    crashHit = car.lastHit;
     const left = applyDamage(health, vehicleFor(def).id, damage);
     if (mayPersist(ADMIN)) saveHealth(health);
     return finish(false, `You hit something: -${damage} HP, ${left} left. Ease off near cars, walls and cones.`);
@@ -1133,6 +1184,7 @@ function frameBody(now: number): void {
     syncAdminBar();
   }
   hud.tick(dt);
+  crashMarker?.tick(now, reducedMotion.matches);
 
   if (replay) {
     // Drive the car along the recording; the speed (for wheel spin and the camera) comes from the pose change.
