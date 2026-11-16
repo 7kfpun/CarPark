@@ -1,10 +1,12 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { FIRST_MODELS } from '../src/carModels';
 import { LEVELS } from '../src/levels';
 import { LOCATIONS, worldLevels } from '../src/worlds';
 import { collectErrors, driveSolution, openGame, run } from './helpers';
 
 const PROGRESS_KEY = 'car-parking-3d:progress';
 const FIRST = LEVELS[0].id;
+const FIRST_MODEL = FIRST_MODELS[0];
 
 const savedProgress = (page: Page) => page.evaluate((k) => localStorage.getItem(k), PROGRESS_KEY);
 const timer = (page: Page) => page.locator('#hud-timer').innerText();
@@ -32,6 +34,46 @@ test('Play on home starts the first level on a fresh save', async ({ page }) => 
   await page.locator('#home-play').click();
   await expect(page.locator('#hud')).toBeVisible();
   await expect(page.locator('#hud-level')).toContainText('1.');
+});
+
+test('Play while the car models are still downloading shows a loading state, then starts', async ({ page }) => {
+  // Hold every model but the first back until released (the first one gates the loading screen).
+  let release: () => void = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  const first = new RegExp(`/models/cars/${FIRST_MODEL}\\.glb`);
+  await page.route(/\/models\/cars\/[^/]+\.glb/, async (route) => {
+    if (!first.test(route.request().url())) await gate;
+    await route.continue();
+  });
+  await openGame(page, '', { stayHome: true });
+  const play = page.locator('#home-play');
+  await play.click();
+  await expect(play).toBeDisabled();
+  await expect(page.locator('#home-play-detail')).toContainText('ready');
+  await expect(page.locator('#home')).toBeVisible();
+  release();
+  await expect(page.locator('#hud')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#hud-level')).toContainText('1.');
+});
+
+test('home: Hourly coins looks disabled while waiting yet answers a tap, and no home control is dead', async ({
+  page,
+}) => {
+  await openGame(page, '', { stayHome: true });
+  const claim = page.locator('#earn-claim');
+  await expect(claim).toHaveAttribute('aria-disabled', 'true');
+  expect(await claim.evaluate((el) => getComputedStyle(el).opacity)).toBe('0.5');
+  await expect(page.locator('#earn-note')).toContainText('Next coins in');
+  await claim.dispatchEvent('click'); // the fake clock is paused, so no scroll-into-view or stability wait
+  await expect(page.locator('#earn-note')).toHaveClass(/nudge/);
+  await expect(page.locator('#earn-note')).toContainText('Next coins in');
+  // Any visible home control that is truly disabled must look it; the others must be enabled.
+  const dead = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLButtonElement>('#home button')]
+      .filter((b) => b.offsetParent && b.disabled && getComputedStyle(b).opacity === '1')
+      .map((b) => b.id),
+  );
+  expect(dead).toEqual([]);
 });
 
 test('menu loads with every level and no console errors', async ({ page }) => {

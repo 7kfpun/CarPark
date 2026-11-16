@@ -1621,3 +1621,29 @@ body:has(#admin-bar:not(.hidden)) #hud-hint {
   margin: 0 0 8px;
   font-size: 14px;
 }
+
+.home-play:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+/* Hourly coins while nothing is ready: looks off, but still answers a tap (it flashes the wait). */
+#earn-claim[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#earn-note.nudge {
+  animation: earn-nudge 0.9s ease-out;
+}
+
+@keyframes earn-nudge {
+  0%,
+  60% {
+    color: var(--accent);
+    transform: scale(1.08);
+  }
+  100% {
+    transform: none;
+  }
+}
